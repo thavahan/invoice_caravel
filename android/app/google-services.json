@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "118090841835",
+    "project_id": "invoice-caravel",
+    "storage_bucket": "invoice-caravel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118090841835:android:49053d9203dae8503a48ae",
+        "android_client_info": {
+          "package_name": "com.caravel.invoice"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBk5_TYyhRa-kygIL-JNeeraMb-1rMHzeM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118090841835:android:8f994b91e8b6ad7d3a48ae",
+        "android_client_info": {
+          "package_name": "com.techsultan.invoicegenerator"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBk5_TYyhRa-kygIL-JNeeraMb-1rMHzeM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
