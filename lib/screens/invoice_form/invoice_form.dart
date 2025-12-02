@@ -106,6 +106,10 @@ class _InvoiceFormState extends State<InvoiceForm>
   final TextEditingController _approxQuantityController =
       TextEditingController();
 
+  // Scroll controller for the Items & Pricing step so we can programmatically scroll
+  // to top when showing the product form dialog.
+  final ScrollController _itemsScrollController = ScrollController();
+
   // Auto-complete suggestions
   List<String> productTypeSuggestions = [
     'Electronics',
@@ -225,6 +229,48 @@ class _InvoiceFormState extends State<InvoiceForm>
     _consigneeController.addListener(_updateSelectedIdsFromNames);
   }
 
+  @override
+  void dispose() {
+    // Dispose controllers to avoid memory leaks
+    try {
+      _itemsScrollController.dispose();
+    } catch (_) {}
+    _bonus_controller.dispose();
+    _typeController.dispose();
+    _invoiceNumberController.dispose();
+    _invoiceTitleController.dispose();
+    _shipperController.dispose();
+    _consigneeController.dispose();
+    _awbController.dispose();
+    _flightNoController.dispose();
+    _dischargeAirportController.dispose();
+    _etaController.dispose();
+    _totalAmountController.dispose();
+    _originController.dispose();
+    _destinationController.dispose();
+    _shipperAddressController.dispose();
+    _consigneeAddressController.dispose();
+    _clientRefController.dispose();
+    _invoiceDateController.dispose();
+    _dateOfIssueController.dispose();
+    _placeOfReceiptController.dispose();
+    _sgstNoController.dispose();
+    _iecCodeController.dispose();
+    _boxNumberController.dispose();
+    _boxDescriptionController.dispose();
+    _boxLengthController.dispose();
+    _boxWidthController.dispose();
+    _boxHeightController.dispose();
+    _productTypeController.dispose();
+    _itemWeightController.dispose();
+    _itemRateController.dispose();
+    _flowerTypeController.dispose();
+    _approxQuantityController.dispose();
+    _pageController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
   // Initialize new form with auto-generated invoice number and date
   Future<void> _initializeNewForm() async {
     try {
@@ -337,52 +383,6 @@ class _InvoiceFormState extends State<InvoiceForm>
       debugPrint('❌ Error loading autocomplete suggestions: $e');
       // Continue with empty suggestions if loading fails
     }
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _pageController.dispose();
-
-    // Dispose all controllers5
-    _bonus_controller.dispose();
-    _typeController.dispose();
-    _invoiceNumberController.dispose();
-    _invoiceTitleController.dispose();
-    _shipperController.dispose();
-    _consigneeController.dispose();
-    _awbController.dispose();
-    _flightNoController.dispose();
-    _dischargeAirportController.dispose();
-    _etaController.dispose();
-    _totalAmountController.dispose();
-    _originController.dispose();
-    _destinationController.dispose();
-
-    // Dispose new field controllers
-    _shipperAddressController.dispose();
-    _consigneeAddressController.dispose();
-    _clientRefController.dispose();
-    _invoiceDateController.dispose();
-    _dateOfIssueController.dispose();
-    _placeOfReceiptController.dispose();
-    _sgstNoController.dispose();
-    _iecCodeController.dispose();
-    // _freightTermsController.dispose(); // No longer used
-
-    // Dispose box and item controllers
-    _boxNumberController.dispose();
-    _boxDescriptionController.dispose();
-    _boxLengthController.dispose();
-    _boxWidthController.dispose();
-    _boxHeightController.dispose();
-    _productTypeController.dispose();
-    _itemWeightController.dispose();
-    _itemRateController.dispose();
-    _flowerTypeController.dispose();
-    _approxQuantityController.dispose();
-
-    super.dispose();
   }
 
   // Load master data for dropdowns
@@ -893,6 +893,7 @@ class _InvoiceFormState extends State<InvoiceForm>
               label: 'Invoice Number',
               hint: 'Auto-generated (KS format)',
               icon: Icons.receipt,
+              textCapitalization: TextCapitalization.characters,
               validator: (value) =>
                   value?.isEmpty == true ? 'Invoice number is required' : null,
               isRequired: true,
@@ -972,6 +973,7 @@ class _InvoiceFormState extends State<InvoiceForm>
               hint: 'Where is the shipment starting from?',
               icon: Icons.flight_takeoff,
               suggestions: originSuggestions,
+              textCapitalization: TextCapitalization.words,
             ),
 
             _buildAutocompleteTextField(
@@ -980,6 +982,7 @@ class _InvoiceFormState extends State<InvoiceForm>
               hint: 'Where is the shipment going?',
               icon: Icons.flight_land,
               suggestions: destinationSuggestions,
+              textCapitalization: TextCapitalization.words,
             ),
 
             // Additional Shipment Details Section
@@ -1002,12 +1005,14 @@ class _InvoiceFormState extends State<InvoiceForm>
                     label: 'Shipper Address',
                     hint: 'Complete address of the shipper',
                     icon: Icons.location_on,
+                    textCapitalization: TextCapitalization.words,
                   ),
                   _buildEnhancedTextField(
                     controller: _consigneeAddressController,
                     label: 'Consignee Address',
                     hint: 'Complete address of the consignee',
                     icon: Icons.location_on,
+                    textCapitalization: TextCapitalization.words,
                   ),
                   _buildAutocompleteTextField(
                     controller: _clientRefController,
@@ -1015,6 +1020,7 @@ class _InvoiceFormState extends State<InvoiceForm>
                     hint: 'Client reference number or code',
                     icon: Icons.tag,
                     suggestions: clientRefSuggestions,
+                    textCapitalization: TextCapitalization.characters,
                   ),
                   _buildDateOnlyField(
                     controller: _invoiceDateController,
@@ -1034,6 +1040,7 @@ class _InvoiceFormState extends State<InvoiceForm>
                     hint: 'Location where goods were received',
                     icon: Icons.place,
                     suggestions: placeOfReceiptSuggestions,
+                    textCapitalization: TextCapitalization.words,
                   ),
                   _buildAutocompleteTextField(
                     controller: _sgstNoController,
@@ -1041,6 +1048,7 @@ class _InvoiceFormState extends State<InvoiceForm>
                     hint: 'Goods and Services Tax Number',
                     icon: Icons.confirmation_number,
                     suggestions: gstNumberSuggestions,
+                    textCapitalization: TextCapitalization.characters,
                   ),
                   _buildAutocompleteTextField(
                     controller: _iecCodeController,
@@ -1048,6 +1056,7 @@ class _InvoiceFormState extends State<InvoiceForm>
                     hint: 'Import Export Code',
                     icon: Icons.import_export,
                     suggestions: iecCodeSuggestions,
+                    textCapitalization: TextCapitalization.characters,
                   ),
                   // Freight Terms Dropdown
                   Container(
@@ -1178,6 +1187,7 @@ class _InvoiceFormState extends State<InvoiceForm>
               validator: (value) =>
                   value?.isEmpty == true ? 'AWB is required' : null,
               isRequired: true,
+              textCapitalization: TextCapitalization.characters,
             ),
 
             _buildAutocompleteTextField(
@@ -1189,6 +1199,7 @@ class _InvoiceFormState extends State<InvoiceForm>
               validator: (value) =>
                   value?.isEmpty == true ? 'Flight number is required' : null,
               isRequired: true,
+              textCapitalization: TextCapitalization.characters,
             ),
 
             _buildAutocompleteTextField(
@@ -1200,6 +1211,7 @@ class _InvoiceFormState extends State<InvoiceForm>
               validator: (value) =>
                   value?.isEmpty == true ? 'Airport is required' : null,
               isRequired: true,
+              textCapitalization: TextCapitalization.characters,
             ),
 
             _buildDateOnlyField(
@@ -1219,6 +1231,7 @@ class _InvoiceFormState extends State<InvoiceForm>
   // Step 3: Boxes & Items Management
   Widget _buildItemsAndPricingStep(InvoiceProvider invoiceProvider) {
     return SingleChildScrollView(
+      controller: _itemsScrollController,
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1443,6 +1456,8 @@ class _InvoiceFormState extends State<InvoiceForm>
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
+                    // Dismiss keyboard before navigation
+                    FocusScope.of(context).unfocus();
                     if (currentStep > 0) {
                       _pageController.previousPage(
                         duration: const Duration(milliseconds: 300),
@@ -1469,6 +1484,8 @@ class _InvoiceFormState extends State<InvoiceForm>
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () async {
+                  // Dismiss keyboard before navigation
+                  FocusScope.of(context).unfocus();
                   if (currentStep < 2) {
                     // Go to next step
                     _pageController.nextPage(
@@ -1508,6 +1525,7 @@ class _InvoiceFormState extends State<InvoiceForm>
     String? Function(String?)? validator,
     bool isRequired = false,
     Function(String)? onChanged,
+    TextCapitalization textCapitalization = TextCapitalization.words,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1517,6 +1535,7 @@ class _InvoiceFormState extends State<InvoiceForm>
         inputFormatters: inputFormatters,
         validator: validator,
         onChanged: onChanged,
+        textCapitalization: textCapitalization,
         decoration: InputDecoration(
           labelText: isRequired ? '$label *' : label,
           hintText: hint,
@@ -1623,6 +1642,7 @@ class _InvoiceFormState extends State<InvoiceForm>
     String? hint,
     String? Function(String?)? validator,
     bool isRequired = false,
+    TextCapitalization textCapitalization = TextCapitalization.words,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1646,6 +1666,7 @@ class _InvoiceFormState extends State<InvoiceForm>
             controller: fieldController,
             focusNode: focusNode,
             validator: validator,
+            textCapitalization: textCapitalization,
             decoration: InputDecoration(
               labelText: isRequired ? '$label *' : label,
               hintText: hint,
@@ -1861,16 +1882,22 @@ class _InvoiceFormState extends State<InvoiceForm>
     debugPrint('📦 Boxes data in draft: ${actualDraftData['boxes']}');
 
     // Store the original invoice number for updates (before user can modify it)
-    originalInvoiceNumber = actualDraftData['invoiceNumber'] ??
-        DateTime.now().millisecondsSinceEpoch.toString();
+    // Normalize to uppercase for consistency
+    originalInvoiceNumber = (actualDraftData['invoiceNumber'] ??
+            DateTime.now().millisecondsSinceEpoch.toString())
+        .toString()
+        .toUpperCase();
     debugPrint('🔄 Stored original invoice number: $originalInvoiceNumber');
 
     // Initialize text controllers
-    _invoiceNumberController.text = actualDraftData['invoiceNumber'] ?? '';
+    // Normalize invoice number and AWB to uppercase
+    _invoiceNumberController.text =
+        (actualDraftData['invoiceNumber'] ?? '').toString().toUpperCase();
     _invoiceTitleController.text = actualDraftData['invoiceTitle'] ?? '';
     _shipperController.text = actualDraftData['shipper'] ?? '';
     _consigneeController.text = actualDraftData['consignee'] ?? '';
-    _awbController.text = actualDraftData['awb'] ?? '';
+    _awbController.text =
+        (actualDraftData['awb'] ?? '').toString().toUpperCase();
     _flightNoController.text = actualDraftData['flightNo'] ?? '';
     _dischargeAirportController.text =
         actualDraftData['dischargeAirport'] ?? '';
@@ -1921,8 +1948,11 @@ class _InvoiceFormState extends State<InvoiceForm>
               final products = (boxData['products'] as List<dynamic>?)
                       ?.map((productData) {
                         if (productData is Map<String, dynamic>) {
+                          // Generate ID if not present to avoid Firebase errors
+                          final productId = productData['id'] ??
+                              DateTime.now().millisecondsSinceEpoch.toString();
                           return ShipmentProduct(
-                            id: productData['id'] ?? '',
+                            id: productId,
                             boxId: '', // Will be set when box is created
                             type: productData['type'] ?? '',
                             description: productData['description'] ?? '',
@@ -2505,6 +2535,20 @@ class _InvoiceFormState extends State<InvoiceForm>
       baseApproxQuantity = null;
       selectedProductTypeId = null;
     });
+
+    // After the frame rebuilds with the product form at the top,
+    // scroll the Items & Pricing step to the top so the dialog is visible.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        if (_itemsScrollController.hasClients) {
+          _itemsScrollController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      } catch (_) {}
+    });
   }
 
   Widget _buildAnimatedShipmentSummary() {
@@ -2608,14 +2652,19 @@ class _InvoiceFormState extends State<InvoiceForm>
 
     try {
       // Create Shipment object
+      // Normalize invoice number and AWB to uppercase for consistency
+      final normalizedInvoiceNumber =
+          _invoiceNumberController.text.toUpperCase().trim();
+      final normalizedAwb = _awbController.text.toUpperCase().trim();
+
       final shipment = Shipment(
-        invoiceNumber: _invoiceNumberController.text,
+        invoiceNumber: normalizedInvoiceNumber,
         shipper: _shipperController.text,
         shipperAddress: _shipperAddressController.text,
         consignee: _consigneeController.text,
         consigneeAddress: _consigneeAddressController.text,
         clientRef: _clientRefController.text,
-        awb: _awbController.text,
+        awb: normalizedAwb,
         flightNo: _flightNoController.text,
         dischargeAirport: _dischargeAirportController.text,
         origin: _originController.text,
@@ -2647,7 +2696,9 @@ class _InvoiceFormState extends State<InvoiceForm>
                 'height': box.height,
                 'products': box.products
                     .map((product) => {
-                          'id': product.id,
+                          'id': product.id.isEmpty
+                              ? DateTime.now().millisecondsSinceEpoch.toString()
+                              : product.id,
                           'type': product.type,
                           'description': product.description,
                           'flowerType': product.flowerType,

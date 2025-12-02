@@ -77,6 +77,7 @@ class _ManageFlowerTypesScreenState extends State<ManageFlowerTypesScreen> {
               labelText: 'Flower Type *',
               border: OutlineInputBorder(),
             ),
+            textCapitalization: TextCapitalization.words,
             validator: (value) =>
                 value?.trim().isEmpty == true ? 'Name is required' : null,
           ),

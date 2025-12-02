@@ -819,26 +819,36 @@ class DataService {
   /// Delete all boxes and products for a shipment (used during updates)
   Future<void> deleteAllBoxesForShipment(String shipmentId) async {
     _logger.i('Deleting all boxes for shipment: $shipmentId');
+    print(
+        '🗑️ DEBUG: DataService.deleteAllBoxesForShipment - shipmentId: $shipmentId');
 
     try {
       // Delete from Firebase if available
       if (await _isFirebaseAvailable()) {
+        print(
+            '🗑️ DEBUG: Deleting boxes from Firebase for shipment: $shipmentId');
         await _firebaseService.deleteAllBoxesForShipment(shipmentId);
         _logger.i('Deleted boxes from Firebase for shipment: $shipmentId');
+        print('✅ DEBUG: Deleted boxes from Firebase successfully');
       }
     } catch (e) {
       _logger.w(
           'Failed to delete boxes from Firebase for shipment $shipmentId', e);
+      print('⚠️ DEBUG: Failed to delete boxes from Firebase: $e');
     }
 
     try {
       // Always delete from local database
+      print(
+          '🗑️ DEBUG: Deleting boxes from local DB for shipment: $shipmentId');
       await _localService.deleteAllBoxesForShipment(shipmentId);
       _logger.i('Deleted boxes from local database for shipment: $shipmentId');
+      print('✅ DEBUG: Deleted boxes from local DB successfully');
     } catch (e) {
       _logger.e(
           'Failed to delete boxes from local database for shipment $shipmentId',
           e);
+      print('❌ DEBUG: Failed to delete boxes from local DB: $e');
       throw Exception('Failed to delete boxes from local database: $e');
     }
   }
@@ -901,12 +911,19 @@ class DataService {
   ) async {
     final service = await _getActiveService();
 
+    print(
+        '📦 DEBUG: DataService.autoCreateBoxesAndProducts - shipmentId: $shipmentId, boxCount: ${boxesData.length}');
+
     // Always save to local database first (primary storage)
+    print('💾 DEBUG: Saving ${boxesData.length} boxes to LOCAL DB...');
     for (final boxData in boxesData) {
       final boxId = await _localService.saveBox(shipmentId, boxData);
+      print('✅ DEBUG: Saved box $boxId to local DB');
 
       if (boxData['products'] != null && boxData['products'] is List) {
         final products = boxData['products'] as List<dynamic>;
+        print(
+            '💾 DEBUG: Saving ${products.length} products for box $boxId to local DB');
         for (final productData in products) {
           if (productData is Map<String, dynamic>) {
             // Add box_id to productData for proper linking
@@ -917,18 +934,22 @@ class DataService {
             await _localService.saveProduct(boxId, enhancedProductData);
           }
         }
+        print('✅ DEBUG: Saved all products for box $boxId to local DB');
       }
     }
 
     // Then save to Firebase (secondary/cloud backup) if available
     if (service == _firebaseService) {
       try {
+        print('🔥 DEBUG: Saving ${boxesData.length} boxes to FIREBASE...');
         await _firebaseService.autoCreateBoxesAndProducts(
             shipmentId, boxesData);
+        print('✅ DEBUG: Saved all boxes to Firebase successfully');
       } catch (e) {
         _logger.w(
             'Failed to save boxes/products to Firebase (continuing with local)',
             e);
+        print('⚠️ DEBUG: Failed to save to Firebase: $e');
         // Don't throw error - local save succeeded, Firebase is just backup
       }
     }

@@ -399,8 +399,8 @@ class LocalDatabaseService {
         final boxes = draftData['boxes'] as List<dynamic>;
         for (final boxData in boxes) {
           if (boxData is Map<String, dynamic>) {
-            // Save box
-            final boxId = await saveBox(shipment.awb, boxData);
+            // Save box using the shipment invoice number (DB links boxes to invoice_number)
+            final boxId = await saveBox(shipment.invoiceNumber, boxData);
 
             // Save products for this box
             if (boxData['products'] != null && boxData['products'] is List) {

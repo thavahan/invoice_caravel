@@ -48,6 +48,7 @@ class _ManageProductsState extends State<ManageProducts>
                 TextFormField(
                   controller: flowerTypeIdController,
                   decoration: InputDecoration(labelText: 'Flower Type ID'),
+                  textCapitalization: TextCapitalization.characters,
                   validator: (value) =>
                       value?.isEmpty == true ? 'Required' : null,
                 ),
@@ -61,6 +62,7 @@ class _ManageProductsState extends State<ManageProducts>
                 TextFormField(
                   controller: formController,
                   decoration: InputDecoration(labelText: 'Form'),
+                  textCapitalization: TextCapitalization.words,
                   validator: (value) =>
                       value?.isEmpty == true ? 'Required' : null,
                 ),
@@ -74,6 +76,7 @@ class _ManageProductsState extends State<ManageProducts>
                 TextFormField(
                   controller: notesController,
                   decoration: InputDecoration(labelText: 'Notes'),
+                  textCapitalization: TextCapitalization.sentences,
                   maxLines: 2,
                 ),
               ],
@@ -133,6 +136,7 @@ class _ManageProductsState extends State<ManageProducts>
           child: TextFormField(
             controller: flowerNameController,
             decoration: InputDecoration(labelText: 'Flower Name'),
+            textCapitalization: TextCapitalization.words,
             validator: (value) => value?.isEmpty == true ? 'Required' : null,
           ),
         ),

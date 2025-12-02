@@ -314,18 +314,20 @@ class DatabaseService {
         throw Exception('User not authenticated. Cannot save shipment.');
       }
 
-      // Validate required fields
-      final awb = shipmentData['awb']?.toString().trim();
-      if (awb == null || awb.isEmpty) {
+      // Validate and NORMALIZE AWB to UPPERCASE
+      var awb = shipmentData['awb']?.toString().trim() ?? '';
+      if (awb.isEmpty) {
         throw Exception('AWB is required and cannot be empty');
       }
+      awb = awb.toUpperCase(); // Convert to uppercase
 
-      // Generate invoice number if not provided or empty
+      // Generate invoice number if not provided or empty, then NORMALIZE to UPPERCASE
       final invoiceNumberValue = shipmentData['invoice_number'];
-      final invoiceNumber = (invoiceNumberValue == null ||
+      var invoiceNumber = (invoiceNumberValue == null ||
               invoiceNumberValue.toString().trim().isEmpty)
           ? _generateInvoiceNumber()
           : invoiceNumberValue.toString().trim();
+      invoiceNumber = invoiceNumber.toUpperCase(); // Convert to uppercase
 
       final data = {
         ...shipmentData,
@@ -336,8 +338,33 @@ class DatabaseService {
         'updated_at': now,
       };
 
+      // Normalize common camelCase keys to snake_case DB columns so callers may pass either form
+      // (e.g., callers may pass 'flightNo' or 'flight_no')
+      final Map<String, String> normalizeMap = {
+        'invoiceTitle': 'invoice_title',
+        'flightNo': 'flight_no',
+        'dischargeAirport': 'discharge_airport',
+        'invoiceDate': 'invoice_date',
+        'dateOfIssue': 'date_of_issue',
+        'shipperAddress': 'shipper_address',
+        'consigneeAddress': 'consignee_address',
+        'totalAmount': 'total_amount',
+        'placeOfReceipt': 'place_of_receipt',
+      };
+
+      for (final entry in normalizeMap.entries) {
+        final camel = entry.key;
+        final snake = entry.value;
+        if (data.containsKey(camel) && !data.containsKey(snake)) {
+          data[snake] = data[camel];
+        }
+      }
+
       // Remove id from data since invoice_number is now the primary key
       data.remove('id');
+
+      print(
+          '💾 DEBUG: DatabaseService.saveShipment - Saving with invoiceNumber: $invoiceNumber (uppercase), awb: $awb (uppercase)');
 
       await db.insert(
         'shipments',
@@ -443,23 +470,68 @@ class DatabaseService {
       final data = <String, dynamic>{};
       updates.forEach((key, value) {
         final dbColumn = fieldMapping[key] ?? key;
-        data[dbColumn] = value;
+        // UPPERCASE normalize invoice_number and awb
+        if (dbColumn == 'invoice_number' || dbColumn == 'awb') {
+          data[dbColumn] = value?.toString().toUpperCase().trim() ?? value;
+        } else {
+          data[dbColumn] = value;
+        }
       });
+
+      // Also normalize keys that might come in snake_case but need to be preserved
+      // (handles cases where both camelCase and snake_case variants exist)
+      final normalizeMap = {
+        'invoiceTitle': 'invoice_title',
+        'flightNo': 'flight_no',
+        'dischargeAirport': 'discharge_airport',
+        'invoiceDate': 'invoice_date',
+        'dateOfIssue': 'date_of_issue',
+        'shipperAddress': 'shipper_address',
+        'consigneeAddress': 'consignee_address',
+        'totalAmount': 'total_amount',
+        'placeOfReceipt': 'place_of_receipt',
+      };
+
+      for (final entry in normalizeMap.entries) {
+        final camel = entry.key;
+        final snake = entry.value;
+        if (data.containsKey(camel) && !data.containsKey(snake)) {
+          data[snake] = data[camel];
+          data.remove(camel);
+        }
+      }
 
       // Add updated_at timestamp
       data['updated_at'] = DateTime.now().millisecondsSinceEpoch;
+
+      print(
+          '💾 DEBUG: DatabaseService.updateShipment - invoiceNumber: $invoiceNumber (will be stored as uppercase)');
+      print('💾 DEBUG: data to update - keys: ${data.keys.toList()}');
+      print('💾 DEBUG: awb value: ${data['awb']} (uppercased if present)');
+
+      // Normalize the invoiceNumber for the WHERE clause too
+      final normalizedInvoiceNumber = invoiceNumber.toUpperCase();
 
       final rowsAffected = await db.update(
         'shipments',
         data,
         where: 'invoice_number = ?',
-        whereArgs: [invoiceNumber],
+        whereArgs: [normalizedInvoiceNumber],
       );
 
       if (rowsAffected == 0) {
-        throw Exception('Shipment not found: $invoiceNumber');
+        print(
+            '⚠️ DEBUG: No rows updated for shipment $normalizedInvoiceNumber');
+        _logger.w('No rows updated for shipment $normalizedInvoiceNumber');
+      } else {
+        print(
+            '✅ DEBUG: Updated $rowsAffected row(s) for shipment $normalizedInvoiceNumber');
       }
-      _logger.i('Shipment $invoiceNumber updated successfully');
+
+      if (rowsAffected == 0) {
+        throw Exception('Shipment not found: $normalizedInvoiceNumber');
+      }
+      _logger.i('Shipment $normalizedInvoiceNumber updated successfully');
     } catch (e, s) {
       _logger.e('Failed to update shipment $invoiceNumber', e, s);
       throw Exception('Failed to update shipment: ${e.toString()}');
@@ -543,8 +615,16 @@ class DatabaseService {
       final db = await database;
       final now = DateTime.now().millisecondsSinceEpoch;
 
+      // Ensure product ID is non-empty to avoid database issues
+      String productId = productData['id'] ?? '';
+      if (productId.isEmpty || productId.trim().isEmpty) {
+        productId = '${now}_$boxId';
+        _logger.w('Product ID was empty, generated: $productId');
+      }
+
       final data = {
         ...productData,
+        'id': productId,
         'box_id': boxId,
         'created_at': now,
         'updated_at': now
@@ -555,8 +635,8 @@ class DatabaseService {
         data,
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      _logger.i('Product ${data['id']} saved successfully');
-      return data['id'];
+      _logger.i('Product $productId saved successfully');
+      return productId;
     } catch (e, s) {
       _logger.e('Failed to save product', e, s);
       throw Exception('Failed to save product: ${e.toString()}');

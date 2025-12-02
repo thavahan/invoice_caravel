@@ -198,8 +198,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                 'eta': shipment.eta.millisecondsSinceEpoch,
                 'total_amount': shipment.totalAmount,
                 'status': shipment.status,
-                'createdAt': shipment.eta
-                    .millisecondsSinceEpoch, // Use ETA as created date for now
+                'createdAt': shipment.invoiceDate?.millisecondsSinceEpoch ??
+                    shipment.dateOfIssue?.millisecondsSinceEpoch ??
+                    shipment.eta.millisecondsSinceEpoch,
               })
           .toList();
 
@@ -1524,7 +1525,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                               _buildDetailRow(
                                   'AWB Number', detailedInvoice['awb']),
                               _buildDetailRow(
-                                  'Flight Number', detailedInvoice['flightNo']),
+                                  'Flight Number',
+                                  _getInvoiceField(detailedInvoice,
+                                      ['flightNo', 'flight_no'])),
                             ],
                           ),
 
@@ -1539,8 +1542,12 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                   'Shipper', detailedInvoice['shipper']),
                               _buildDetailRow(
                                   'Consignee', detailedInvoice['consignee']),
-                              _buildDetailRow('Discharge Airport',
-                                  detailedInvoice['dischargeAirport']),
+                              _buildDetailRow(
+                                  'Discharge Airport',
+                                  _getInvoiceField(detailedInvoice, [
+                                    'dischargeAirport',
+                                    'discharge_airport'
+                                  ])),
                             ],
                           ),
 
@@ -1686,6 +1693,20 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     );
   }
 
+  /// Helper to prefer multiple possible keys for a field (handles snake_case and camelCase)
+  String _getInvoiceField(Map<String, dynamic> map, List<String> keys) {
+    for (final key in keys) {
+      if (map.containsKey(key)) {
+        final v = map[key];
+        if (v != null) {
+          final s = v.toString();
+          if (s.trim().isNotEmpty) return s;
+        }
+      }
+    }
+    return 'N/A';
+  }
+
   /// Get detailed invoice data with boxes and products
   Future<Map<String, dynamic>> _getDetailedInvoiceData(String invoiceId) async {
     try {
@@ -1716,9 +1737,24 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           }).toList();
         }
 
+        // Ensure flight and discharge airport are present in returned draft map
+        final flightFromDraft = draftData['flightNo'] ??
+            draftData['flight_no'] ??
+            matchingDraft['flightNo'] ??
+            matchingDraft['flight_no'] ??
+            'N/A';
+
+        final dischargeFromDraft = draftData['dischargeAirport'] ??
+            draftData['discharge_airport'] ??
+            matchingDraft['dischargeAirport'] ??
+            matchingDraft['discharge_airport'] ??
+            'N/A';
+
         return {
           ...matchingDraft,
           ...draftData,
+          'flightNo': flightFromDraft,
+          'dischargeAirport': dischargeFromDraft,
           'boxes': boxes,
         };
       }
@@ -1729,20 +1765,26 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       // Try to find shipment by different ID fields
       Shipment? matchingShipment;
 
+      // Normalize invoiceId to lowercase for case-insensitive comparison
+      final normalizedInvoiceId = invoiceId.toLowerCase();
+
       try {
-        // First try exact invoice number match
+        // First try exact invoice number match (case-insensitive)
         matchingShipment = shipments.firstWhere(
-          (shipment) => shipment.invoiceNumber == invoiceId,
+          (shipment) =>
+              shipment.invoiceNumber.toLowerCase() == normalizedInvoiceId,
           orElse: () => throw Exception('Not found'),
         );
       } catch (e) {
-        // If not found by invoice number, try by ID or other identifiers
+        // If not found by invoice number, try by ID or other identifiers (case-insensitive)
         try {
           matchingShipment = shipments.firstWhere(
             (shipment) =>
-                shipment.invoiceNumber.contains(invoiceId) ||
-                shipment.awb == invoiceId ||
-                shipment.invoiceTitle == invoiceId,
+                shipment.invoiceNumber
+                    .toLowerCase()
+                    .contains(normalizedInvoiceId) ||
+                shipment.awb.toLowerCase() == normalizedInvoiceId ||
+                shipment.invoiceTitle.toLowerCase() == normalizedInvoiceId,
             orElse: () => throw Exception('Not found'),
           );
         } catch (e2) {
@@ -1771,8 +1813,19 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       }
 
       // Get boxes and products from database (only if shipment was found)
-      final boxesFromDb =
-          await _databaseService.getBoxesForShipment(matchingShipment.awb);
+      // Boxes are stored keyed by shipment invoice number in the DB
+
+      // Log found shipment fields to help debugging missing flight/discharge values
+      print(
+          'DEBUG: Found shipment -> invoiceNumber: ${matchingShipment.invoiceNumber}, awb: ${matchingShipment.awb}, flightNo: ${matchingShipment.flightNo}, dischargeAirport: ${matchingShipment.dischargeAirport}');
+
+      final boxesFromDb = await _databaseService
+          .getBoxesForShipment(matchingShipment.invoiceNumber);
+
+      if (boxesFromDb.isEmpty) {
+        print(
+            'DEBUG: No boxes returned for shipment invoice ${matchingShipment.invoiceNumber} (awb=${matchingShipment.awb}).');
+      }
       final boxes = <Map<String, dynamic>>[];
 
       for (final box in boxesFromDb) {
@@ -1808,7 +1861,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         'eta': matchingShipment.eta.millisecondsSinceEpoch,
         'totalAmount': matchingShipment.totalAmount,
         'status': matchingShipment.status,
-        'createdAt': matchingShipment.eta.millisecondsSinceEpoch,
+        'createdAt': matchingShipment.invoiceDate?.millisecondsSinceEpoch ??
+            matchingShipment.dateOfIssue?.millisecondsSinceEpoch ??
+            matchingShipment.eta.millisecondsSinceEpoch,
         // Additional fields from Shipment model
         'shipperAddress': matchingShipment.shipperAddress,
         'consigneeAddress': matchingShipment.consigneeAddress,
@@ -2179,11 +2234,11 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       final dbService = LocalDatabaseService();
       await dbService.initialize();
 
-      // Normalize invoice id / invoiceNumber - use AWB as that's what boxes are stored with
-      final String shipmentId = (invoice['awb'] ??
-              invoice['AWB'] ??
-              invoice['invoiceNumber'] ??
+      // Normalize invoice id / invoiceNumber - prefer invoiceNumber (DB uses invoice_number)
+      final String shipmentId = (invoice['invoiceNumber'] ??
               invoice['id'] ??
+              invoice['awb'] ??
+              invoice['AWB'] ??
               '')
           .toString();
 

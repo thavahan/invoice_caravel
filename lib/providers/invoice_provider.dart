@@ -155,19 +155,51 @@ class InvoiceProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      // Check if shipment already exists (update scenario)
+      print(
+          '📝 DEBUG: createShipmentWithBoxes - checking if shipment ${shipment.invoiceNumber} already exists');
+      final existingShipment =
+          await _dataService.getShipment(shipment.invoiceNumber);
+      final isUpdate = existingShipment != null;
+
+      if (isUpdate) {
+        print(
+            '📝 DEBUG: Shipment ${shipment.invoiceNumber} already exists - this is an UPDATE');
+        // Delete existing boxes/products before adding new ones
+        try {
+          print(
+              '🗑️ DEBUG: Deleting existing boxes for shipment ${shipment.invoiceNumber}');
+          await _dataService.deleteAllBoxesForShipment(shipment.invoiceNumber);
+          print('✅ DEBUG: Deleted existing boxes successfully');
+        } catch (e) {
+          print('⚠️ DEBUG: Failed to delete existing boxes: $e');
+          _logger.w('Failed to delete existing boxes during update', e);
+          // Don't fail the entire operation, just warn
+        }
+      } else {
+        print(
+            '📝 DEBUG: Shipment ${shipment.invoiceNumber} is NEW - this is a CREATE');
+      }
+
       // Save shipment first to both local database and Firebase
+      print('💾 DEBUG: Saving shipment ${shipment.invoiceNumber}');
       await _dataService.saveShipment(shipment);
+      print('✅ DEBUG: Shipment saved successfully');
 
       // Auto-create boxes and products if provided
       if (boxesData.isNotEmpty) {
         try {
+          print(
+              '📦 DEBUG: Auto-creating ${boxesData.length} boxes for shipment ${shipment.invoiceNumber}');
           await _dataService.autoCreateBoxesAndProducts(
             shipment.invoiceNumber,
             boxesData,
           );
+          print('✅ DEBUG: Auto-created boxes successfully');
           _logger.i(
               'Auto-created ${boxesData.length} boxes for shipment ${shipment.invoiceNumber}');
         } catch (e) {
+          print('❌ DEBUG: Failed to auto-create boxes: $e');
           _logger.e(
               'Failed to auto-create boxes/products for shipment ${shipment.invoiceNumber}',
               e);
@@ -175,15 +207,25 @@ class InvoiceProvider with ChangeNotifier {
         }
       }
 
-      _shipments.add(shipment);
+      // Update or add shipment to the list
+      final index = _shipments
+          .indexWhere((s) => s.invoiceNumber == shipment.invoiceNumber);
+      if (index != -1) {
+        print('📝 DEBUG: Updating shipment in list at index $index');
+        _shipments[index] = shipment;
+      } else {
+        print('📝 DEBUG: Adding new shipment to list');
+        _shipments.add(shipment);
+      }
 
       // Check save status for user feedback
       final saveStatus = await _dataService.getLastSaveStatus();
       final localSaved = saveStatus['localAvailable'] ?? false;
       final firebaseSaved = saveStatus['firebaseAvailable'] ?? false;
 
-      String statusMessage =
-          'Shipment with boxes created: ${shipment.invoiceNumber}';
+      String statusMessage = isUpdate
+          ? 'Shipment with boxes updated: ${shipment.invoiceNumber}'
+          : 'Shipment with boxes created: ${shipment.invoiceNumber}';
       if (localSaved && firebaseSaved) {
         statusMessage += ' (saved to database and cloud)';
       } else if (localSaved) {
@@ -191,9 +233,11 @@ class InvoiceProvider with ChangeNotifier {
       }
 
       _logger.i(statusMessage);
+      print('✅ DEBUG: $statusMessage');
     } catch (e, s) {
       _logger.e('Failed to create shipment with boxes', e, s);
       _error = 'Failed to create shipment: $e';
+      print('❌ DEBUG: Error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -236,7 +280,9 @@ class InvoiceProvider with ChangeNotifier {
 
       // First, attempt to update the basic shipment data
       try {
-        await _dataService.updateShipment(shipment.invoiceNumber, {
+        print(
+            '📝 DEBUG: InvoiceProvider.updateShipmentWithBoxes - preparing updates');
+        final updates = {
           'invoiceTitle': shipment.invoiceTitle,
           'shipper': shipment.shipper,
           'consignee': shipment.consignee,
@@ -256,18 +302,27 @@ class InvoiceProvider with ChangeNotifier {
           'sgstNo': shipment.sgstNo,
           'iecCode': shipment.iecCode,
           'freightTerms': shipment.freightTerms,
-        });
+        };
+        print('📝 DEBUG: Updates to save - keys: ${updates.keys.toList()}');
+        print(
+            '📝 DEBUG: flightNo: ${updates['flightNo']}, dischargeAirport: ${updates['dischargeAirport']}');
+
+        await _dataService.updateShipment(shipment.invoiceNumber, updates);
+        print('✅ DEBUG: Shipment basic info updated successfully');
       } catch (updateError) {
         // If the update failed (maybe record not found locally), try to create the shipment instead
         _logger.w(
             'Update failed for ${shipment.invoiceNumber}. Attempting to save instead: $updateError');
+        print('⚠️ DEBUG: Update failed, attempting saveShipment as fallback');
         try {
           // saveShipment is idempotent via conflictAlgorithm.replace on local DB
           await _dataService.saveShipment(shipment);
           _logger.i(
               'Saved shipment ${shipment.invoiceNumber} after update failure');
+          print('✅ DEBUG: Saved shipment as fallback');
         } catch (saveError) {
           _logger.e('Failed to save shipment after update failure', saveError);
+          print('❌ DEBUG: Failed to save shipment: $saveError');
           rethrow; // Bubble up to provider layer
         }
       }

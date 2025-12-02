@@ -248,22 +248,35 @@ class FirebaseService {
     return await _executeFirebaseOperation(() async {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      _logger.i('Saving shipment ${shipment.invoiceNumber} to Firebase...');
+      // Normalize invoice number and awb to UPPERCASE for consistency
+      final normalizedInvoiceNumber =
+          shipment.invoiceNumber.toUpperCase().trim();
+      final normalizedAwb = shipment.awb.toUpperCase().trim();
+
+      _logger.i('Saving shipment $normalizedInvoiceNumber to Firebase...');
 
       final shipmentData = {
         ...shipment.toMap(),
+        'invoiceNumber': normalizedInvoiceNumber,
+        'awb': normalizedAwb,
         'userId': currentUserId,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'box_ids': [], // Initialize empty box_ids array
       };
 
+      print(
+          '🔥 DEBUG: FirebaseService.saveShipment - Saving to Firestore with invoiceNumber: $normalizedInvoiceNumber (uppercase), awb: $normalizedAwb (uppercase)');
+
       await firestore
           .collection('${_userPath}/shipments')
-          .doc(shipment.invoiceNumber)
+          .doc(normalizedInvoiceNumber)
           .set(shipmentData, SetOptions(merge: true));
 
-      _logger.i('Shipment ${shipment.invoiceNumber} saved successfully');
+      _logger.i(
+          'Shipment $normalizedInvoiceNumber saved successfully to Firebase');
+      print(
+          '✅ DEBUG: Shipment saved to Firebase with uppercase invoice number');
     });
   }
 
@@ -305,13 +318,17 @@ class FirebaseService {
           final products = boxData['products'] as List<dynamic>;
 
           _logger.i('Creating ${products.length} products for box $boxId...');
+          print('💡 Creating ${products.length} products for box $boxId...');
 
           for (int j = 0; j < products.length; j++) {
             final productData = products[j];
             if (productData is Map<String, dynamic>) {
-              // Generate or use existing product ID
-              final productId = productData['id'] ??
-                  '${boxId}_product_${j + 1}_${DateTime.now().millisecondsSinceEpoch}';
+              // Generate or use existing product ID - ensure non-empty
+              String productId = productData['id'] ?? '';
+              if (productId.isEmpty || productId.trim().isEmpty) {
+                productId =
+                    '${boxId}_product_${j + 1}_${DateTime.now().millisecondsSinceEpoch}';
+              }
 
               final enhancedProductData = {
                 ...productData,
@@ -320,7 +337,10 @@ class FirebaseService {
                 'shipmentId': shipmentId,
               };
 
+              print(
+                  '💡 DEBUG: Saving product with shipmentId=$shipmentId, boxId=$boxId, productId=$productId');
               await saveProduct(boxId, enhancedProductData);
+              print('✅ DEBUG: Product saved successfully');
             }
           }
         }
@@ -479,19 +499,66 @@ class FirebaseService {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      final updateData = {
-        ...updates,
-        'updatedAt': FieldValue.serverTimestamp(),
+      // Normalize invoice number to UPPERCASE for Firestore document ID
+      final normalizedInvoiceNumber = invoiceNumber.toUpperCase().trim();
+
+      // Map camelCase field names to snake_case to match Firestore storage format
+      final Map<String, String> fieldMapping = {
+        'invoiceTitle': 'invoice_title',
+        'shipper': 'shipper',
+        'consignee': 'consignee',
+        'awb': 'awb',
+        'flightNo': 'flight_no',
+        'dischargeAirport': 'discharge_airport',
+        'origin': 'origin',
+        'destination': 'destination',
+        'eta': 'eta',
+        'totalAmount': 'total_amount',
+        'shipperAddress': 'shipper_address',
+        'consigneeAddress': 'consignee_address',
+        'clientRef': 'client_ref',
+        'invoiceDate': 'invoice_date',
+        'dateOfIssue': 'date_of_issue',
+        'placeOfReceipt': 'place_of_receipt',
+        'sgstNo': 'sgst_no',
+        'iecCode': 'iec_code',
+        'freightTerms': 'freight_terms',
+        'status': 'status',
       };
+
+      // Convert camelCase keys to snake_case field names
+      final data = <String, dynamic>{};
+      updates.forEach((key, value) {
+        final fbField = fieldMapping[key] ?? key;
+        // UPPERCASE normalize awb if present
+        if (fbField == 'awb') {
+          data[fbField] = value?.toString().toUpperCase().trim() ?? value;
+        } else {
+          data[fbField] = value;
+        }
+      });
+
+      // Add server timestamp
+      data['updatedAt'] = FieldValue.serverTimestamp();
+
+      print(
+          '🔥 DEBUG: FirebaseService.updateShipment - invoiceNumber: $normalizedInvoiceNumber (uppercase)');
+      print('🔥 DEBUG: Original updates keys: ${updates.keys.toList()}');
+      print('🔥 DEBUG: Converted data keys: ${data.keys.toList()}');
+      print('🔥 DEBUG: awb value: ${data['awb']} (uppercased if present)');
 
       await firestore
           .collection('${_userPath}/shipments')
-          .doc(invoiceNumber)
-          .update(updateData);
+          .doc(normalizedInvoiceNumber)
+          .update(data);
 
-      _logger.i('Shipment $invoiceNumber updated successfully');
+      _logger.i('Shipment $invoiceNumber updated successfully in Firebase');
+      print(
+          '✅ DEBUG: Shipment $invoiceNumber updated in Firebase successfully');
     } catch (e, s) {
-      _logger.e('Failed to update shipment $invoiceNumber', e, s);
+      _logger.e('Failed to update shipment $invoiceNumber in Firebase', e, s);
+      print(
+          '❌ DEBUG: Failed to update shipment $invoiceNumber in Firebase: $e');
       throw Exception('Failed to update shipment: ${e.toString()}');
     }
   }
@@ -520,11 +587,15 @@ class FirebaseService {
       if (currentUserId == null) throw Exception('User not authenticated');
 
       _logger.i('Deleting all boxes for shipment $shipmentId from Firebase');
+      print(
+          '🗑️ DEBUG: FirebaseService.deleteAllBoxesForShipment - shipmentId: $shipmentId');
 
       // Get all box documents
       final boxesSnapshot = await firestore
           .collection('${_userPath}/shipments/$shipmentId/boxes')
           .get();
+
+      print('🗑️ DEBUG: Found ${boxesSnapshot.docs.length} boxes to delete');
 
       // Delete each box and its products in batch
       final batch = firestore.batch();
@@ -535,6 +606,9 @@ class FirebaseService {
             .collection(
                 '${_userPath}/shipments/$shipmentId/boxes/${boxDoc.id}/products')
             .get();
+
+        print(
+            '🗑️ DEBUG: Box ${boxDoc.id} has ${productsSnapshot.docs.length} products');
 
         for (final productDoc in productsSnapshot.docs) {
           batch.delete(productDoc.reference);
@@ -547,6 +621,8 @@ class FirebaseService {
       // Execute the batch delete
       await batch.commit();
 
+      print('✅ DEBUG: Deleted all boxes and products for shipment $shipmentId');
+
       // Update shipment to remove box_ids and total_boxes
       await firestore
           .collection('${_userPath}/shipments')
@@ -555,6 +631,8 @@ class FirebaseService {
         'box_ids': FieldValue.delete(),
         'total_boxes': 0,
       });
+
+      print('✅ DEBUG: Updated shipment $shipmentId to clear box references');
 
       _logger.i(
           'Successfully deleted ${boxesSnapshot.docs.length} boxes for shipment $shipmentId');
@@ -658,8 +736,16 @@ class FirebaseService {
         throw Exception('shipmentId is required for Firebase product save');
       }
 
-      final productId =
-          productData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+      // Generate productId, ensuring it's never empty
+      String productId = productData['id'] ?? '';
+      if (productId.isEmpty || productId.trim().isEmpty) {
+        productId =
+            '${DateTime.now().millisecondsSinceEpoch}_${shipmentId}_$boxId';
+        _logger.w('Product ID was empty, generated: $productId');
+      }
+
+      _logger.i(
+          'DEBUG: Saving product with shipmentId=$shipmentId, boxId=$boxId, productId=$productId');
 
       final product = ShipmentProduct(
         id: productId,

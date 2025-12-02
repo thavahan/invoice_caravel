@@ -106,6 +106,7 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
                     labelText: 'Product Type Name *',
                     border: OutlineInputBorder(),
                   ),
+                  textCapitalization: TextCapitalization.words,
                   validator: (value) =>
                       value?.trim().isEmpty == true ? 'Name is required' : null,
                 ),

@@ -205,6 +205,7 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        textCapitalization: TextCapitalization.words,
                         validator: (value) => value?.trim().isEmpty == true
                             ? 'Name is required'
                             : null,
@@ -220,6 +221,7 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        textCapitalization: TextCapitalization.words,
                         validator: (value) => value?.trim().isEmpty == true
                             ? 'Address Line 1 is required'
                             : null,
@@ -235,6 +237,7 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        textCapitalization: TextCapitalization.words,
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -249,6 +252,7 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
+                              textCapitalization: TextCapitalization.words,
                               validator: (value) =>
                                   value?.trim().isEmpty == true
                                       ? 'Required'
@@ -265,6 +269,7 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
+                              textCapitalization: TextCapitalization.words,
                               validator: (value) =>
                                   value?.trim().isEmpty == true
                                       ? 'Required'
@@ -300,6 +305,7 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        textCapitalization: TextCapitalization.sentences,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -327,7 +333,10 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context, false),
+                      onPressed: () {
+                        FocusScope.of(context).unfocus();
+                        Navigator.pop(context, false);
+                      },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -343,6 +352,9 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                       onPressed: () async {
                         if (formKey.currentState!.validate()) {
                           try {
+                            // Dismiss keyboard before saving
+                            FocusScope.of(context).unfocus();
+
                             // Format address as single string
                             final formattedAddress =
                                 MasterConsignee.formatAddress(

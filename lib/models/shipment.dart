@@ -150,6 +150,8 @@ class Shipment {
       'AWB': awb,
       'flight_no': flightNo,
       'discharge_airport': dischargeAirport,
+      'origin': origin,
+      'destination': destination,
       'eta': eta.millisecondsSinceEpoch,
       'invoice_date': invoiceDate?.millisecondsSinceEpoch,
       'date_of_issue': dateOfIssue?.millisecondsSinceEpoch,
