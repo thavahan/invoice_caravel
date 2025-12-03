@@ -913,10 +913,22 @@ class DataService {
 
     print(
         '📦 DEBUG: DataService.autoCreateBoxesAndProducts - shipmentId: $shipmentId, boxCount: ${boxesData.length}');
+    for (int i = 0; i < boxesData.length; i++) {
+      final products = boxesData[i]['products'] as List? ?? [];
+      print(
+          '   Box ${i + 1}: ${boxesData[i]['boxNumber']} (id: ${boxesData[i]['id']}) with ${products.length} products');
+    }
 
     // Always save to local database first (primary storage)
     print('💾 DEBUG: Saving ${boxesData.length} boxes to LOCAL DB...');
+    final savedBoxNumbers = <String>{};
     for (final boxData in boxesData) {
+      final boxNumber = boxData['boxNumber'] as String? ?? 'Box 1';
+      if (savedBoxNumbers.contains(boxNumber)) {
+        print('⚠️ DEBUG: Skipping duplicate box $boxNumber');
+        continue;
+      }
+      savedBoxNumbers.add(boxNumber);
       final boxId = await _localService.saveBox(shipmentId, boxData);
       print('✅ DEBUG: Saved box $boxId to local DB');
 
@@ -1765,65 +1777,134 @@ class DataService {
   /// Sync local master data to Firebase
   Future<void> _syncMasterDataToFirebase() async {
     try {
-      print('🔄 MASTER_DATA_SYNC: Starting master data sync to Firebase...');
+      print('🔄 MASTER_DATA_SYNC_TO: Starting master data sync to Firebase...');
       _logger.i('Starting master data sync to Firebase...');
 
-      // Sync master shippers
+      // Sync master shippers with duplicate prevention
       final localShippers = await _localService.getMasterShippers();
       print(
-          '🔄 MASTER_DATA_SYNC: Found ${localShippers.length} shippers to sync');
+          '🔄 MASTER_DATA_SYNC_TO: Found ${localShippers.length} shippers to sync');
       for (final shipper in localShippers) {
         try {
-          await _firebaseService.saveMasterShipper(shipper);
-          print('✅ MASTER_DATA_SYNC: Synced shipper: ${shipper.name}');
-          _logger.i('✅ Synced shipper: ${shipper.name}');
+          // Check if shipper already exists in Firebase
+          final firebaseShippers = await _firebaseService.getMasterShippers();
+          final existsInFirebase =
+              firebaseShippers.any((s) => s.id == shipper.id);
+
+          if (!existsInFirebase) {
+            await _firebaseService.saveMasterShipper(shipper);
+            print('✅ MASTER_DATA_SYNC_TO: Synced new shipper: ${shipper.name}');
+            _logger.i('✅ Synced new shipper to Firebase: ${shipper.name}');
+          } else {
+            print(
+                '⏭️ MASTER_DATA_SYNC_TO: Skipped existing shipper: ${shipper.name}');
+            _logger.i('⏭️ Skipped existing shipper: ${shipper.name}');
+          }
         } catch (e) {
-          print('❌ MASTER_DATA_SYNC: Failed to sync shipper ${shipper.name}');
+          print(
+              '❌ MASTER_DATA_SYNC_TO: Failed to sync shipper ${shipper.name}');
           _logger.w('Failed to sync shipper ${shipper.name} to Firebase', e);
         }
       }
 
-      // Sync master consignees
+      // Sync master consignees with duplicate prevention
       final localConsignees = await _localService.getMasterConsignees();
       print(
-          '🔄 MASTER_DATA_SYNC: Found ${localConsignees.length} consignees to sync');
+          '🔄 MASTER_DATA_SYNC_TO: Found ${localConsignees.length} consignees to sync');
       for (final consignee in localConsignees) {
         try {
-          await _firebaseService.saveMasterConsignee(consignee);
-          print('✅ MASTER_DATA_SYNC: Synced consignee: ${consignee.name}');
-          _logger.i('✅ Synced consignee: ${consignee.name}');
+          // Check if consignee already exists in Firebase
+          final firebaseConsignees =
+              await _firebaseService.getMasterConsignees();
+          final existsInFirebase =
+              firebaseConsignees.any((c) => c.id == consignee.id);
+
+          if (!existsInFirebase) {
+            await _firebaseService.saveMasterConsignee(consignee);
+            print(
+                '✅ MASTER_DATA_SYNC_TO: Synced new consignee: ${consignee.name}');
+            _logger.i('✅ Synced new consignee to Firebase: ${consignee.name}');
+          } else {
+            print(
+                '⏭️ MASTER_DATA_SYNC_TO: Skipped existing consignee: ${consignee.name}');
+            _logger.i('⏭️ Skipped existing consignee: ${consignee.name}');
+          }
         } catch (e) {
           print(
-              '❌ MASTER_DATA_SYNC: Failed to sync consignee ${consignee.name}');
+              '❌ MASTER_DATA_SYNC_TO: Failed to sync consignee ${consignee.name}');
           _logger.w(
               'Failed to sync consignee ${consignee.name} to Firebase', e);
         }
       }
 
-      // Sync master product types
+      // Sync master product types with duplicate prevention
       final localProductTypes = await _localService.getMasterProductTypes();
       print(
-          '🔄 MASTER_DATA_SYNC: Found ${localProductTypes.length} product types to sync');
+          '🔄 MASTER_DATA_SYNC_TO: Found ${localProductTypes.length} product types to sync');
       for (final productType in localProductTypes) {
         try {
-          await _firebaseService.saveMasterProductType(productType);
-          print(
-              '✅ MASTER_DATA_SYNC: Synced product type: ${productType.name} (approxQuantity: ${productType.approxQuantity})');
-          _logger.i(
-              '✅ Synced product type: ${productType.name} (approxQuantity: ${productType.approxQuantity})');
+          // Check if product type already exists in Firebase
+          final firebaseProductTypes =
+              await _firebaseService.getMasterProductTypes();
+          final existsInFirebase =
+              firebaseProductTypes.any((pt) => pt.id == productType.id);
+
+          if (!existsInFirebase) {
+            await _firebaseService.saveMasterProductType(productType);
+            print(
+                '✅ MASTER_DATA_SYNC_TO: Synced new product type: ${productType.name} (approxQuantity: ${productType.approxQuantity})');
+            _logger.i(
+                '✅ Synced new product type: ${productType.name} (approxQuantity: ${productType.approxQuantity})');
+          } else {
+            print(
+                '⏭️ MASTER_DATA_SYNC_TO: Skipped existing product type: ${productType.name}');
+            _logger.i('⏭️ Skipped existing product type: ${productType.name}');
+          }
         } catch (e) {
           print(
-              '❌ MASTER_DATA_SYNC: Failed to sync product type ${productType.name}');
+              '❌ MASTER_DATA_SYNC_TO: Failed to sync product type ${productType.name}');
           _logger.w(
               'Failed to sync product type ${productType.name} to Firebase', e);
         }
       }
 
+      // Sync flower types with duplicate prevention
+      final localFlowerTypes = await _localService.getFlowerTypes();
       print(
-          '✅ MASTER_DATA_SYNC: Master data sync to Firebase completed successfully!');
+          '🔄 MASTER_DATA_SYNC_TO: Found ${localFlowerTypes.length} flower types to sync');
+      for (final flowerType in localFlowerTypes) {
+        try {
+          // Check if flower type already exists in Firebase
+          final firebaseFlowerTypes = await _firebaseService.getFlowerTypes();
+          final existsInFirebase =
+              firebaseFlowerTypes.any((ft) => ft.id == flowerType.id);
+
+          if (!existsInFirebase) {
+            await _firebaseService.saveFlowerType(flowerType);
+            print(
+                '✅ MASTER_DATA_SYNC_TO: Synced new flower type: ${flowerType.flowerName}');
+            _logger.i('✅ Synced new flower type: ${flowerType.flowerName}');
+          } else {
+            print(
+                '⏭️ MASTER_DATA_SYNC_TO: Skipped existing flower type: ${flowerType.flowerName}');
+            _logger
+                .i('⏭️ Skipped existing flower type: ${flowerType.flowerName}');
+          }
+        } catch (e) {
+          print(
+              '❌ MASTER_DATA_SYNC_TO: Failed to sync flower type ${flowerType.flowerName}');
+          _logger.w(
+              'Failed to sync flower type ${flowerType.flowerName} to Firebase',
+              e);
+        }
+      }
+
+      print(
+          '✅ MASTER_DATA_SYNC_TO: Master data sync to Firebase completed successfully!');
       _logger.i('Master data sync to Firebase completed');
     } catch (e) {
-      print('❌ MASTER_DATA_SYNC: Failed to sync master data to Firebase: $e');
+      print(
+          '❌ MASTER_DATA_SYNC_TO: Failed to sync master data to Firebase: $e');
       _logger.e('Failed to sync master data to Firebase', e);
       // Don't rethrow - master data sync failure shouldn't stop overall sync
     }
@@ -1856,24 +1937,61 @@ class DataService {
 
       // Sync master data (only if methods exist)
       try {
+        // Sync master shippers with duplicate prevention
         final masterShippers = await _firebaseService.getMasterShippers();
+        print(
+            '🔄 MASTER_DATA_SYNC_FROM: Found ${masterShippers.length} shippers in Firebase');
         for (final shipper in masterShippers) {
           try {
-            if ((_localService as dynamic).saveMasterShipper != null) {
-              await (_localService as dynamic)
-                  .saveMasterShipper(shipper.toMap());
+            // Check if shipper already exists locally
+            final existingShippers = await _localService.getMasterShippers();
+            final existsLocally =
+                existingShippers.any((s) => s.id == shipper.id);
+
+            if (!existsLocally) {
+              if ((_localService as dynamic).saveMasterShipper != null) {
+                await (_localService as dynamic)
+                    .saveMasterShipper(shipper.toMap());
+                print(
+                    '✅ MASTER_DATA_SYNC_FROM: Synced new shipper: ${shipper.name}');
+                _logger
+                    .i('✅ Synced new shipper from Firebase: ${shipper.name}');
+              }
+            } else {
+              print(
+                  '⏭️ MASTER_DATA_SYNC_FROM: Skipped existing shipper: ${shipper.name}');
+              _logger.i('⏭️ Skipped existing shipper: ${shipper.name}');
             }
           } catch (e) {
             _logger.w('Failed to sync master shipper ${shipper.id} locally', e);
           }
         }
 
+        // Sync master consignees with duplicate prevention
         final masterConsignees = await _firebaseService.getMasterConsignees();
+        print(
+            '🔄 MASTER_DATA_SYNC_FROM: Found ${masterConsignees.length} consignees in Firebase');
         for (final consignee in masterConsignees) {
           try {
-            if ((_localService as dynamic).saveMasterConsignee != null) {
-              await (_localService as dynamic)
-                  .saveMasterConsignee(consignee.toMap());
+            // Check if consignee already exists locally
+            final existingConsignees =
+                await _localService.getMasterConsignees();
+            final existsLocally =
+                existingConsignees.any((c) => c.id == consignee.id);
+
+            if (!existsLocally) {
+              if ((_localService as dynamic).saveMasterConsignee != null) {
+                await (_localService as dynamic)
+                    .saveMasterConsignee(consignee.toMap());
+                print(
+                    '✅ MASTER_DATA_SYNC_FROM: Synced new consignee: ${consignee.name}');
+                _logger.i(
+                    '✅ Synced new consignee from Firebase: ${consignee.name}');
+              }
+            } else {
+              print(
+                  '⏭️ MASTER_DATA_SYNC_FROM: Skipped existing consignee: ${consignee.name}');
+              _logger.i('⏭️ Skipped existing consignee: ${consignee.name}');
             }
           } catch (e) {
             _logger.w(
@@ -1881,13 +1999,33 @@ class DataService {
           }
         }
 
+        // Sync master product types with duplicate prevention
         final masterProductTypes =
             await _firebaseService.getMasterProductTypes();
+        print(
+            '🔄 MASTER_DATA_SYNC_FROM: Found ${masterProductTypes.length} product types in Firebase');
         for (final productType in masterProductTypes) {
           try {
-            if ((_localService as dynamic).saveMasterProductType != null) {
-              await (_localService as dynamic)
-                  .saveMasterProductType(productType.toMap());
+            // Check if product type already exists locally
+            final existingProductTypes =
+                await _localService.getMasterProductTypes();
+            final existsLocally =
+                existingProductTypes.any((pt) => pt.id == productType.id);
+
+            if (!existsLocally) {
+              if ((_localService as dynamic).saveMasterProductType != null) {
+                await (_localService as dynamic)
+                    .saveMasterProductType(productType.toMap());
+                print(
+                    '✅ MASTER_DATA_SYNC_FROM: Synced new product type: ${productType.name}');
+                _logger.i(
+                    '✅ Synced new product type from Firebase: ${productType.name}');
+              }
+            } else {
+              print(
+                  '⏭️ MASTER_DATA_SYNC_FROM: Skipped existing product type: ${productType.name}');
+              _logger
+                  .i('⏭️ Skipped existing product type: ${productType.name}');
             }
           } catch (e) {
             _logger.w(
@@ -1895,7 +2033,13 @@ class DataService {
                 e);
           }
         }
+
+        print(
+            '✅ MASTER_DATA_SYNC_FROM: Master data sync from Firebase completed successfully!');
+        _logger.i('Master data sync from Firebase completed');
       } catch (e) {
+        print(
+            '❌ MASTER_DATA_SYNC_FROM: Failed to sync master data from Firebase: $e');
         _logger.w('Failed to sync master data from Firebase', e);
       }
 

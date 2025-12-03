@@ -4,6 +4,7 @@ import 'package:invoice_generator/models/box_product.dart';
 import 'package:invoice_generator/models/master_shipper.dart';
 import 'package:invoice_generator/models/master_consignee.dart';
 import 'package:invoice_generator/models/master_product_type.dart';
+import 'package:invoice_generator/models/product.dart';
 import 'package:invoice_generator/services/firebase_service.dart';
 
 /// Screen to view all data stored in Firestore
@@ -24,6 +25,7 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
   List<MasterShipper> _shippers = [];
   List<MasterConsignee> _consignees = [];
   List<MasterProductType> _productTypes = [];
+  List<FlowerType> _flowerTypes = [];
   Map<String, List<ShipmentBox>> _shipmentBoxes = {};
   Map<String, List<ShipmentProduct>> _boxProducts = {};
 
@@ -33,7 +35,7 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadAllData();
   }
 
@@ -56,12 +58,14 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
         _firebaseService.getMasterShippers(),
         _firebaseService.getMasterConsignees(),
         _firebaseService.getMasterProductTypes(),
+        _firebaseService.getFlowerTypes(),
       ]);
 
       _shipments = results[0] as List<Shipment>;
       _shippers = results[1] as List<MasterShipper>;
       _consignees = results[2] as List<MasterConsignee>;
       _productTypes = results[3] as List<MasterProductType>;
+      _flowerTypes = results[4] as List<FlowerType>;
 
       // Load boxes and products for each shipment
       for (final shipment in _shipments) {
@@ -126,6 +130,10 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
               text: 'Product Types (${_productTypes.length})',
             ),
             Tab(
+              icon: const Icon(Icons.local_florist),
+              text: 'Flower Types (${_flowerTypes.length})',
+            ),
+            Tab(
               icon: const Icon(Icons.inventory_2),
               text: 'Boxes & Products',
             ),
@@ -174,6 +182,7 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
                       _buildShippersTab(),
                       _buildConsigneesTab(),
                       _buildProductTypesTab(),
+                      _buildFlowerTypesTab(),
                       _buildBoxesProductsTab(),
                     ],
                   ),
@@ -390,6 +399,46 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text('Approx Quantity: ${productType.approxQuantity}'),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFlowerTypesTab() {
+    return RefreshIndicator(
+      onRefresh: _loadAllData,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _flowerTypes.length,
+        itemBuilder: (context, index) {
+          final flowerType = _flowerTypes[index];
+          return Card(
+            elevation: 4,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Icon(Icons.local_florist,
+                    color: Theme.of(context).colorScheme.primary),
+              ),
+              title: Text(
+                flowerType.flowerName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (flowerType.description.isNotEmpty)
+                    Text(flowerType.description),
+                  Text('ID: ${flowerType.id}'),
+                ],
+              ),
             ),
           );
         },

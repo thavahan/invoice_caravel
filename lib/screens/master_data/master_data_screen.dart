@@ -6,6 +6,8 @@ import 'package:invoice_generator/screens/master_data/manage_flower_types_screen
 import 'package:invoice_generator/screens/master_data/firestore_data_viewer_screen.dart';
 import 'package:invoice_generator/screens/master_data/database_data_viewer_screen.dart';
 import 'package:invoice_generator/services/data_service.dart';
+import 'package:invoice_generator/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 
 /// Main screen for managing master data (shippers, consignees, product types)
 class MasterDataScreen extends StatefulWidget {
@@ -153,15 +155,14 @@ class _MasterDataScreenState extends State<MasterDataScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Master Data Cards
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: 6,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final items = [
+                      // Prepare filtered items based on user permissions
+                      Builder(
+                        builder: (context) {
+                          final currentUserEmail =
+                              Provider.of<AuthProvider>(context, listen: false)
+                                  .user
+                                  ?.email;
+                          final allItems = [
                             {
                               'title': 'Manage Shippers',
                               'subtitle':
@@ -200,6 +201,7 @@ class _MasterDataScreenState extends State<MasterDataScreen> {
                               'icon': Icons.cloud,
                               'color': Colors.blue,
                               'screen': const FirestoreDataViewerScreen(),
+                              'restricted': true,
                             },
                             {
                               'title': 'View Database Data',
@@ -207,16 +209,33 @@ class _MasterDataScreenState extends State<MasterDataScreen> {
                               'icon': Icons.storage,
                               'color': Colors.teal,
                               'screen': const DatabaseDataViewerScreen(),
+                              'restricted': true,
                             },
                           ];
-                          final item = items[index];
-                          return _buildMasterDataCard(
-                            title: item['title'] as String,
-                            subtitle: item['subtitle'] as String,
-                            icon: item['icon'] as IconData,
-                            color: item['color'] as Color,
-                            onTap: () =>
-                                _navigateToScreen(item['screen'] as Widget),
+
+                          final items = allItems.where((item) {
+                            final isRestricted = item['restricted'] == true;
+                            return !isRestricted ||
+                                currentUserEmail == 'thavahan@gmail.com';
+                          }).toList();
+
+                          return ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: items.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 16),
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return _buildMasterDataCard(
+                                title: item['title'] as String,
+                                subtitle: item['subtitle'] as String,
+                                icon: item['icon'] as IconData,
+                                color: item['color'] as Color,
+                                onTap: () =>
+                                    _navigateToScreen(item['screen'] as Widget),
+                              );
+                            },
                           );
                         },
                       ),

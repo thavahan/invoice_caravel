@@ -155,6 +155,8 @@ class LocalDatabaseService {
         height: (boxData['height'] ?? 0.0).toDouble(),
       );
 
+      print(
+          '💾 DEBUG: LocalDatabaseService.saveBox - saving box ${box.id} (${box.boxNumber}) for shipment $shipmentId');
       await _db.saveBox(shipmentId, box.toSQLite());
       _logger.i('Box ${box.id} saved successfully');
       return box.id;
@@ -168,6 +170,8 @@ class LocalDatabaseService {
   Future<List<ShipmentBox>> getBoxesForShipment(String shipmentId) async {
     try {
       final results = await _db.getBoxesForShipment(shipmentId);
+      print(
+          '📦 DEBUG: LocalDatabaseService.getBoxesForShipment - found ${results.length} boxes in DB for shipment $shipmentId');
       final boxes = <ShipmentBox>[];
 
       for (final boxData in results) {
@@ -175,9 +179,13 @@ class LocalDatabaseService {
         // Load products for this box
         final products = await getProductsForBox(box.id);
         final boxWithProducts = box.copyWith(products: products);
+        print(
+            '   Loaded box ${box.id} (${box.boxNumber}) with ${products.length} products');
         boxes.add(boxWithProducts);
       }
 
+      print(
+          '📦 DEBUG: Returning ${boxes.length} boxes for shipment $shipmentId');
       return boxes;
     } catch (e, s) {
       _logger.e('Failed to get boxes for shipment $shipmentId', e, s);

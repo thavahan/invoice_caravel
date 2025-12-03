@@ -6,6 +6,7 @@ import 'package:invoice_generator/providers/theme_provider.dart';
 import 'package:invoice_generator/providers/auth_provider.dart';
 import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
+import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/services/pdf_service.dart';
 import 'package:invoice_generator/models/shipment.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ class InvoiceListScreen extends StatefulWidget {
 
 class _InvoiceListScreenState extends State<InvoiceListScreen> {
   final LocalDatabaseService _databaseService = LocalDatabaseService();
+  final DataService _dataService = DataService();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _invoiceNumberController =
       TextEditingController();
@@ -50,10 +52,22 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     super.initState();
     _searchController.addListener(_onSearchChanged);
 
+    // Initialize data service
+    _initializeDataService();
+
     // Load invoices after a slight delay to ensure database service is fully initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInvoices();
     });
+  }
+
+  Future<void> _initializeDataService() async {
+    try {
+      await _dataService.initialize();
+    } catch (e) {
+      // Handle initialization error if needed
+      debugPrint('Failed to initialize data service: $e');
+    }
   }
 
   @override
@@ -281,7 +295,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   /// Delete a draft
   Future<void> _deleteDraft(String draftId) async {
     try {
-      await _databaseService.deleteDraft(draftId);
+      await _dataService.deleteDraft(draftId);
       await _loadDrafts();
 
       if (mounted) {
@@ -749,6 +763,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           _buildDrawerItem(Icons.pending, 'Pending Shipments', false),
           _buildDrawerItem(Icons.local_shipping, 'In Transit', false),
           _buildDrawerItem(Icons.check_circle, 'Delivered', false),
+          _buildDrawerItem(Icons.cloud_sync, 'Sync to Cloud', false),
           const Divider(),
           _buildDrawerItem(Icons.settings_applications, 'Master Data', false),
           _buildDrawerItem(Icons.analytics, 'Reports', false),
@@ -810,6 +825,297 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     }
   }
 
+  /// Unified sync to cloud operation - consolidates sync data and migrate to cloud
+  Future<void> _syncToCloud() async {
+    try {
+      // Check connectivity first
+      final dataSourceInfo = await _dataService.getDataSourceInfo();
+      final isOffline = !(dataSourceInfo['isOnline'] ?? false);
+      final forceOffline = dataSourceInfo['forceOffline'] ?? false;
+
+      if (isOffline || forceOffline) {
+        _showOfflineNotificationPopup(
+          'Sync to Cloud',
+          'Cannot sync data to cloud while offline. Please check your internet connection and try again.',
+        );
+        return;
+      }
+
+      // Get migration status to determine what action to take
+      final status = await _invoiceProvider!.getMigrationStatus();
+
+      if (status['hasMigrated'] == true && status['localShipmentsCount'] == 0) {
+        // Already synced, show status
+        _showSyncCompleteDialog(status);
+      } else if (status['localShipmentsCount'] == 0) {
+        // No data to sync
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No local data found to sync'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        // Data available, show confirmation
+        _showSyncConfirmationDialog(status);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show offline notification popup
+  void _showOfflineNotificationPopup(String title, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.wifi_off, color: Colors.orange),
+            const SizedBox(width: 8),
+            const Text('Offline Mode'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(message),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'You can continue working with local data. Cloud sync will be available when you\'re back online.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show sync complete dialog
+  void _showSyncCompleteDialog(Map<String, dynamic> status) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            const Text('Sync Complete'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Your data is already synced to the cloud.'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Local shipments: ${status['localShipmentsCount'] ?? 0}',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  Text(
+                    'Cloud shipments: ${status['firebaseShipmentsCount'] ?? 0}',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Local shippers: ${status['localShippersCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                  Text(
+                    'Cloud shippers: ${status['firebaseShippersCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                  Text(
+                    'Local consignees: ${status['localConsigneesCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                  Text(
+                    'Cloud consignees: ${status['firebaseConsigneesCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                  Text(
+                    'Local product types: ${status['localProductTypesCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                  Text(
+                    'Cloud product types: ${status['firebaseProductTypesCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                  Text(
+                    'Local flower types: ${status['localFlowerTypesCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                  Text(
+                    'Cloud flower types: ${status['firebaseFlowerTypesCount'] ?? 0}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show sync confirmation dialog
+  void _showSyncConfirmationDialog(Map<String, dynamic> status) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sync Data to Cloud'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+                'Found ${status['localShipmentsCount'] ?? 0} shipments to sync'),
+            const SizedBox(height: 8),
+            const Text(
+              'This will also sync your master data (shippers, consignees, product types) to ensure consistency across devices.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This will upload your local data to the cloud for backup and synchronization.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performSyncToCloud();
+            },
+            child: const Text('Start Sync'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Perform the actual sync operation
+  Future<void> _performSyncToCloud() async {
+    try {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Syncing shipments and master data to cloud...'),
+            duration: Duration(seconds: 60), // Long timeout
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+
+      // Perform the sync
+      await _invoiceProvider!.syncToFirebase();
+
+      // Refresh data
+      await _loadInvoices();
+      await _loadDrafts();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Shipments and master data synced to cloud successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildDrawerItem(IconData icon, String title, bool isSelected) {
     return ListTile(
       leading: Icon(
@@ -836,6 +1142,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               builder: (context) => const MasterDataScreen(),
             ),
           );
+        } else if (title == 'Sync to Cloud') {
+          _syncToCloud();
         }
         // Add other navigation handlers here as needed
       },
@@ -1107,7 +1415,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   /// Delete shipment
   Future<void> _deleteShipment(String shipmentId) async {
     try {
-      await _databaseService.deleteShipment(shipmentId);
+      await _dataService.deleteShipment(shipmentId);
       await _loadInvoices();
 
       if (mounted) {
@@ -1750,6 +2058,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             matchingDraft['discharge_airport'] ??
             'N/A';
 
+        debugPrint(
+            '📝 DEBUG: Returning draft data with flightNo: "$flightFromDraft"');
+
         return {
           ...matchingDraft,
           ...draftData,
@@ -1876,6 +2187,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         'freightTerms': matchingShipment.freightTerms,
         'boxes': boxes,
       };
+
+      debugPrint(
+          '📦 DEBUG: Returning shipmentMap with flightNo: "${shipmentMap['flightNo']}"');
 
       return shipmentMap;
     } catch (e) {
@@ -2087,6 +2401,14 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     final rate = (product['rate'] as num?)?.toDouble() ?? 0.0;
     final productTotal = weight * rate;
 
+    // Build structured product details
+    final flowerType = product['flowerType'] ?? 'LOOSE FLOWERS';
+    final hasStems = product['hasStems'] ?? false;
+    final approxQuantity = (product['approxQuantity'] as num?)?.toInt() ?? 0;
+    final stemsText = hasStems ? 'WITH STEMS' : 'NO STEMS';
+    final structuredDetails =
+        '($flowerType, $stemsText, APPROX $approxQuantity NOS)';
+
     return Container(
       margin: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -2120,18 +2442,16 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 2),
+                Text(
+                  structuredDetails,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
                   ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '${weight}kg × \$${rate.toStringAsFixed(2)} = \$${productTotal.toStringAsFixed(2)}',
@@ -2363,6 +2683,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           '🔍 DEBUG: Original invoice discharge_airport: "${invoice['discharge_airport']}"');
       print(
           '🔍 DEBUG: Original invoice dischargeAirport: "${invoice['dischargeAirport']}"');
+
+      debugPrint('🚀 DEBUG: About to navigate to InvoiceForm with draftData');
 
       Navigator.push(
         context,

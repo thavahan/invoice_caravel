@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:invoice_generator/models/shipment.dart';
 import 'package:invoice_generator/models/shipment_box.dart';
 import 'package:invoice_generator/models/shipment_product.dart';
+import 'package:invoice_generator/providers/auth_provider.dart';
 import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
@@ -84,6 +85,7 @@ class _InvoiceFormState extends State<InvoiceForm>
 
   // Currently editing box/item
   int? selectedBoxIndex;
+  int? editingProductIndex;
   bool isAddingNewBox = false;
   bool isAddingNewProduct = false;
 
@@ -199,7 +201,9 @@ class _InvoiceFormState extends State<InvoiceForm>
           if (widget.draftData != null) {
             debugPrint(
                 '🔄 Starting draft initialization after master data load');
-            _initializeFromDraft(widget.draftData!);
+            setState(() {
+              _initializeFromDraft(widget.draftData!);
+            });
           }
         });
       }
@@ -207,7 +211,9 @@ class _InvoiceFormState extends State<InvoiceForm>
       // Initialize from draft data if provided (for new forms)
       if (widget.draftData != null && widget.draftData!.isEmpty) {
         // This handles empty draft data case
-        _initializeFromDraft(widget.draftData!);
+        setState(() {
+          _initializeFromDraft(widget.draftData!);
+        });
       }
     });
     _bonus_controller.text = '0';
@@ -269,6 +275,54 @@ class _InvoiceFormState extends State<InvoiceForm>
     _pageController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  // Custom method to show success messages at the top without interfering with bottom buttons
+  void _showTopSuccessMessage(String message) {
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.green[600],
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    // Remove the overlay after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      overlayEntry.remove();
+    });
   }
 
   // Initialize new form with auto-generated invoice number and date
@@ -627,6 +681,8 @@ class _InvoiceFormState extends State<InvoiceForm>
   Widget build(BuildContext context) {
     debugPrint(
         '🎨 BUILD: InvoiceForm build called - shipmentBoxes.length: ${shipmentBoxes.length}');
+    debugPrint(
+        '🎨 BUILD: _invoiceNumberController.text = "${_invoiceNumberController.text}"');
 
     return Consumer<InvoiceProvider>(
       builder: (context, invoiceProvider, child) {
@@ -757,6 +813,46 @@ class _InvoiceFormState extends State<InvoiceForm>
                                 onPressed: _saveDraft,
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            // Fill Test Data button - Only for thavahan@gmail.com
+                            if (Provider.of<AuthProvider>(context,
+                                        listen: false)
+                                    .user
+                                    ?.email ==
+                                'thavahan@gmail.com')
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.flash_auto,
+                                      color: Colors.blue),
+                                  tooltip: 'Fill Test Data',
+                                  onPressed: () {
+                                    debugPrint(
+                                        '🔵 BUTTON_PRESSED: Fill Test Data button clicked');
+                                    _fillTestData();
+                                  },
+                                ),
+                              ),
+                            if (Provider.of<AuthProvider>(context,
+                                        listen: false)
+                                    .user
+                                    ?.email ==
+                                'thavahan@gmail.com')
+                              const SizedBox(width: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.clear_all, color: Colors.red),
+                                tooltip: 'Clear Form',
+                                onPressed: _clearForm,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -787,8 +883,9 @@ class _InvoiceFormState extends State<InvoiceForm>
                   ),
                 ),
 
-                // Navigation Footer
-                _buildNavigationFooter(invoiceProvider),
+                // Navigation Footer - Hide when adding product
+                if (!isAddingNewProduct)
+                  _buildNavigationFooter(invoiceProvider),
               ],
             ),
           ),
@@ -1647,6 +1744,8 @@ class _InvoiceFormState extends State<InvoiceForm>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Autocomplete<String>(
+        key: ValueKey(
+            controller.text), // Force rebuild when controller text changes
         initialValue: TextEditingValue(text: controller.text),
         optionsBuilder: (TextEditingValue textEditingValue) {
           if (textEditingValue.text.isEmpty) {
@@ -1662,6 +1761,12 @@ class _InvoiceFormState extends State<InvoiceForm>
             TextEditingController fieldController,
             FocusNode focusNode,
             VoidCallback onFieldSubmitted) {
+          // Sync changes from fieldController back to main controller
+          fieldController.addListener(() {
+            if (controller.text != fieldController.text) {
+              controller.text = fieldController.text;
+            }
+          });
           return TextFormField(
             controller: fieldController,
             focusNode: focusNode,
@@ -1798,6 +1903,223 @@ class _InvoiceFormState extends State<InvoiceForm>
     }
   }
 
+  /// Clear all form data for testing
+  void _clearForm() {
+    setState(() {
+      // Reset dropdown selections
+      selectedShipperId = null;
+      selectedConsigneeId = null;
+
+      // Clear all text controllers
+      _bonus_controller.clear();
+      _typeController.clear();
+      _invoiceNumberController.clear();
+      _invoiceTitleController.clear();
+      _shipperController.clear();
+      _consigneeController.clear();
+      _awbController.clear();
+      _flightNoController.clear();
+      _dischargeAirportController.clear();
+      _etaController.clear();
+      _totalAmountController.clear();
+      _originController.clear();
+      _destinationController.clear();
+      _shipperAddressController.clear();
+      _consigneeAddressController.clear();
+      _clientRefController.clear();
+      _invoiceDateController.clear();
+      _dateOfIssueController.clear();
+      _placeOfReceiptController.clear();
+      _sgstNoController.clear();
+      _iecCodeController.clear();
+
+      // Clear box and product form controllers
+      _boxNumberController.clear();
+      _boxDescriptionController.clear();
+      _boxLengthController.clear();
+      _boxWidthController.clear();
+      _boxHeightController.clear();
+
+      // Clear boxes and products
+      shipmentBoxes.clear();
+
+      // Reset form state
+      isFormModified = false;
+      currentDraftId = null;
+      originalInvoiceNumber = null;
+
+      // Reset to first step
+      currentStep = 0;
+      _pageController.jumpToPage(0);
+
+      // Reset card expansion states
+      isBasicInfoExpanded = true;
+      isFlightDetailsExpanded = false;
+      isItemsExpanded = false;
+      isPricingExpanded = false;
+
+      // Reset editing states
+      selectedBoxIndex = null;
+      editingProductIndex = null;
+      isAddingNewBox = false;
+      isAddingNewProduct = false;
+
+      // Reset step validation
+      stepValidation = {0: false, 1: false, 2: false};
+
+      // Show confirmation
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Form cleared successfully!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    });
+  }
+
+  /// Fill form with test data for quick testing
+  void _fillTestData() {
+    debugPrint('🔵 BUTTON_PRESSED: Fill Test Data button clicked');
+    debugPrint('🔵 FILL_TEST_DATA: Method called - starting to populate form');
+
+    setState(() {
+      // Reset dropdown selections to allow custom text input
+      selectedShipperId = null;
+      selectedConsigneeId = null;
+
+      // Basic Information
+      _invoiceNumberController.text =
+          'INV-TEST-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+      _invoiceTitleController.text = 'Test Shipment - Roses & Lilies';
+      _typeController.text = 'Flower Export';
+      _bonus_controller.text = '5%';
+
+      // Shipper & Consignee Information
+      _shipperController.text = 'ABC Flower Farms Ltd.';
+      _consigneeController.text = 'XYZ Import Company';
+      _shipperAddressController.text =
+          '123 Flower Valley, Bloom City, FL 12345';
+      _consigneeAddressController.text =
+          '456 Import Street, Trade City, NY 67890';
+
+      // Flight & Logistics Details
+      _awbController.text =
+          'AWB${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
+      _flightNoController.text =
+          'FL${(1000 + DateTime.now().second).toString()}';
+      _originController.text = 'Mumbai (BOM)';
+      _destinationController.text = 'New York (JFK)';
+      _dischargeAirportController.text = 'New York (JFK)';
+
+      // Dates
+      final now = DateTime.now();
+      final eta = now.add(const Duration(days: 3));
+      _etaController.text =
+          '${eta.year}-${eta.month.toString().padLeft(2, '0')}-${eta.day.toString().padLeft(2, '0')}';
+      _invoiceDateController.text =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      _dateOfIssueController.text =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      // Additional Details
+      _clientRefController.text =
+          'REF-TEST-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+      _placeOfReceiptController.text = 'Mumbai Warehouse';
+      _sgstNoController.text = 'GST123456789';
+      _iecCodeController.text = 'IEC987654321';
+
+      // Pricing
+      _totalAmountController.text = '25000.00';
+
+      // Clear existing boxes and add test boxes
+      shipmentBoxes.clear();
+
+      // Add sample boxes with products
+      final box1 = ShipmentBox(
+        id: 'box-test-1',
+        shipmentId: 'test-shipment-id',
+        boxNumber: '1',
+        length: 100.0,
+        width: 80.0,
+        height: 60.0,
+        products: [
+          ShipmentProduct(
+            id: 'prod-test-1-1',
+            boxId: 'box-test-1',
+            type: 'Roses',
+            description: 'Red Roses - Premium Quality',
+            flowerType: 'ROSES',
+            hasStems: true,
+            weight: 25.5,
+            rate: 15.00,
+            approxQuantity: 100,
+          ),
+          ShipmentProduct(
+            id: 'prod-test-1-2',
+            boxId: 'box-test-1',
+            type: 'Lilies',
+            description: 'White Lilies - Fresh Cut',
+            flowerType: 'LILIES',
+            hasStems: true,
+            weight: 20.0,
+            rate: 12.50,
+            approxQuantity: 80,
+          ),
+        ],
+      );
+
+      final box2 = ShipmentBox(
+        id: 'box-test-2',
+        shipmentId: 'test-shipment-id',
+        boxNumber: '2',
+        length: 90.0,
+        width: 70.0,
+        height: 50.0,
+        products: [
+          ShipmentProduct(
+            id: 'prod-test-2-1',
+            boxId: 'box-test-2',
+            type: 'Tulips',
+            description: 'Mixed Color Tulips',
+            flowerType: 'TULIPS',
+            hasStems: true,
+            weight: 18.5,
+            rate: 10.00,
+            approxQuantity: 120,
+          ),
+        ],
+      );
+
+      shipmentBoxes.addAll([box1, box2]);
+
+      // Reset form state
+      isFormModified = true;
+      currentStep = 0;
+      _pageController.jumpToPage(0);
+
+      // Expand relevant cards for visibility
+      isBasicInfoExpanded = true;
+      isFlightDetailsExpanded = true;
+      isItemsExpanded = true;
+      isPricingExpanded = true;
+    });
+
+    // Trigger animation to show changes
+    _animationController.forward(from: 0.0);
+
+    debugPrint('🔵 FILL_TEST_DATA: Form populated with complete test data');
+    debugPrint(
+        '🔵 FILL_TEST_DATA: Added ${shipmentBoxes.length} test boxes with products');
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Form filled with test data!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
   /// Prepares draft data from current form state
   Map<String, dynamic> _prepareDraftData() {
     debugPrint(
@@ -1880,6 +2202,17 @@ class _InvoiceFormState extends State<InvoiceForm>
 
     debugPrint('📊 Actual draft data keys: ${actualDraftData.keys.toList()}');
     debugPrint('📦 Boxes data in draft: ${actualDraftData['boxes']}');
+    debugPrint(
+        '✈️ Flight number in draft data: "${actualDraftData['flightNo']}"');
+    debugPrint('📍 Origin in draft data: "${actualDraftData['origin']}"');
+    debugPrint(
+        '📍 Destination in draft data: "${actualDraftData['destination']}"');
+    debugPrint(
+        '📋 Client ref in draft data: "${actualDraftData['clientRef']}"');
+    debugPrint(
+        '🏢 Place of receipt in draft data: "${actualDraftData['placeOfReceipt']}"');
+    debugPrint('🆔 GST number in draft data: "${actualDraftData['sgstNo']}"');
+    debugPrint('🆔 IEC code in draft data: "${actualDraftData['iecCode']}"');
 
     // Store the original invoice number for updates (before user can modify it)
     // Normalize to uppercase for consistency
@@ -1899,6 +2232,16 @@ class _InvoiceFormState extends State<InvoiceForm>
     _awbController.text =
         (actualDraftData['awb'] ?? '').toString().toUpperCase();
     _flightNoController.text = actualDraftData['flightNo'] ?? '';
+    debugPrint(
+        '✈️ Set flight number controller to: "${_flightNoController.text}"');
+
+    // If flight number is empty, generate a default one for editing existing shipments
+    if (_flightNoController.text.isEmpty) {
+      _flightNoController.text =
+          'FL${(1000 + DateTime.now().second).toString()}';
+      debugPrint(
+          '✈️ Generated default flight number: "${_flightNoController.text}"');
+    }
     _dischargeAirportController.text =
         actualDraftData['dischargeAirport'] ?? '';
     _etaController.text = actualDraftData['eta'] ?? '';
@@ -1907,6 +2250,10 @@ class _InvoiceFormState extends State<InvoiceForm>
     _destinationController.text = actualDraftData['destination'] ?? '';
     _bonus_controller.text = actualDraftData['bonus'] ?? '';
     _typeController.text = actualDraftData['type'] ?? '';
+
+    debugPrint('📍 Set origin controller to: "${_originController.text}"');
+    debugPrint(
+        '📍 Set destination controller to: "${_destinationController.text}"');
 
     // Prevent invoice number from being the same as AWB
     if (_invoiceNumberController.text == _awbController.text &&
@@ -1925,6 +2272,13 @@ class _InvoiceFormState extends State<InvoiceForm>
     _placeOfReceiptController.text = actualDraftData['placeOfReceipt'] ?? '';
     _sgstNoController.text = actualDraftData['sgstNo'] ?? '';
     _iecCodeController.text = actualDraftData['iecCode'] ?? '';
+
+    debugPrint(
+        '📋 Set client ref controller to: "${_clientRefController.text}"');
+    debugPrint(
+        '🏢 Set place of receipt controller to: "${_placeOfReceiptController.text}"');
+    debugPrint('🆔 Set GST number controller to: "${_sgstNoController.text}"');
+    debugPrint('🆔 Set IEC code controller to: "${_iecCodeController.text}"');
     // Initialize freight terms from draft, defaulting to "Pre Paid" if not set
     selectedFreightTerms = actualDraftData['freightTerms'] ?? 'Pre Paid';
 
@@ -1936,6 +2290,9 @@ class _InvoiceFormState extends State<InvoiceForm>
         actualDraftData['isFlightDetailsExpanded'] ?? false;
     isItemsExpanded = actualDraftData['isItemsExpanded'] ?? false;
     isPricingExpanded = actualDraftData['isPricingExpanded'] ?? false;
+
+    // Ensure PageView is on the correct page
+    _pageController.jumpToPage(currentStep);
 
     // Initialize boxes if they exist
     if (actualDraftData['boxes'] != null && actualDraftData['boxes'] is List) {
@@ -2038,8 +2395,9 @@ class _InvoiceFormState extends State<InvoiceForm>
         selectedShipperId = matchingShipper['id'];
         debugPrint('🔄 Updated selectedShipperId: $selectedShipperId');
       } else {
-        selectedShipperId = 'custom';
-        debugPrint('🔄 Set selectedShipperId to custom');
+        selectedShipperId =
+            null; // Don't set to 'custom' - let dropdown handle custom text
+        debugPrint('🔄 Set selectedShipperId to null (custom text)');
       }
     } else {
       selectedShipperId = null;
@@ -2054,8 +2412,9 @@ class _InvoiceFormState extends State<InvoiceForm>
         selectedConsigneeId = matchingConsignee['id'];
         debugPrint('🔄 Updated selectedConsigneeId: $selectedConsigneeId');
       } else {
-        selectedConsigneeId = 'custom';
-        debugPrint('🔄 Set selectedConsigneeId to custom');
+        selectedConsigneeId =
+            null; // Don't set to 'custom' - let dropdown handle custom text
+        debugPrint('🔄 Set selectedConsigneeId to null (custom text)');
       }
     } else {
       selectedConsigneeId = null;
@@ -2079,9 +2438,18 @@ class _InvoiceFormState extends State<InvoiceForm>
       shipmentBoxes.add(newBox);
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Box added successfully')),
-    );
+    _showTopSuccessMessage('Box added successfully');
+
+    // Scroll to the bottom to focus on the newly added box
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_itemsScrollController.hasClients) {
+        _itemsScrollController.animateTo(
+          _itemsScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   void _deleteBox(int index) {
@@ -2090,9 +2458,93 @@ class _InvoiceFormState extends State<InvoiceForm>
       // Renumber all remaining boxes sequentially
       _renumberBoxes();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Box deleted successfully')),
-    );
+    _showTopSuccessMessage('Box deleted successfully');
+  }
+
+  void _deleteProduct(int boxIndex, int productIndex) {
+    final product = shipmentBoxes[boxIndex].products[productIndex];
+
+    setState(() {
+      final updatedProducts =
+          List<ShipmentProduct>.from(shipmentBoxes[boxIndex].products);
+      updatedProducts.removeAt(productIndex);
+      shipmentBoxes[boxIndex] =
+          shipmentBoxes[boxIndex].copyWith(products: updatedProducts);
+    });
+
+    // Force a rebuild of the UI
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {});
+    });
+
+    _showTopSuccessMessage('Product "${product.type}" deleted successfully');
+  }
+
+  void _editProduct(int boxIndex, int productIndex) {
+    final product = shipmentBoxes[boxIndex].products[productIndex];
+
+    // Ensure we're on the items step
+    if (currentStep != 2) {
+      _pageController.animateToPage(
+        2,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() {
+        currentStep = 2;
+      });
+    }
+
+    setState(() {
+      isAddingNewProduct = true;
+      selectedBoxIndex = boxIndex;
+      editingProductIndex = productIndex;
+
+      // Clear form first
+      _productTypeController.clear();
+      _itemWeightController.clear();
+      _itemRateController.clear();
+      selectedFlowerType = null;
+      hasStems = false;
+      _approxQuantityController.clear();
+      selectedProductTypeId = null;
+      baseApproxQuantity = null;
+
+      // Populate form with existing product data
+      _productTypeController.text = product.type;
+      _itemWeightController.text = product.weight.toString();
+      _itemRateController.text = product.rate.toString();
+      selectedFlowerType = product.flowerType.isNotEmpty &&
+              masterFlowerTypes
+                  .any((ft) => ft['flower_name'] == product.flowerType)
+          ? product.flowerType
+          : null; // null will show "Select Flower Type"
+      hasStems = product.hasStems;
+      _approxQuantityController.text = product.approxQuantity.toString();
+
+      // Set product type ID if it matches master data
+      final matchingProductTypes =
+          masterProductTypes.where((pt) => pt['name'] == product.type);
+      final matchingProductType =
+          matchingProductTypes.isNotEmpty ? matchingProductTypes.first : null;
+      selectedProductTypeId = matchingProductType?['id'];
+
+      // Set base quantity for calculations
+      baseApproxQuantity = product.approxQuantity;
+    });
+
+    // Scroll to top to show the form
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        if (_itemsScrollController.hasClients) {
+          _itemsScrollController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      } catch (_) {}
+    });
   }
 
   // Helper method to renumber all boxes sequentially
@@ -2145,8 +2597,10 @@ class _InvoiceFormState extends State<InvoiceForm>
     }
 
     setState(() {
-      final newProduct = ShipmentProduct(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+      final product = ShipmentProduct(
+        id: editingProductIndex != null
+            ? shipmentBoxes[selectedBoxIndex!].products[editingProductIndex!].id
+            : DateTime.now().millisecondsSinceEpoch.toString(),
         boxId: shipmentBoxes[selectedBoxIndex!].id,
         type: _productTypeController.text,
         description: '', // No longer used
@@ -2157,22 +2611,38 @@ class _InvoiceFormState extends State<InvoiceForm>
         approxQuantity: approxQuantity,
       );
 
-      shipmentBoxes[selectedBoxIndex!].products.add(newProduct);
+      if (editingProductIndex != null) {
+        // Update existing product - create new list to ensure UI rebuilds
+        final updatedProducts = List<ShipmentProduct>.from(
+            shipmentBoxes[selectedBoxIndex!].products);
+        updatedProducts[editingProductIndex!] = product;
+        shipmentBoxes[selectedBoxIndex!] = shipmentBoxes[selectedBoxIndex!]
+            .copyWith(products: updatedProducts);
+      } else {
+        // Add new product
+        final updatedProducts = List<ShipmentProduct>.from(
+            shipmentBoxes[selectedBoxIndex!].products);
+        updatedProducts.add(product);
+        shipmentBoxes[selectedBoxIndex!] = shipmentBoxes[selectedBoxIndex!]
+            .copyWith(products: updatedProducts);
+      }
 
       // Reset form state
       isAddingNewProduct = false;
       selectedBoxIndex = null;
+      editingProductIndex = null;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Product added successfully')),
-    );
+    _showTopSuccessMessage(editingProductIndex != null
+        ? 'Product updated successfully'
+        : 'Product added successfully');
   }
 
   void _cancelAddingProduct() {
     setState(() {
       isAddingNewProduct = false;
       selectedBoxIndex = null;
+      editingProductIndex = null;
     });
   }
 
@@ -2200,10 +2670,12 @@ class _InvoiceFormState extends State<InvoiceForm>
                 Icon(Icons.add_shopping_cart,
                     color: Colors.green[700], size: 28),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Add New Product',
-                    style: TextStyle(
+                    editingProductIndex != null
+                        ? 'Edit Product'
+                        : 'Add New Product',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -2290,12 +2762,18 @@ class _InvoiceFormState extends State<InvoiceForm>
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                 ),
-                items: masterFlowerTypes
-                    .map((flowerType) => DropdownMenuItem<String>(
-                          value: flowerType['flower_name'] as String,
-                          child: Text(flowerType['flower_name'] as String),
-                        ))
-                    .toList(),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('Select Flower Type'),
+                  ),
+                  ...masterFlowerTypes
+                      .map((flowerType) => DropdownMenuItem<String>(
+                            value: flowerType['flower_name'] as String,
+                            child: Text(flowerType['flower_name'] as String),
+                          ))
+                      .toList(),
+                ],
                 onChanged: (value) {
                   setState(() {
                     selectedFlowerType = value;
@@ -2426,7 +2904,9 @@ class _InvoiceFormState extends State<InvoiceForm>
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text('Add Product'),
+                  child: Text(editingProductIndex != null
+                      ? 'Update Product'
+                      : 'Add Product'),
                 ),
               ],
             ),
@@ -2494,26 +2974,80 @@ class _InvoiceFormState extends State<InvoiceForm>
                     ),
               ),
               const SizedBox(height: 8),
-              ...box.products.map((product) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            product.type,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                        Text(
-                          '${product.weight}kg',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
+              ...box.products.asMap().entries.map((entry) {
+                final productIndex = entry.key;
+                final product = entry.value;
+                final productTotal = product.weight * product.rate;
+                return Container(
+                  key: ValueKey('product_${product.id}_${productIndex}'),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.type,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
                                   ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${product.weight}kg × \$${product.rate.toStringAsFixed(2)} = \$${productTotal.toStringAsFixed(2)}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Colors.grey[600],
+                                    fontSize: 11,
+                                  ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: () => _editProduct(index, productIndex),
+                            icon: const Icon(Icons.edit, size: 16),
+                            color: Colors.blue[600],
+                            tooltip: 'Edit Product',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () =>
+                                _deleteProduct(index, productIndex),
+                            icon: const Icon(Icons.delete, size: 16),
+                            color: Colors.red[600],
+                            tooltip: 'Delete Product',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ],
         ),
@@ -2651,10 +3185,35 @@ class _InvoiceFormState extends State<InvoiceForm>
     }
 
     try {
-      // Create Shipment object
-      // Normalize invoice number and AWB to uppercase for consistency
+      // Determine if this is an update (editing existing shipment) or create (new shipment)
+      final isUpdate = widget.draftData != null &&
+          widget.draftData!['invoiceNumber'] != null &&
+          widget.draftData!['invoiceNumber'].toString().isNotEmpty;
+
+      // Normalize invoice number for checking
       final normalizedInvoiceNumber =
           _invoiceNumberController.text.toUpperCase().trim();
+
+      // For new shipments, check if invoice number already exists
+      if (!isUpdate) {
+        final existingShipment =
+            await _localDbService.getShipment(normalizedInvoiceNumber);
+        if (existingShipment != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Invoice number already exists. Please use a different invoice number.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      // Create Shipment object
+      // Normalize invoice number and AWB to uppercase for consistency
       final normalizedAwb = _awbController.text.toUpperCase().trim();
 
       final shipment = Shipment(
@@ -2711,19 +3270,43 @@ class _InvoiceFormState extends State<InvoiceForm>
               })
           .toList();
 
-      await invoiceProvider.createShipmentWithBoxes(shipment, boxesData);
+      debugPrint(
+          '📦 DEBUG: Submitting shipment with ${boxesData.length} boxes');
+      for (int i = 0; i < boxesData.length; i++) {
+        final products = boxesData[i]['products'] as List;
+        debugPrint(
+            '   Box ${i + 1}: ${boxesData[i]['boxNumber']} with ${products.length} products');
+      }
+
+      // Call appropriate method based on whether this is an update or create
+      if (isUpdate) {
+        debugPrint('🔄 Updating existing shipment: ${shipment.invoiceNumber}');
+        await invoiceProvider.updateShipmentWithBoxes(shipment, boxesData);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Shipment updated successfully!')),
+          );
+        }
+      } else {
+        debugPrint('➕ Creating new shipment: ${shipment.invoiceNumber}');
+        await invoiceProvider.createShipmentWithBoxes(shipment, boxesData);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Shipment created successfully!')),
+          );
+        }
+      }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Shipment created successfully!')),
-        );
         Navigator.pop(context, true);
       }
     } catch (e) {
       debugPrint('❌ Error completing form: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating shipment: $e')),
+          SnackBar(
+              content: Text(
+                  'Error ${widget.draftData != null ? 'updating' : 'creating'} shipment: $e')),
         );
       }
     }

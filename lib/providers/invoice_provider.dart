@@ -327,22 +327,22 @@ class InvoiceProvider with ChangeNotifier {
         }
       }
 
-      // Delete existing boxes/products and recreate with updated data
-      // This ensures clean update without orphaned data. Wrap in try/catch
-      // to log and surface any failures clearly.
-      try {
-        await _dataService.deleteAllBoxesForShipment(shipment.invoiceNumber);
-        _logger.i(
-            'Deleted existing boxes for shipment: ${shipment.invoiceNumber}');
-      } catch (e) {
-        _logger.e(
-            'Failed to delete existing boxes for shipment ${shipment.invoiceNumber}',
-            e);
-        rethrow;
-      }
-
-      // Auto-create updated boxes and products if provided
+      // Handle boxes and products update
+      // Only delete and recreate boxes if boxesData is not empty
+      // If boxesData is empty, preserve existing boxes (user only updated shipment details)
       if (boxesData.isNotEmpty) {
+        try {
+          await _dataService.deleteAllBoxesForShipment(shipment.invoiceNumber);
+          _logger.i(
+              'Deleted existing boxes for shipment: ${shipment.invoiceNumber}');
+        } catch (e) {
+          _logger.e(
+              'Failed to delete existing boxes for shipment ${shipment.invoiceNumber}',
+              e);
+          rethrow;
+        }
+
+        // Auto-create updated boxes and products if provided
         try {
           await _dataService.autoCreateBoxesAndProducts(
             shipment.invoiceNumber,
@@ -356,6 +356,9 @@ class InvoiceProvider with ChangeNotifier {
               e);
           rethrow;
         }
+      } else {
+        _logger.i(
+            'No boxes data provided - preserving existing boxes for shipment ${shipment.invoiceNumber}');
       }
 
       // Update local shipments list
@@ -837,14 +840,26 @@ class InvoiceProvider with ChangeNotifier {
       // Check local data count
       _dataService.forceOfflineMode(true);
       final localShipments = await _dataService.getShipments();
+      final localShippers = await _dataService.getMasterShippers();
+      final localConsignees = await _dataService.getMasterConsignees();
+      final localProductTypes = await _dataService.getMasterProductTypes();
+      final localFlowerTypes = await _dataService.getFlowerTypes();
       _dataService.forceOfflineMode(false);
 
       // Check Firebase data count (if online)
       List<Shipment> firebaseShipments = [];
+      List<dynamic> firebaseShippers = [];
+      List<dynamic> firebaseConsignees = [];
+      List<dynamic> firebaseProductTypes = [];
+      List<dynamic> firebaseFlowerTypes = [];
       try {
         final dataSourceInfo = await _dataService.getDataSourceInfo();
         if (dataSourceInfo['isOnline'] == true) {
           firebaseShipments = await _dataService.getShipments();
+          firebaseShippers = await _dataService.getMasterShippers();
+          firebaseConsignees = await _dataService.getMasterConsignees();
+          firebaseProductTypes = await _dataService.getMasterProductTypes();
+          firebaseFlowerTypes = await _dataService.getFlowerTypes();
         }
       } catch (e) {
         _logger.w('Could not check Firebase data count', e);
@@ -854,6 +869,14 @@ class InvoiceProvider with ChangeNotifier {
         'hasMigrated': hasMigrated,
         'localShipmentsCount': localShipments.length,
         'firebaseShipmentsCount': firebaseShipments.length,
+        'localShippersCount': localShippers.length,
+        'firebaseShippersCount': firebaseShippers.length,
+        'localConsigneesCount': localConsignees.length,
+        'firebaseConsigneesCount': firebaseConsignees.length,
+        'localProductTypesCount': localProductTypes.length,
+        'firebaseProductTypesCount': firebaseProductTypes.length,
+        'localFlowerTypesCount': localFlowerTypes.length,
+        'firebaseFlowerTypesCount': firebaseFlowerTypes.length,
         'needsMigration': !hasMigrated && localShipments.isNotEmpty,
       };
     } catch (e) {
@@ -862,6 +885,14 @@ class InvoiceProvider with ChangeNotifier {
         'hasMigrated': false,
         'localShipmentsCount': 0,
         'firebaseShipmentsCount': 0,
+        'localShippersCount': 0,
+        'firebaseShippersCount': 0,
+        'localConsigneesCount': 0,
+        'firebaseConsigneesCount': 0,
+        'localProductTypesCount': 0,
+        'firebaseProductTypesCount': 0,
+        'localFlowerTypesCount': 0,
+        'firebaseFlowerTypesCount': 0,
         'needsMigration': false,
         'error': e.toString(),
       };

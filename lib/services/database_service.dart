@@ -788,42 +788,6 @@ class DatabaseService {
         });
       }
 
-      // Insert sample flower types if none exist for this user
-      final flowerTypes = await db.query(
-        'flower_types',
-        where: 'user_id = ?',
-        whereArgs: [userId],
-      );
-      if (flowerTypes.isEmpty) {
-        final sampleFlowers = [
-          {
-            'id': 'flower_1_${DateTime.now().millisecondsSinceEpoch}',
-            'user_id': userId,
-            'flower_name': 'Temple Flowers',
-            'description': 'Traditional temple offering flowers',
-          },
-          {
-            'id': 'flower_2_${DateTime.now().millisecondsSinceEpoch}',
-            'user_id': userId,
-            'flower_name': 'Rose',
-            'description': 'Fresh roses for decoration',
-          },
-          {
-            'id': 'flower_3_${DateTime.now().millisecondsSinceEpoch}',
-            'user_id': userId,
-            'flower_name': 'Jasmine',
-            'description': 'Fragrant jasmine flowers',
-          },
-        ];
-
-        for (final flower in sampleFlowers) {
-          await db.insert('flower_types', {
-            ...flower,
-            'created_at': DateTime.now().millisecondsSinceEpoch,
-          });
-        }
-      }
-
       _logger.i('Default data initialized successfully for user: $userId');
     } catch (e, s) {
       _logger.e('Failed to initialize default data', e, s);

@@ -4,6 +4,7 @@ import 'package:invoice_generator/models/box_product.dart';
 import 'package:invoice_generator/models/master_shipper.dart';
 import 'package:invoice_generator/models/master_consignee.dart';
 import 'package:invoice_generator/models/master_product_type.dart';
+import 'package:invoice_generator/models/product.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
 
 /// Screen to view all data stored in local database
@@ -24,6 +25,7 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
   List<MasterShipper> _shippers = [];
   List<MasterConsignee> _consignees = [];
   List<MasterProductType> _productTypes = [];
+  List<FlowerType> _flowerTypes = [];
   Map<String, List<ShipmentBox>> _shipmentBoxes = {};
   Map<String, List<ShipmentProduct>> _boxProducts = {};
 
@@ -33,7 +35,7 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadAllData();
   }
 
@@ -56,12 +58,14 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
         _localService.getMasterShippers(),
         _localService.getMasterConsignees(),
         _localService.getMasterProductTypes(),
+        _localService.getFlowerTypes(),
       ]);
 
       _shipments = results[0] as List<Shipment>;
       _shippers = results[1] as List<MasterShipper>;
       _consignees = results[2] as List<MasterConsignee>;
       _productTypes = results[3] as List<MasterProductType>;
+      _flowerTypes = results[4] as List<FlowerType>;
 
       // Load boxes and products for each shipment
       for (final shipment in _shipments) {
@@ -124,6 +128,10 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
               text: 'Product Types (${_productTypes.length})',
             ),
             Tab(
+              icon: const Icon(Icons.local_florist),
+              text: 'Flower Types (${_flowerTypes.length})',
+            ),
+            Tab(
               icon: const Icon(Icons.inventory_2),
               text: 'Boxes & Products',
             ),
@@ -135,7 +143,10 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Theme.of(context).colorScheme.surfaceContainerHighest, Theme.of(context).colorScheme.surface],
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+              Theme.of(context).colorScheme.surface
+            ],
           ),
         ),
         child: _isLoading
@@ -146,7 +157,8 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.error_outline,
-                            size: 64, color: Theme.of(context).colorScheme.error),
+                            size: 64,
+                            color: Theme.of(context).colorScheme.error),
                         const SizedBox(height: 16),
                         Text(
                           _errorMessage,
@@ -168,6 +180,7 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
                       _buildShippersTab(),
                       _buildConsigneesTab(),
                       _buildProductTypesTab(),
+                      _buildFlowerTypesTab(),
                       _buildBoxesProductsTab(),
                     ],
                   ),
@@ -175,7 +188,8 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
       floatingActionButton: FloatingActionButton(
         onPressed: _loadAllData,
         backgroundColor: Theme.of(context).colorScheme.primary,
-        child: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onPrimary),
+        child:
+            Icon(Icons.refresh, color: Theme.of(context).colorScheme.onPrimary),
         tooltip: 'Refresh Data',
       ),
     );
@@ -246,7 +260,9 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Column(
@@ -291,8 +307,10 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
             ),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Icon(Icons.business, color: Theme.of(context).colorScheme.primary),
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Icon(Icons.business,
+                    color: Theme.of(context).colorScheme.primary),
               ),
               title: Text(
                 shipper.name,
@@ -329,8 +347,10 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
             ),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary),
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Icon(Icons.person_outline,
+                    color: Theme.of(context).colorScheme.primary),
               ),
               title: Text(
                 consignee.name,
@@ -367,14 +387,56 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
             ),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Icon(Icons.category, color: Theme.of(context).colorScheme.primary),
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Icon(Icons.category,
+                    color: Theme.of(context).colorScheme.primary),
               ),
               title: Text(
                 productType.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text('Approx Quantity: ${productType.approxQuantity}'),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFlowerTypesTab() {
+    return RefreshIndicator(
+      onRefresh: _loadAllData,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _flowerTypes.length,
+        itemBuilder: (context, index) {
+          final flowerType = _flowerTypes[index];
+          return Card(
+            elevation: 4,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Icon(Icons.local_florist,
+                    color: Theme.of(context).colorScheme.primary),
+              ),
+              title: Text(
+                flowerType.flowerName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (flowerType.description.isNotEmpty)
+                    Text(flowerType.description),
+                  Text('ID: ${flowerType.id}'),
+                ],
+              ),
             ),
           );
         },
@@ -406,7 +468,8 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.inventory_2, color: Theme.of(context).colorScheme.primary),
+                        Icon(Icons.inventory_2,
+                            color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
                           'Summary',
@@ -464,7 +527,9 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
                                       margin: const EdgeInsets.only(bottom: 8),
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Column(
