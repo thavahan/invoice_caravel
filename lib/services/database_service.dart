@@ -40,12 +40,18 @@ class DatabaseService {
       ); // Database with user isolation
       _logger.i('Initializing database at: $path');
 
-      return await openDatabase(
+      final db = await openDatabase(
         path,
         version: 1, // Database version with user isolation
         onCreate: _createTables,
         onUpgrade: _upgradeDatabase,
       );
+
+      // Enable foreign key constraints
+      await db.execute('PRAGMA foreign_keys = ON;');
+      _logger.i('Foreign key constraints enabled');
+
+      return db;
     } catch (e, s) {
       _logger.e('Failed to initialize database', e, s);
       rethrow;
@@ -551,6 +557,23 @@ class DatabaseService {
     } catch (e, s) {
       _logger.e('Failed to delete shipment $invoiceNumber', e, s);
       throw Exception('Failed to delete shipment: ${e.toString()}');
+    }
+  }
+
+  /// Clean up orphaned boxes and products (for database maintenance)
+  Future<void> cleanupOrphanedBoxes() async {
+    try {
+      final db = await database;
+      // Delete boxes that don't have a corresponding shipment
+      await db.rawDelete('''
+        DELETE FROM boxes
+        WHERE shipment_invoice_number NOT IN (
+          SELECT invoice_number FROM shipments
+        )
+      ''');
+      _logger.i('Cleaned up orphaned boxes');
+    } catch (e, s) {
+      _logger.e('Failed to cleanup orphaned boxes', e, s);
     }
   }
 
@@ -1317,6 +1340,91 @@ class DatabaseService {
       _logger.i('All local data cleared successfully');
     } catch (e, s) {
       _logger.e('Failed to clear all data', e, s);
+      rethrow;
+    }
+  }
+
+  // ========== BOX OPERATIONS ==========
+
+  /// Update a box
+  Future<void> updateBox(String boxId, Map<String, dynamic> boxData) async {
+    try {
+      final db = await database;
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      final data = {
+        ...boxData,
+        'updated_at': now,
+      };
+
+      await db.update(
+        'boxes',
+        data,
+        where: 'id = ?',
+        whereArgs: [boxId],
+      );
+      _logger.i('Box updated: $boxId');
+    } catch (e, s) {
+      _logger.e('Failed to update box', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete a box
+  Future<void> deleteBox(String boxId) async {
+    try {
+      final db = await database;
+      await db.delete(
+        'boxes',
+        where: 'id = ?',
+        whereArgs: [boxId],
+      );
+      _logger.i('Box deleted: $boxId');
+    } catch (e, s) {
+      _logger.e('Failed to delete box', e, s);
+      rethrow;
+    }
+  }
+
+  // ========== PRODUCT OPERATIONS ==========
+
+  /// Update a product
+  Future<void> updateProduct(
+      String productId, Map<String, dynamic> productData) async {
+    try {
+      final db = await database;
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      final data = {
+        ...productData,
+        'updated_at': now,
+      };
+
+      await db.update(
+        'products',
+        data,
+        where: 'id = ?',
+        whereArgs: [productId],
+      );
+      _logger.i('Product updated: $productId');
+    } catch (e, s) {
+      _logger.e('Failed to update product', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete a product
+  Future<void> deleteProduct(String productId) async {
+    try {
+      final db = await database;
+      await db.delete(
+        'products',
+        where: 'id = ?',
+        whereArgs: [productId],
+      );
+      _logger.i('Product deleted: $productId');
+    } catch (e, s) {
+      _logger.e('Failed to delete product', e, s);
       rethrow;
     }
   }

@@ -27,16 +27,9 @@ class PdfService {
   static const int ITEMS_PER_TABLE_PAGE =
       8; // Increased for better production use - items per page
 
-  // Dynamic calculation for available height
-  static double get _availableHeight =>
-      PdfPageFormat.a4.height -
-      (_pageMargin * 2) -
-      _headerHeight -
-      _footerHeight;
-
   /// Main PDF generation supporting N number of pages
   Future<void> generateShipmentPDF(
-      Shipment shipment, List<dynamic> items, bool isPreview) async {
+      Shipment shipment, List<dynamic> items) async {
     try {
       print('📄 Starting intelligent N-page PDF generation');
 
@@ -84,7 +77,7 @@ class PdfService {
       }
 
       print('📄 Successfully generated $totalPages pages');
-      await _outputPDF(pdf, shipment, isPreview);
+      await _outputPDF(pdf, shipment);
     } catch (e, stackTrace) {
       print('❌ PDF Generation Error: $e');
       print('📄 Stack trace: $stackTrace');
@@ -133,46 +126,21 @@ class PdfService {
     print('   Available per page: ${availablePerPage}px');
     print('   Content exceeds page: ${totalContentNeeded > availablePerPage}');
 
-    // MODIFIED STRATEGY: Always separate summary and itemized table for better layout
-    // Page 1: Summary + Table 2 (Flower Type Summary)
-    // Page 2+: Table 1 (Itemized Manifest) - AS REQUESTED
+    // MODIFIED STRATEGY: Put Itemized Manifest on page 1 above Flower Type Summary
+    // Page 1: Summary + Table 1 (Itemized Manifest) + Table 2 (Flower Type Summary)
 
-    strategy = 'summary_table2_then_itemized_from_page2';
+    strategy = 'summary_table1_table2';
 
-    // Page 1: Summary + Table 2
+    // Page 1: Summary + Table 1 + Table 2
     layouts.add({
-      'type': 'summary_and_table2',
+      'type': 'summary_and_table1_and_table2',
       'pageNumber': 1,
       'showSummary': true,
-      'showTable1': false,
+      'showTable1': true,
       'showTable2': true,
       'table1Start': 0,
-      'table1End': 0,
+      'table1End': items.length,
     });
-
-    // Calculate how many items fit per page for Table 1 (starting from page 2)
-    final int itemsPerPage =
-        ITEMS_PER_TABLE_PAGE; // Use configurable items per page
-    final int table1Pages = (items.length / itemsPerPage).ceil();
-
-    print(
-        '📄 Itemized Table (from page 2): $itemsPerPage items per page across $table1Pages pages');
-
-    // Create Table 1 pages starting from page 2
-    for (int page = 0; page < table1Pages; page++) {
-      final int startIndex = page * itemsPerPage;
-      final int endIndex = ((page + 1) * itemsPerPage).clamp(0, items.length);
-
-      layouts.add({
-        'type': page == 0 ? 'table1_start' : 'table1_continuation',
-        'pageNumber': page + 2, // Starting from page 2
-        'showSummary': false,
-        'showTable1': true,
-        'showTable2': false,
-        'table1Start': startIndex,
-        'table1End': endIndex,
-      });
-    }
 
     print('📋 Selected strategy: $strategy with ${layouts.length} pages');
 
@@ -208,10 +176,6 @@ class PdfService {
             // Page header
             _buildAdvancedHeader(
                 shipment, pageNumber, totalPages, layout['type'], logoImage),
-            pw.SizedBox(height: 20),
-
-            // Shipment information on every page
-            _buildShipmentInfo(shipment, items),
             pw.SizedBox(height: 20),
 
             // Dynamic content based on layout
@@ -263,26 +227,18 @@ class PdfService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
-                  pw.Text(
-                      isContinuation
-                          ? 'COMMERCIAL INVOICE (Continued)'
-                          : 'COMMERCIAL INVOICE',
+                  pw.Text('Caravel Solution Pvt ltd',
                       style: pw.TextStyle(
                           font: _boldFont!,
-                          fontSize: 18,
+                          fontSize: 16,
                           color: PdfColors.blue800)),
-                  pw.SizedBox(height: 5),
-                  pw.Text(shipment.invoiceTitle,
-                      style: pw.TextStyle(
-                          font: _regularFont!,
-                          fontSize: 12,
-                          color: PdfColors.blue600)),
                   pw.SizedBox(height: 3),
-                  pw.Text(pageTitle,
+                  pw.Text(
+                      '741/19 Thiruvengadam Salai,Sankarankoil,Tirunelveli,Tamilnadu,627556',
                       style: pw.TextStyle(
                           font: _regularFont!,
                           fontSize: 10,
-                          color: PdfColors.grey600)),
+                          color: PdfColors.blue600)),
                 ],
               ),
             ),
@@ -301,25 +257,34 @@ class PdfService {
                     borderRadius: pw.BorderRadius.circular(5),
                   ),
                   child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text('Invoice: ${shipment.invoiceNumber}',
                           style: pw.TextStyle(font: _boldFont!, fontSize: 10)),
-                      pw.Text('AWB: ${shipment.awb}',
-                          style:
-                              pw.TextStyle(font: _regularFont!, fontSize: 9)),
                       pw.SizedBox(height: 5),
-                      pw.Text('Page $pageNumber of $totalPages',
-                          style: pw.TextStyle(
-                              font: _boldFont!,
-                              fontSize: 12,
-                              color: PdfColors.blue800)),
-                      if (totalPages > 2)
-                        pw.Text('Multi-page document',
-                            style: pw.TextStyle(
-                                font: _regularFont!,
-                                fontSize: 8,
-                                color: PdfColors.grey600)),
+                      pw.Row(
+                        mainAxisSize: pw.MainAxisSize.min,
+                        children: [
+                          pw.Text('AWB:',
+                              style: pw.TextStyle(
+                                  font: _regularFont!, fontSize: 9)),
+                          pw.SizedBox(width: 8),
+                          pw.Container(
+                            width: 80,
+                            height: 16,
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(
+                                  width: 1, color: PdfColors.black),
+                              borderRadius: pw.BorderRadius.circular(2),
+                            ),
+                            child: pw.Center(
+                              child: pw.Text('',
+                                  style: pw.TextStyle(
+                                      font: _regularFont!, fontSize: 8)),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -338,6 +303,8 @@ class PdfService {
         return 'Complete Invoice Document';
       case 'summary_and_table2':
         return 'Invoice Summary & Flower Types';
+      case 'summary_and_table1_and_table2':
+        return 'Invoice Summary & Manifest';
       case 'summary_only':
         return 'Invoice Summary';
       case 'table1_start':
@@ -391,107 +358,83 @@ class PdfService {
   List<pw.Widget> _buildInvoiceSummary(Shipment shipment, List<dynamic> items) {
     return [
       // Invoice and Tax Details Row
+      // pw.Row(
+      //   crossAxisAlignment: pw.CrossAxisAlignment.start,
+      //   children: [
+      //     pw.Expanded(
+      //       child: pw.Container(
+      //         padding: pw.EdgeInsets.all(15),
+      //         decoration: pw.BoxDecoration(
+      //           border: pw.Border.all(width: 0.5, color: PdfColors.grey600),
+      //           borderRadius: pw.BorderRadius.circular(5),
+      //         ),
+      //         child: pw.Column(
+      //           crossAxisAlignment: pw.CrossAxisAlignment.start,
+      //           children: [
+      //             pw.Text('INVOICE DETAILS',
+      //                 style: pw.TextStyle(
+      //                     font: _boldFont!,
+      //                     fontSize: 12,
+      //                     color: PdfColors.blue800)),
+      //             pw.SizedBox(height: 10),
+      //             _buildDetailRow('Invoice Number:', shipment.invoiceNumber),
+      //             _buildDetailRow('AWB Number:', shipment.awb),
+      //             _buildDetailRow('Status:', shipment.status.toUpperCase()),
+      //             _buildDetailRow(
+      //                 'Invoice Date:',
+      //                 shipment.invoiceDate != null
+      //                     ? _formatDate(shipment.invoiceDate!)
+      //                     : 'N/A'),
+      //           ],
+      //         ),
+      //       ),
+      //     ),
+      //     pw.SizedBox(width: 15),
+      //     pw.Expanded(
+      //       child: pw.Container(
+      //         padding: pw.EdgeInsets.all(15),
+      //         decoration: pw.BoxDecoration(
+      //           border: pw.Border.all(width: 0.5, color: PdfColors.grey600),
+      //           borderRadius: pw.BorderRadius.circular(5),
+      //         ),
+      //         child: pw.Column(
+      //           crossAxisAlignment: pw.CrossAxisAlignment.start,
+      //           children: [
+      //             pw.Text('TAX & REGISTRATION',
+      //                 style: pw.TextStyle(
+      //                     font: _boldFont!,
+      //                     fontSize: 12,
+      //                     color: PdfColors.blue800)),
+      //             pw.SizedBox(height: 10),
+      //             _buildDetailRow('SGST Number:',
+      //                 shipment.sgstNo.isEmpty ? 'N/A' : shipment.sgstNo),
+      //             _buildDetailRow('IEC Code:',
+      //                 shipment.iecCode.isEmpty ? 'N/A' : shipment.iecCode),
+      //             _buildDetailRow(
+      //                 'Place of Receipt:',
+      //                 shipment.placeOfReceipt.isEmpty
+      //                     ? 'N/A'
+      //                     : shipment.placeOfReceipt),
+      //             _buildDetailRow(
+      //                 'Freight Terms:',
+      //                 shipment.freightTerms.isEmpty
+      //                     ? 'N/A'
+      //                     : shipment.freightTerms),
+      //           ],
+      //         ),
+      //       ),
+      //     ),
+      //   ],
+      // ),
+
+      // pw.SizedBox(height: 20),
+
+      // Shipment Information and Consignee Row
       pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Expanded(
-            child: pw.Container(
-              padding: pw.EdgeInsets.all(15),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 0.5, color: PdfColors.grey600),
-                borderRadius: pw.BorderRadius.circular(5),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('INVOICE DETAILS',
-                      style: pw.TextStyle(
-                          font: _boldFont!,
-                          fontSize: 12,
-                          color: PdfColors.blue800)),
-                  pw.SizedBox(height: 10),
-                  _buildDetailRow('Invoice Number:', shipment.invoiceNumber),
-                  _buildDetailRow('AWB Number:', shipment.awb),
-                  _buildDetailRow('Status:', shipment.status.toUpperCase()),
-                  _buildDetailRow(
-                      'Invoice Date:',
-                      shipment.invoiceDate != null
-                          ? _formatDate(shipment.invoiceDate!)
-                          : 'N/A'),
-                ],
-              ),
-            ),
-          ),
-          pw.SizedBox(width: 15),
-          pw.Expanded(
-            child: pw.Container(
-              padding: pw.EdgeInsets.all(15),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 0.5, color: PdfColors.grey600),
-                borderRadius: pw.BorderRadius.circular(5),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('TAX & REGISTRATION',
-                      style: pw.TextStyle(
-                          font: _boldFont!,
-                          fontSize: 12,
-                          color: PdfColors.blue800)),
-                  pw.SizedBox(height: 10),
-                  _buildDetailRow('SGST Number:',
-                      shipment.sgstNo.isEmpty ? 'N/A' : shipment.sgstNo),
-                  _buildDetailRow('IEC Code:',
-                      shipment.iecCode.isEmpty ? 'N/A' : shipment.iecCode),
-                  _buildDetailRow(
-                      'Place of Receipt:',
-                      shipment.placeOfReceipt.isEmpty
-                          ? 'N/A'
-                          : shipment.placeOfReceipt),
-                  _buildDetailRow(
-                      'Freight Terms:',
-                      shipment.freightTerms.isEmpty
-                          ? 'N/A'
-                          : shipment.freightTerms),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      pw.SizedBox(height: 20),
-
-      // Shipper and Consignee Row
-      pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Expanded(
-            child: pw.Container(
-              padding: pw.EdgeInsets.all(15),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 0.5, color: PdfColors.green600),
-                borderRadius: pw.BorderRadius.circular(5),
-                color: PdfColors.green50,
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('SHIPPER DETAILS',
-                      style: pw.TextStyle(
-                          font: _boldFont!,
-                          fontSize: 12,
-                          color: PdfColors.green800)),
-                  pw.SizedBox(height: 10),
-                  _buildDetailRow('Company:', shipment.shipper),
-                  _buildDetailRow(
-                      'Address:',
-                      shipment.shipperAddress.isEmpty
-                          ? 'Not provided'
-                          : shipment.shipperAddress),
-                ],
-              ),
-            ),
+            child: _buildShipmentInfo(shipment, items),
           ),
           pw.SizedBox(width: 15),
           pw.Expanded(
@@ -560,11 +503,9 @@ class PdfService {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('Flight Number:', shipment.flightNo),
+                    _buildDetailRow('Flight No:', shipment.flightNo),
                     _buildDetailRow('Origin:',
                         shipment.origin.isEmpty ? 'N/A' : shipment.origin),
-                    _buildDetailRow(
-                        'Discharge Airport:', shipment.dischargeAirport),
                   ],
                 ),
               ),
@@ -573,13 +514,9 @@ class PdfService {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('ETA:', _formatDate(shipment.eta)),
                     _buildDetailRow(
-                        'Destination:',
-                        shipment.destination.isEmpty
-                            ? 'N/A'
-                            : shipment.destination),
-                    _buildDetailRow('Total Items:', '${items.length} items'),
+                        'Discharge Airport:', shipment.dischargeAirport),
+                    _buildDetailRow('ETA:', _formatDate(shipment.eta)),
                   ],
                 ),
               ),
@@ -730,7 +667,7 @@ class PdfService {
               ),
               pw.Padding(
                 padding: pw.EdgeInsets.all(6),
-                child: pw.Text(_getItemValue(item, 'description', 'N/A'),
+                child: pw.Text(_formatItemDescription(item, weight),
                     style: pw.TextStyle(font: _regularFont!, fontSize: 9)),
               ),
               pw.Padding(
@@ -868,7 +805,7 @@ class PdfService {
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('SUMMARY BY ITEM TYPE',
+            pw.Text('SUMMARY BY Flower TYPE',
                 style: pw.TextStyle(
                     font: _boldFont!, fontSize: 14, color: PdfColors.white)),
             pw.Container(
@@ -940,10 +877,10 @@ class PdfService {
     String pageDescription = _getPageDescription(pageType, totalItems);
 
     return pw.Container(
-      padding: pw.EdgeInsets.all(12),
+      padding: pw.EdgeInsets.all(4),
       decoration: pw.BoxDecoration(
         border:
-            pw.Border(top: pw.BorderSide(width: 2, color: PdfColors.blue800)),
+            pw.Border(top: pw.BorderSide(width: 1, color: PdfColors.blue800)),
         color: PdfColors.grey100,
       ),
       child: pw.Row(
@@ -956,21 +893,21 @@ class PdfService {
                 pw.Text('$pageDescription - Page $pageNumber of $totalPages',
                     style: pw.TextStyle(
                         font: _boldFont!,
-                        fontSize: 10,
+                        fontSize: 4,
                         color: PdfColors.grey700)),
-                pw.Text('Advanced N-Page Invoice Generator v4.0',
+                pw.Text('Advanced N-Page Invoice Generator v1.0',
                     style: pw.TextStyle(
                         font: _regularFont!,
-                        fontSize: 8,
+                        fontSize: 4,
                         color: PdfColors.grey500)),
               ],
             ),
           ),
           pw.Container(
-            padding: pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             decoration: pw.BoxDecoration(
               color: PdfColors.blue50,
-              borderRadius: pw.BorderRadius.circular(3),
+              borderRadius: pw.BorderRadius.circular(2),
             ),
             child: pw.Text('Generated: ${_formatDate(DateTime.now())}',
                 style: pw.TextStyle(
@@ -990,6 +927,8 @@ class PdfService {
         return 'Complete Invoice ($totalItems items)';
       case 'summary_and_table2':
         return 'Invoice Summary & Types';
+      case 'summary_and_table1_and_table2':
+        return 'Invoice Summary & Manifest';
       case 'summary_only':
         return 'Invoice Summary';
       case 'table1_start':
@@ -1004,21 +943,13 @@ class PdfService {
   }
 
   /// Output PDF with proper error handling
-  Future<void> _outputPDF(
-      pw.Document pdf, Shipment shipment, bool isPreview) async {
+  Future<void> _outputPDF(pw.Document pdf, Shipment shipment) async {
     try {
-      if (isPreview) {
-        print('📄 Displaying multi-page PDF preview...');
-        await Printing.layoutPdf(
-            onLayout: (PdfPageFormat format) async => pdf.save());
-      } else {
-        print('📄 Sharing multi-page PDF...');
-        await Printing.sharePdf(
-            bytes: await pdf.save(),
-            filename:
-                'Invoice_${shipment.invoiceNumber}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      }
-      print('📄 PDF operation completed successfully');
+      print('📄 Showing PDF preview...');
+      await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdf.save(),
+          name: '${shipment.invoiceNumber}.pdf');
+      print('📄 PDF preview shown successfully');
     } catch (e) {
       print('❌ PDF Output Error: $e');
       rethrow;
@@ -1033,6 +964,26 @@ class PdfService {
           style: pw.TextStyle(font: _boldFont!, fontSize: 10),
           textAlign: pw.TextAlign.center),
     );
+  }
+
+  /// Format item description in the required format
+  String _formatItemDescription(dynamic item, double weight) {
+    String type = _getItemValue(item, 'type', 'UNKNOWN').toUpperCase();
+
+    // Construct description from individual fields
+    String flowerType = _getItemValue(item, 'flowerType', 'LOOSE FLOWERS');
+    bool hasStems = item is Map ? (item['hasStems'] ?? false) : false;
+    int approxQuantity =
+        item is Map ? ((item['approxQuantity'] as num?)?.toInt() ?? 0) : 0;
+
+    String stemsText = hasStems ? 'WITH STEMS' : 'NO STEMS';
+    String description = '$flowerType, $stemsText, APPROX $approxQuantity NOS';
+
+    // Format: "JASMIN - 6.7 KG (TIED GARLANDS, NO STEMS, APPROX 6240 NOS)"
+    String formattedDescription =
+        '$type - ${weight.toStringAsFixed(1)} KG ($description)';
+
+    return formattedDescription;
   }
 
   /// Helper to safely get item values

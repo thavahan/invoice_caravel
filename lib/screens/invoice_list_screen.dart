@@ -8,6 +8,7 @@ import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/services/pdf_service.dart';
+import 'package:invoice_generator/services/excel_file_service.dart';
 import 'package:invoice_generator/models/shipment.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
@@ -625,40 +626,40 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         foregroundColor: Colors.white,
       ),
       // Invoice Management Bottom Navigation
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-          _handleBottomNavTap(index);
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.local_shipping),
-            label: 'Shipments',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.drafts),
-            label: 'Drafts',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Reports',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Tracking',
-          ),
-        ],
-      ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: selectedIndex,
+      //   onTap: (index) {
+      //     setState(() {
+      //       selectedIndex = index;
+      //     });
+      //     _handleBottomNavTap(index);
+      //   },
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedItemColor: Colors.blue,
+      //   unselectedItemColor: Colors.grey,
+      //   items: const [
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.dashboard),
+      //       label: 'Dashboard',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.local_shipping),
+      //       label: 'Shipments',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.drafts),
+      //       label: 'Drafts',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.analytics),
+      //       label: 'Reports',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.search),
+      //       label: 'Tracking',
+      //     ),
+      //   ],
+      // ),
     );
   }
 
@@ -1448,22 +1449,42 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     final String shipper = invoice['shipper'] ?? 'Unknown Shipper';
     final String consignee = invoice['consignee'] ?? 'Unknown Consignee';
     final String status = invoice['status'] ?? 'Pending';
+    final String invoiceNumber =
+        invoice['invoiceNumber'] ?? invoice['id'] ?? 'N/A';
+
+    // Get screen size for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    // Calculate responsive scaling factors
+    final isSmallScreen = screenWidth < 360;
+    final isLargeScreen = screenWidth > 600;
+    final scaleFactor = isSmallScreen ? 0.85 : (isLargeScreen ? 1.1 : 1.0);
 
     // Format date
     String dateStr = 'Unknown Date';
+    bool isCurrentWeek = false;
     if (invoice['createdAt'] != null) {
       final date =
           DateTime.fromMillisecondsSinceEpoch(invoice['createdAt'] as int);
       final now = DateTime.now();
       final diff = now.difference(date);
 
+      // Check if date is in current week (Monday to Sunday)
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      isCurrentWeek =
+          date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+              date.isBefore(endOfWeek.add(const Duration(days: 1)));
+
       if (diff.inDays == 0) {
         dateStr = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-      } else if (diff.inDays < 7) {
+      } else if (isCurrentWeek) {
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         dateStr = days[date.weekday % 7];
       } else {
-        dateStr = '${date.day}/${date.month}';
+        dateStr =
+            '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
       }
     }
 
@@ -1472,30 +1493,45 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         border: Border(
           bottom: BorderSide(
             color: Colors.grey[200]!,
-            width: 0.5,
+            width: 0.5 * scaleFactor,
           ),
         ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16.0,
-          vertical: 8.0,
+        contentPadding: EdgeInsets.only(
+          left: 8.0 * scaleFactor,
+          right: 2.0 * scaleFactor,
+          top: 6.0 * scaleFactor,
+          bottom: 6.0 * scaleFactor,
         ),
+        horizontalTitleGap: 8.0 * scaleFactor,
         leading: Container(
-          width: 40,
-          height: 40,
+          width: 44 * scaleFactor,
+          height: 44 * scaleFactor,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _getStatusColor(status).withValues(alpha: 0.1),
             border: Border.all(
-              color: _getStatusColor(status),
-              width: 2,
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+              width: 1.5 * scaleFactor,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 4 * scaleFactor,
+                offset: Offset(0, 2 * scaleFactor),
+              ),
+            ],
           ),
-          child: Icon(
-            _getStatusIcon(status),
-            color: _getStatusColor(status),
-            size: 20,
+          child: ClipOval(
+            child: Padding(
+              padding: EdgeInsets.all(4 * scaleFactor),
+              child: Image.asset(
+                'asset/images/Caravel_logo.png',
+                fit: BoxFit.cover,
+                width: 36 * scaleFactor,
+                height: 36 * scaleFactor,
+              ),
+            ),
           ),
         ),
         title: Row(
@@ -1503,20 +1539,12 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             Expanded(
               child: Text(
                 shipper,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 16,
+                  fontSize: 14 * scaleFactor,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              dateStr,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
               ),
             ),
           ],
@@ -1524,32 +1552,107 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
+            SizedBox(height: 2 * scaleFactor),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w500,
-                fontSize: 14,
+                fontSize: 12 * scaleFactor,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: 1 * scaleFactor),
             Text(
               'To: $consignee • $status',
               style: TextStyle(
                 color: Colors.grey[600],
-                fontSize: 13,
+                fontSize: 11 * scaleFactor,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
-        trailing: Icon(
-          Icons.star_border,
-          color: Colors.grey[400],
-          size: 20,
+        trailing: Container(
+          constraints: BoxConstraints(
+            minWidth: 80 * scaleFactor,
+            maxWidth: 140 * scaleFactor,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: 10 * scaleFactor,
+            vertical: 5 * scaleFactor,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context).primaryColor.withValues(alpha: 0.9),
+                Theme.of(context).primaryColor.withValues(alpha: 0.7),
+                Theme.of(context).primaryColor.withValues(alpha: 0.5),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20 * scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
+                blurRadius: 8 * scaleFactor,
+                offset: Offset(0, 3 * scaleFactor),
+                spreadRadius: 1 * scaleFactor,
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.1),
+                blurRadius: 2 * scaleFactor,
+                offset: Offset(0, 1 * scaleFactor),
+              ),
+            ],
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.2),
+              width: 1 * scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.access_time,
+                color: Colors.white.withValues(alpha: 0.9),
+                size: 11 * scaleFactor,
+              ),
+              SizedBox(width: 3 * scaleFactor),
+              Flexible(
+                child: Text(
+                  dateStr,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9 * scaleFactor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1 * scaleFactor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 4 * scaleFactor),
+                width: 1 * scaleFactor,
+                height: 10 * scaleFactor,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
+              Flexible(
+                child: Text(
+                  '#$invoiceNumber',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9 * scaleFactor,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3 * scaleFactor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
         onTap: () {
           _showInvoiceDetails(context, invoice);
@@ -2034,6 +2137,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           boxes = draftBoxes.map((box) {
             if (box is Map<String, dynamic>) {
               return {
+                'id': box['id'] ?? '',
                 'boxNumber': box['boxNumber'] ?? 'Box 1',
                 'length': box['length'] ?? 0.0,
                 'width': box['width'] ?? 0.0,
@@ -2130,7 +2234,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       print(
           'DEBUG: Found shipment -> invoiceNumber: ${matchingShipment.invoiceNumber}, awb: ${matchingShipment.awb}, flightNo: ${matchingShipment.flightNo}, dischargeAirport: ${matchingShipment.dischargeAirport}');
 
-      final boxesFromDb = await _databaseService
+      final boxesFromDb = await _dataService
           .getBoxesForShipment(matchingShipment.invoiceNumber);
 
       if (boxesFromDb.isEmpty) {
@@ -2142,20 +2246,46 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       for (final box in boxesFromDb) {
         final products = box.products
             .map((product) => {
+                  'id': product.id,
                   'type': product.type,
                   'description': product.description,
                   'weight': product.weight,
                   'rate': product.rate,
+                  'flowerType': product.flowerType,
+                  'hasStems': product.hasStems,
+                  'approxQuantity': product.approxQuantity,
+                  'boxNumber': box.boxNumber,
                 })
             .toList();
 
         boxes.add({
+          'id': box.id,
           'boxNumber': box.boxNumber,
           'length': box.length,
           'width': box.width,
           'height': box.height,
           'products': products,
         });
+      }
+
+      // Sort boxes by box number and renumber them sequentially for correct display
+      boxes.sort((a, b) {
+        final aNum = _extractBoxNumber(a['boxNumber'] as String? ?? '');
+        final bNum = _extractBoxNumber(b['boxNumber'] as String? ?? '');
+        return aNum.compareTo(bNum);
+      });
+
+      // Renumber boxes sequentially
+      for (int i = 0; i < boxes.length; i++) {
+        final newBoxNumber = 'Box No ${(i + 1).toString()}';
+        boxes[i]['boxNumber'] = newBoxNumber;
+        // Also update boxNumber in products
+        final products = boxes[i]['products'] as List<dynamic>;
+        for (var product in products) {
+          if (product is Map<String, dynamic>) {
+            product['boxNumber'] = newBoxNumber;
+          }
+        }
       }
 
       // Convert shipment to map with loaded boxes and products
@@ -2396,7 +2526,6 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   /// Build individual product item
   Widget _buildProductItem(Map<String, dynamic> product) {
     final type = product['type'] ?? 'Unknown';
-    final description = product['description'] ?? '';
     final weight = (product['weight'] as num?)?.toDouble() ?? 0.0;
     final rate = (product['rate'] as num?)?.toDouble() ?? 0.0;
     final productTotal = weight * rate;
@@ -2580,7 +2709,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             }).toList();
 
             return {
-              'id': boxRaw['id'] ?? shipmentId,
+              'id': boxRaw['id'] ?? '',
               'boxNumber': boxRaw['boxNumber'] ?? 'Box',
               'length': boxRaw['length'] ?? 0.0,
               'width': boxRaw['width'] ?? 0.0,
@@ -2947,7 +3076,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       // Create shipment object for PDF generation
       final shipment = Shipment(
-        invoiceNumber: (invoice['invoiceNumber'] ?? 'N/A').toString(),
+        invoiceNumber: (detailedInvoiceData['invoiceNumber'] ??
+                detailedInvoiceData['id'] ??
+                'N/A')
+            .toString(),
         shipper: (detailedInvoiceData['shipper'] ?? 'N/A').toString(),
         shipperAddress:
             (detailedInvoiceData['shipperAddress'] ?? '').toString(),
@@ -2968,30 +3100,33 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         origin: (detailedInvoiceData['origin'] ?? 'N/A').toString(),
         destination: (detailedInvoiceData['destination'] ?? 'N/A').toString(),
         status: (detailedInvoiceData['status'] ?? 'draft').toString(),
+        // Add missing fields for PDF population
+        invoiceDate: detailedInvoiceData['invoiceDate'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['invoiceDate'])
+            : null,
+        placeOfReceipt:
+            (detailedInvoiceData['placeOfReceipt'] ?? '').toString(),
+        sgstNo: (detailedInvoiceData['sgstNo'] ?? '').toString(),
+        iecCode: (detailedInvoiceData['iecCode'] ?? '').toString(),
+        freightTerms: (detailedInvoiceData['freightTerms'] ?? '').toString(),
       );
 
       // Get items from boxes
       final List<dynamic> items = [];
-      int totalBoxes = 0;
-      double totalWeight = 0.0;
 
       if (detailedInvoiceData['boxes'] != null) {
-        totalBoxes = detailedInvoiceData['boxes'].length;
         for (var box in detailedInvoiceData['boxes']) {
           if (box['products'] != null) {
             items.addAll(box['products']);
-            for (var product in box['products']) {
-              totalWeight +=
-                  double.tryParse(product['weight']?.toString() ?? '0') ?? 0.0;
-            }
           }
         }
       }
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      // Show PDF preview dialog
-      _showPdfPreviewDialog(invoice, shipment, items, totalBoxes, totalWeight);
+      // Directly generate PDF with preview
+      await _executePdfGeneration(shipment, items);
     } catch (e) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -3028,82 +3163,6 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     }
   }
 
-  /// Show PDF preview dialog
-  void _showPdfPreviewDialog(Map<String, dynamic> invoice, Shipment shipment,
-      List<dynamic> items, int totalBoxes, double totalWeight) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.picture_as_pdf, color: Colors.red),
-            SizedBox(width: 8),
-            Expanded(child: Text('PDF Export Preview')),
-          ],
-        ),
-        content: Container(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Invoice: ${invoice['invoiceTitle'] ?? 'Untitled'}',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('Number: ${invoice['invoiceNumber'] ?? 'N/A'}'),
-              Text('Shipper: ${shipment.shipper}'),
-              Text('Consignee: ${shipment.consignee}'),
-              Text('AWB: ${shipment.awb}'),
-              Text('Flight: ${shipment.flightNo}'),
-              Text('Airport: ${shipment.dischargeAirport}'),
-              Text('Boxes: $totalBoxes'),
-              Text('Total Weight: ${totalWeight.toStringAsFixed(2)} kg'),
-              Text('Amount: \$${shipment.totalAmount.toStringAsFixed(2)}'),
-              SizedBox(height: 16),
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.red[700], size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'This will generate a professional PDF invoice document.',
-                        style: TextStyle(color: Colors.red[700], fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _executePdfGeneration(shipment, items);
-            },
-            icon: Icon(Icons.picture_as_pdf, size: 16),
-            label: Text('Generate PDF'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// Execute PDF generation
   Future<void> _executePdfGeneration(
       Shipment shipment, List<dynamic> items) async {
@@ -3134,7 +3193,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       // Generate PDF using PdfService
       print('📄 Calling PDF Service...');
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(shipment, items, true);
+      await pdfService.generateShipmentPDF(shipment, items);
       print('✅ PDF Generation Completed');
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -3217,7 +3276,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       // Create shipment object for PDF generation
       final shipment = Shipment(
-        invoiceNumber: (invoice['invoiceNumber'] ?? 'N/A').toString(),
+        invoiceNumber: (detailedInvoiceData['invoiceNumber'] ??
+                detailedInvoiceData['id'] ??
+                'N/A')
+            .toString(),
         shipper: (detailedInvoiceData['shipper'] ?? 'N/A').toString(),
         shipperAddress:
             (detailedInvoiceData['shipperAddress'] ?? '').toString(),
@@ -3238,6 +3300,16 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         origin: (detailedInvoiceData['origin'] ?? 'N/A').toString(),
         destination: (detailedInvoiceData['destination'] ?? 'N/A').toString(),
         status: (detailedInvoiceData['status'] ?? 'draft').toString(),
+        // Add missing fields for PDF population
+        invoiceDate: detailedInvoiceData['invoiceDate'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['invoiceDate'])
+            : null,
+        placeOfReceipt:
+            (detailedInvoiceData['placeOfReceipt'] ?? '').toString(),
+        sgstNo: (detailedInvoiceData['sgstNo'] ?? '').toString(),
+        iecCode: (detailedInvoiceData['iecCode'] ?? '').toString(),
+        freightTerms: (detailedInvoiceData['freightTerms'] ?? '').toString(),
       );
 
       // Get items from boxes
@@ -3383,7 +3455,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       // Generate PDF for printing
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(shipment, items, true);
+      await pdfService.generateShipmentPDF(shipment, items);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3456,7 +3528,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       // Create shipment object for PDF generation
       final shipment = Shipment(
-        invoiceNumber: (invoice['invoiceNumber'] ?? 'N/A').toString(),
+        invoiceNumber: (detailedInvoiceData['invoiceNumber'] ??
+                detailedInvoiceData['id'] ??
+                'N/A')
+            .toString(),
         shipper: (detailedInvoiceData['shipper'] ?? 'N/A').toString(),
         shipperAddress:
             (detailedInvoiceData['shipperAddress'] ?? '').toString(),
@@ -3477,6 +3552,16 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         origin: (detailedInvoiceData['origin'] ?? 'N/A').toString(),
         destination: (detailedInvoiceData['destination'] ?? 'N/A').toString(),
         status: (detailedInvoiceData['status'] ?? 'draft').toString(),
+        // Add missing fields for PDF population
+        invoiceDate: detailedInvoiceData['invoiceDate'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['invoiceDate'])
+            : null,
+        placeOfReceipt:
+            (detailedInvoiceData['placeOfReceipt'] ?? '').toString(),
+        sgstNo: (detailedInvoiceData['sgstNo'] ?? '').toString(),
+        iecCode: (detailedInvoiceData['iecCode'] ?? '').toString(),
+        freightTerms: (detailedInvoiceData['freightTerms'] ?? '').toString(),
       );
 
       // Get items from boxes
@@ -3633,8 +3718,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       // Generate and share PDF
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(
-          shipment, items, false); // false for share
+      await pdfService.generateShipmentPDF(shipment, items);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3778,128 +3862,15 @@ Generated,${DateTime.now()}''';
     }
   }
 
-  /// Export as Excel (CSV format)
+  /// Export as Excel (.xlsx format) with proper file generation
   Future<void> _exportAsExcel(Map<String, dynamic> invoice) async {
     try {
-      // Show preparing message with loading indicator
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                    'Creating Excel export for "${invoice['invoiceTitle'] ?? 'Invoice'}"...'),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.fixed,
-          duration: Duration(seconds: 30),
-        ),
+      // Call the new Excel generation service
+      await ExcelFileService.generateAndExportExcel(
+        context,
+        invoice,
+        _getDetailedInvoiceData,
       );
-
-      // Get detailed invoice data
-      final detailedInvoiceData = await _getDetailedInvoiceData(
-          invoice['id'] ?? invoice['invoiceNumber']);
-
-      // Create comprehensive CSV content
-      final StringBuffer csvBuffer = StringBuffer();
-
-      // Header section
-      csvBuffer.writeln('Invoice Export Report');
-      csvBuffer.writeln('Generated,${DateTime.now().toString()}');
-      csvBuffer.writeln('');
-
-      // Invoice Information
-      csvBuffer.writeln('INVOICE INFORMATION');
-      csvBuffer
-          .writeln('Invoice Number,"${invoice['invoiceNumber'] ?? 'N/A'}"');
-      csvBuffer.writeln('Invoice Title,"${invoice['invoiceTitle'] ?? 'N/A'}"');
-      csvBuffer.writeln(
-          'Date Created,"${invoice['createdAt']?.toString() ?? 'N/A'}"');
-      csvBuffer.writeln('Status,"${invoice['status'] ?? 'Draft'}"');
-      csvBuffer.writeln('');
-
-      // Shipment Information
-      csvBuffer.writeln('SHIPMENT INFORMATION');
-      csvBuffer.writeln('Shipper,"${detailedInvoiceData['shipper'] ?? 'N/A'}"');
-      csvBuffer
-          .writeln('Consignee,"${detailedInvoiceData['consignee'] ?? 'N/A'}"');
-      csvBuffer.writeln('AWB Number,"${detailedInvoiceData['awb'] ?? 'N/A'}"');
-      csvBuffer.writeln(
-          'Flight Number,"${detailedInvoiceData['flightNo'] ?? 'N/A'}"');
-      csvBuffer.writeln(
-          'Discharge Airport,"${detailedInvoiceData['dischargeAirport'] ?? 'N/A'}"');
-      csvBuffer.writeln(
-          'Total Amount,"${detailedInvoiceData['totalAmount'] ?? 0.0}"');
-      csvBuffer.writeln('');
-
-      // Box and Product Details
-      csvBuffer.writeln('BOX AND PRODUCT DETAILS');
-      csvBuffer.writeln(
-          'Box Number,Length,Width,Height,Product Type,Description,Weight,Rate');
-
-      int totalBoxes = 0;
-      double totalWeight = 0.0;
-      double totalValue = 0.0;
-
-      if (detailedInvoiceData['boxes'] != null) {
-        for (var box in detailedInvoiceData['boxes']) {
-          totalBoxes++;
-          final boxNumber = box['boxNumber'] ?? 'N/A';
-          final length = box['length'] ?? 0.0;
-          final width = box['width'] ?? 0.0;
-          final height = box['height'] ?? 0.0;
-
-          if (box['products'] != null) {
-            for (var product in box['products']) {
-              final weight =
-                  double.tryParse(product['weight']?.toString() ?? '0') ?? 0.0;
-              final rate =
-                  double.tryParse(product['rate']?.toString() ?? '0') ?? 0.0;
-              totalWeight += weight;
-              totalValue += rate;
-
-              csvBuffer.writeln('"$boxNumber","$length","$width","$height",'
-                  '"${product['type'] ?? 'N/A'}",'
-                  '"${product['description'] ?? 'N/A'}",'
-                  '"$weight","$rate"');
-            }
-          } else {
-            csvBuffer.writeln(
-                '"$boxNumber","$length","$width","$height","No Products","","0.0","0.0"');
-          }
-        }
-      } else {
-        csvBuffer
-            .writeln('"No boxes found","0","0","0","N/A","N/A","0.0","0.0"');
-      }
-
-      // Summary section
-      csvBuffer.writeln('');
-      csvBuffer.writeln('EXPORT SUMMARY');
-      csvBuffer.writeln('Total Boxes,$totalBoxes');
-      csvBuffer.writeln('Total Weight,$totalWeight');
-      csvBuffer.writeln('Total Value,$totalValue');
-      csvBuffer.writeln('Export Date,${DateTime.now().toString()}');
-
-      final csvContent = csvBuffer.toString();
-
-      // Simulate processing time
-      await Future.delayed(Duration(milliseconds: 800));
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-      // Show preview dialog with options
-      _showExcelPreviewDialog(invoice, csvContent);
     } catch (e) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3913,11 +3884,6 @@ Generated,${DateTime.now()}''';
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () => _exportAsExcel(invoice),
-          ),
         ),
       );
     }
@@ -4670,5 +4636,11 @@ Invoice Generator Team''',
       selectedStatus = 'All';
       filteredInvoices = invoices;
     });
+  }
+
+  /// Extract box number from box number string (e.g., "Box No 3" -> 3)
+  int _extractBoxNumber(String boxNumber) {
+    final match = RegExp(r'(\d+)').firstMatch(boxNumber);
+    return match != null ? int.parse(match.group(1)!) : 0;
   }
 }

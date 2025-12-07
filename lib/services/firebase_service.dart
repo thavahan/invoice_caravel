@@ -568,7 +568,10 @@ class FirebaseService {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      // Delete shipment document (this will cascade delete subcollections in Firestore)
+      // First delete all boxes and products for this shipment
+      await deleteAllBoxesForShipment(invoiceNumber);
+
+      // Then delete shipment document
       await firestore
           .collection('${_userPath}/shipments')
           .doc(invoiceNumber)
@@ -1483,5 +1486,92 @@ class FirebaseService {
     // This method is kept for backward compatibility
     // Implementation would need to be updated based on invoice structure
     throw UnimplementedError('Use saveShipment instead');
+  }
+
+  // ========== BOX OPERATIONS ==========
+
+  /// Update a box in Firebase
+  Future<void> updateBox(String boxId, Map<String, dynamic> boxData) async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) throw Exception('User not authenticated');
+
+      final boxRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('boxes')
+          .doc(boxId);
+      await boxRef.update({
+        ...boxData,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      _logger.i('Box updated in Firebase: $boxId');
+    } catch (e, s) {
+      _logger.e('Failed to update box in Firebase', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete a box from Firebase
+  Future<void> deleteBox(String boxId) async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) throw Exception('User not authenticated');
+
+      final boxRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('boxes')
+          .doc(boxId);
+      await boxRef.delete();
+      _logger.i('Box deleted from Firebase: $boxId');
+    } catch (e, s) {
+      _logger.e('Failed to delete box from Firebase', e, s);
+      rethrow;
+    }
+  }
+
+  // ========== PRODUCT OPERATIONS ==========
+
+  /// Update a product in Firebase
+  Future<void> updateProduct(
+      String productId, Map<String, dynamic> productData) async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) throw Exception('User not authenticated');
+
+      final productRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('products')
+          .doc(productId);
+      await productRef.update({
+        ...productData,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      _logger.i('Product updated in Firebase: $productId');
+    } catch (e, s) {
+      _logger.e('Failed to update product in Firebase', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete a product from Firebase
+  Future<void> deleteProduct(String productId) async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) throw Exception('User not authenticated');
+
+      final productRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('products')
+          .doc(productId);
+      await productRef.delete();
+      _logger.i('Product deleted from Firebase: $productId');
+    } catch (e, s) {
+      _logger.e('Failed to delete product from Firebase', e, s);
+      rethrow;
+    }
   }
 }

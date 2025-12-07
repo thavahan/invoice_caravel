@@ -1,0 +1,1295 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:excel/excel.dart' as excel;
+import 'package:share_plus/share_plus.dart';
+import 'package:intl/intl.dart';
+
+/// Professional Excel export service with actual .xlsx file generation
+/// Generates commercial invoice format matching professional standards
+class ExcelFileService {
+  /// Generate and save actual Excel file with professional invoice layout
+  static Future<void> generateAndExportExcel(
+    BuildContext context,
+    Map<String, dynamic> invoice,
+    Future<Map<String, dynamic>> Function(String) getDetailedInvoiceData,
+  ) async {
+    try {
+      // Show preparing message
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                    'Generating Excel file for "${invoice['invoiceTitle'] ?? 'Invoice'}"...'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green[700],
+          behavior: SnackBarBehavior.fixed,
+          duration: Duration(seconds: 30),
+        ),
+      );
+
+      // Get detailed invoice data
+      final detailedInvoiceData = await getDetailedInvoiceData(
+          invoice['id'] ?? invoice['invoiceNumber']);
+
+      if (detailedInvoiceData.isEmpty) {
+        throw Exception('Could not retrieve invoice details');
+      }
+
+      // Create Excel workbook
+      final excel.Excel workbook = excel.Excel.createExcel();
+      final String invoiceNumber =
+          invoice['invoiceNumber'] ?? invoice['id'] ?? 'Unknown';
+
+      // Remove default sheet and create invoice sheet
+      workbook.delete('Sheet1');
+      final sheet = workbook['INVOICE'];
+
+      int row = 1;
+
+      // ========== ROW 1: DOCUMENT TITLE ==========
+      sheet.cell(excel.CellIndex.indexByString('D$row')).value =
+          excel.TextCellValue('INVOICE');
+      sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
+          excel.CellStyle(bold: true, fontSize: 8);
+      row++;
+
+      // ========== ROW 2: SHIPPER & INVOICE DETAILS HEADERS ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue('Shipper:');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue('INV No');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue('Client Ref');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('D$row')).value =
+          excel.TextCellValue('DATED');
+      sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('E$row')).cellStyle =
+          excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('F$row')).cellStyle =
+          excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('G$row')).cellStyle =
+          excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 3: SHIPPER & INVOICE DETAILS VALUES ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(detailedInvoiceData['shipper'] ?? 'Company Name');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue(invoiceNumber);
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue(detailedInvoiceData['clientRef'] ?? '');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('D$row')).value =
+          excel.TextCellValue(
+              DateFormat('dd MMM yyyy').format(DateTime.now()).toUpperCase());
+      sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('E$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('F$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('G$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROWS 4-6: SHIPPER ADDRESS ==========
+      row = _addFormattedAddress(
+          sheet, 'A', detailedInvoiceData['shipperAddress'] ?? 'Address', row);
+      // Add right border to column G for these rows
+      for (int i = 0; i < row - 4; i++) {
+        sheet.cell(excel.CellIndex.indexByString('G${4 + i}')).cellStyle =
+            excel.CellStyle(
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
+      row++;
+
+      // ========== ROW 7: CONSIGNEE & REFERENCES HEADERS ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue('Consignee:');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue('Client Ref:');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue('Date of Issue:');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 8: CONSIGNEE & REFERENCES VALUES ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(detailedInvoiceData['consignee'] ?? 'Consignee');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue(detailedInvoiceData['clientRef'] ?? '');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue(
+              DateFormat('dd MMM yyyy').format(DateTime.now()).toUpperCase());
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROWS 9-10: CONSIGNEE ADDRESS ==========
+      row = _addFormattedAddress(sheet, 'A',
+          detailedInvoiceData['consigneeAddress'] ?? 'Address', row);
+      // Add right border to column G for these rows
+      for (int i = 0; i < row - 9; i++) {
+        sheet.cell(excel.CellIndex.indexByString('G${9 + i}')).cellStyle =
+            excel.CellStyle(
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
+      row += 2;
+
+      // ========== ROW 12: BILL TO HEADER ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue('Bill to');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 13: BILL TO VALUE ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(
+              (detailedInvoiceData['consignee'] ?? 'Consignee').toUpperCase());
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 14: AWB & PLACE OF RECEIPT HEADERS ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue('AWB NO:');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue('Place of Receipt:');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('E$row')).value =
+          excel.TextCellValue('Shipper:');
+      sheet.cell(excel.CellIndex.indexByString('E$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 15: AWB & PLACE OF RECEIPT VALUES ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(detailedInvoiceData['awb'] ?? '');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue(detailedInvoiceData['origin'] ?? 'LOCATION');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      // Shipper address in column E
+      int shipperRow = _addFormattedAddress(
+          sheet, 'E', detailedInvoiceData['shipperAddress'] ?? 'Address', row);
+      row++;
+
+      // ========== ROW 16: FLIGHT & AIRPORT DEPARTURE HEADERS ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue('FLIGHT NO');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue('AIRPORT OF DEPARTURE');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue('GST:');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 17: FLIGHT & AIRPORT DEPARTURE VALUES ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(
+              '${detailedInvoiceData['flightNo'] ?? 'FL001'} /${DateFormat('dd MMM yyyy').format(DateTime.now()).toUpperCase()}');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue(detailedInvoiceData['origin'] ?? 'LOCATION');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue(detailedInvoiceData['sgstNo'] ?? 'N/A');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 18: AIRPORT DISCHARGE & PLACE DELIVERY HEADERS ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue('AirPort of Discharge');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue('Place of Delivery');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue('IEC Code');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 19: AIRPORT DISCHARGE & PLACE DELIVERY VALUES ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(detailedInvoiceData['destination'] ?? 'DEST');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue(detailedInvoiceData['destination'] ?? 'DEST');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+          excel.TextCellValue(detailedInvoiceData['iecCode'] ?? 'N/A');
+      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 20: ETA & FREIGHT TERMS HEADERS ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(
+              'ETA into ${detailedInvoiceData['destination'] ?? 'DEST'}');
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue('Freight Terms');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      row++;
+
+      // ========== ROW 21: ETA & FREIGHT TERMS VALUES ==========
+      sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+          excel.TextCellValue(DateFormat('dd MMM yyyy')
+              .format(DateTime.now().add(Duration(days: 2)))
+              .toUpperCase());
+      sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
+          excel.TextCellValue('PRE PAID');
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
+          excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      // Add right border to column G for rows 12-21
+      for (int i = 12; i <= 21; i++) {
+        if (i == 21) {
+          sheet.cell(excel.CellIndex.indexByString('G$i')).cellStyle =
+              excel.CellStyle(
+            bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+            rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          );
+        } else {
+          sheet.cell(excel.CellIndex.indexByString('G$i')).cellStyle =
+              excel.CellStyle(
+            rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          );
+        }
+      }
+      row += 2;
+
+      // ========== ROW 23: PRODUCT TABLE HEADER ==========
+      final headers = [
+        'Marks & Nos.',
+        'No. & Kind of Pkgs.',
+        '',
+        'Description of Goods',
+        '',
+        'Gross Weight',
+        'Net Weight'
+      ];
+
+      for (int col = 0; col < headers.length; col++) {
+        final colLetter = String.fromCharCode(65 + col);
+        var cell = sheet.cell(excel.CellIndex.indexByString('$colLetter$row'));
+        cell.cellStyle = excel.CellStyle(
+          bold: true,
+          fontSize: 11,
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+        if (headers[col].isNotEmpty) {
+          cell.value = excel.TextCellValue(headers[col]);
+        }
+      }
+      row++;
+
+      // ========== ROW 24: PRODUCT TABLE SUBHEADER ==========
+      final subHeaders = ['', '', '', 'Said to Contain', '', 'KGS', 'KGS'];
+
+      for (int col = 0; col < subHeaders.length; col++) {
+        final colLetter = String.fromCharCode(65 + col);
+        var cell = sheet.cell(excel.CellIndex.indexByString('$colLetter$row'));
+        cell.cellStyle = excel.CellStyle(
+          bold: true,
+          fontSize: 11,
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+        if (subHeaders[col].isNotEmpty) {
+          cell.value = excel.TextCellValue(subHeaders[col]);
+        }
+      }
+      row++;
+
+      // ========== PRODUCT DETAILS ==========
+      row = _addProductDetails(sheet, detailedInvoiceData, row);
+      row += 2;
+
+      // ========== CHARGES SECTION ==========
+      _addChargesSection(sheet, detailedInvoiceData, row);
+      row += 20;
+
+      // ========== TOTAL IN WORDS ==========
+      _addTotalInWords(sheet, detailedInvoiceData, row);
+
+      // Set column widths
+      sheet.setColumnWidth(0, 15); // Column A - half width
+
+      // Auto-size remaining columns (using integer indices: 1-6 = B-G)
+      for (int i = 1; i < 7; i++) {
+        sheet.setColumnAutoFit(i);
+      }
+
+      // Save the file
+      final fileName = 'Invoice_${invoiceNumber}.xlsx';
+      final file = await _saveExcelFile(fileName, workbook);
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Directly open native share dialog
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Invoice: $fileName',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Expanded(child: Text('Excel export failed: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Add formatted address - splits by comma and prints on separate rows
+  /// Last two parts are combined in the same cell (e.g., "State - Postal Code")
+  /// Includes borders on all address cells
+  static int _addFormattedAddress(
+      excel.Sheet sheet, String columnLetter, String address, int startRow,
+      {bool isLastRow = false, bool isFirstRow = false}) {
+    if (address.isEmpty || address == 'Address') {
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .value = excel.TextCellValue(address);
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      return startRow + 1;
+    }
+
+    // Split address by comma and trim whitespace
+    List<String> addressParts = address
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    // Add each part on a separate row, except combine last two parts
+    if (addressParts.length <= 1) {
+      // Single part - just add it
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .value = excel.TextCellValue(addressParts[0]);
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      startRow++;
+    } else if (addressParts.length == 2) {
+      // Two parts - combine them with " - "
+      sheet
+              .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+              .value =
+          excel.TextCellValue('${addressParts[0]} - ${addressParts[1]}');
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      startRow++;
+    } else {
+      // More than two parts - add all but last two separately, then combine last two
+      for (int i = 0; i < addressParts.length - 2; i++) {
+        sheet
+            .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+            .value = excel.TextCellValue(addressParts[i]);
+        sheet
+            .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+            .cellStyle = excel.CellStyle(
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+        startRow++;
+      }
+      // Combine last two parts
+      String lastTwoCombined =
+          '${addressParts[addressParts.length - 2]} - ${addressParts[addressParts.length - 1]}';
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .value = excel.TextCellValue(lastTwoCombined);
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      startRow++;
+    }
+
+    return startRow;
+  }
+
+  /// Add product details
+  /// Format: BOX NO in column A, product details in column D
+  static int _addProductDetails(
+    excel.Sheet sheet,
+    Map<String, dynamic> detailedData,
+    int startRow,
+  ) {
+    if (detailedData['boxes'] == null) return startRow;
+
+    int boxNum = 1;
+    for (var box in detailedData['boxes']) {
+      if (box['products'] != null && (box['products'] as List).isNotEmpty) {
+        bool firstProduct = true;
+        for (var product in box['products']) {
+          // Place BOX NO in column A only for first product in box
+          if (firstProduct) {
+            sheet.cell(excel.CellIndex.indexByString('A$startRow')).value =
+                excel.TextCellValue('BOX NO $boxNum');
+            firstProduct = false;
+          }
+
+          // Place product details in column D
+          final type = product['type'] ?? 'Unknown';
+          final weight = product['weight'] ?? 0;
+          final flowerType = product['flowerType'] ?? 'LOOSE FLOWERS';
+          final hasStems = product['hasStems'] ?? false;
+          final approxQuantity = product['approxQuantity'] ?? 0;
+
+          // Format: TYPE - WEIGHT KG (FLOWER TYPE, STEMS STATUS, APPROX QUANTITY)
+          final stemsText = hasStems ? 'WITH STEMS' : 'NO STEMS';
+          final productDetails =
+              '$type - ${weight}KG ($flowerType, $stemsText, APPROX $approxQuantity NOS)';
+
+          sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
+              excel.TextCellValue(productDetails);
+
+          startRow++;
+        }
+      } else {
+        // Empty box case
+        sheet.cell(excel.CellIndex.indexByString('A$startRow')).value =
+            excel.TextCellValue('BOX NO $boxNum');
+        sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
+            excel.TextCellValue('Empty Box');
+        startRow++;
+      }
+
+      boxNum++;
+    }
+
+    return startRow;
+  }
+
+  /// Add charges section
+  static void _addChargesSection(
+    excel.Sheet sheet,
+    Map<String, dynamic> detailedData,
+    int startRow,
+  ) {
+    // Charges header
+    sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
+        excel.TextCellValue('CHARGES');
+    sheet.cell(excel.CellIndex.indexByString('D$startRow')).cellStyle =
+        excel.CellStyle(bold: true);
+
+    sheet.cell(excel.CellIndex.indexByString('E$startRow')).value =
+        excel.TextCellValue('RATE');
+    sheet.cell(excel.CellIndex.indexByString('E$startRow')).cellStyle =
+        excel.CellStyle(bold: true);
+
+    sheet.cell(excel.CellIndex.indexByString('F$startRow')).value =
+        excel.TextCellValue('UNIT');
+    sheet.cell(excel.CellIndex.indexByString('F$startRow')).cellStyle =
+        excel.CellStyle(bold: true);
+
+    sheet.cell(excel.CellIndex.indexByString('G$startRow')).value =
+        excel.TextCellValue('AMOUNT');
+    sheet.cell(excel.CellIndex.indexByString('G$startRow')).cellStyle =
+        excel.CellStyle(bold: true);
+
+    startRow++;
+
+    double totalWeight = 0;
+    double grandTotal = 0;
+    Map<String, double> productTotals = {};
+    Map<String, double> productRates = {};
+
+    // Calculate totals
+    if (detailedData['boxes'] != null) {
+      for (var box in detailedData['boxes']) {
+        if (box['products'] != null) {
+          for (var product in box['products']) {
+            String productType = product['type'] ?? 'Unknown';
+            double weight =
+                double.tryParse(product['weight']?.toString() ?? '0') ?? 0.0;
+            double rate =
+                double.tryParse(product['rate']?.toString() ?? '0') ?? 0.0;
+
+            totalWeight += weight;
+            productTotals[productType] =
+                (productTotals[productType] ?? 0.0) + weight;
+            productRates[productType] = rate;
+          }
+        }
+      }
+    }
+
+    // Add product charges
+    productTotals.forEach((productType, weight) {
+      double rate = productRates[productType] ?? 0.0;
+      double amount = rate * weight;
+      grandTotal += amount;
+
+      sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
+          excel.TextCellValue(productType.toUpperCase());
+      sheet.cell(excel.CellIndex.indexByString('E$startRow')).value =
+          excel.DoubleCellValue(rate);
+      sheet.cell(excel.CellIndex.indexByString('F$startRow')).value =
+          excel.DoubleCellValue(weight);
+      sheet.cell(excel.CellIndex.indexByString('G$startRow')).value =
+          excel.DoubleCellValue(amount);
+      startRow++;
+    });
+
+    // Gross Total
+    sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
+        excel.TextCellValue('Gross Total');
+    sheet.cell(excel.CellIndex.indexByString('D$startRow')).cellStyle =
+        excel.CellStyle(bold: true);
+
+    sheet.cell(excel.CellIndex.indexByString('F$startRow')).value =
+        excel.DoubleCellValue(totalWeight);
+    sheet.cell(excel.CellIndex.indexByString('F$startRow')).cellStyle =
+        excel.CellStyle(bold: true);
+
+    sheet.cell(excel.CellIndex.indexByString('G$startRow')).value =
+        excel.DoubleCellValue(grandTotal);
+    sheet.cell(excel.CellIndex.indexByString('G$startRow')).cellStyle =
+        excel.CellStyle(bold: true);
+  }
+
+  /// Add total in words section
+  static void _addTotalInWords(
+    excel.Sheet sheet,
+    Map<String, dynamic> detailedData,
+    int startRow,
+  ) {
+    // Calculate grand total
+    double totalWeight = 0;
+    double grandTotal = 0;
+
+    if (detailedData['boxes'] != null) {
+      for (var box in detailedData['boxes']) {
+        if (box['products'] != null) {
+          for (var product in box['products']) {
+            double weight =
+                double.tryParse(product['weight']?.toString() ?? '0') ?? 0.0;
+            double rate =
+                double.tryParse(product['rate']?.toString() ?? '0') ?? 0.0;
+
+            totalWeight += weight;
+            grandTotal += (weight * rate);
+          }
+        }
+      }
+    }
+
+    startRow += 2;
+    String totalInWords = _convertNumberToWords(grandTotal);
+    sheet.cell(excel.CellIndex.indexByString('A$startRow')).value =
+        excel.TextCellValue('Gross Total (in words): $totalInWords');
+  }
+
+  /// Convert number to words
+  static String _convertNumberToWords(double amount) {
+    if (amount == 0) return 'ZERO DOLLARS ONLY';
+
+    int dollars = amount.floor();
+    int cents = ((amount - dollars) * 100).round();
+
+    List<String> ones = [
+      '',
+      'ONE',
+      'TWO',
+      'THREE',
+      'FOUR',
+      'FIVE',
+      'SIX',
+      'SEVEN',
+      'EIGHT',
+      'NINE'
+    ];
+    List<String> teens = [
+      'TEN',
+      'ELEVEN',
+      'TWELVE',
+      'THIRTEEN',
+      'FOURTEEN',
+      'FIFTEEN',
+      'SIXTEEN',
+      'SEVENTEEN',
+      'EIGHTEEN',
+      'NINETEEN'
+    ];
+    List<String> tens = [
+      '',
+      '',
+      'TWENTY',
+      'THIRTY',
+      'FORTY',
+      'FIFTY',
+      'SIXTY',
+      'SEVENTY',
+      'EIGHTY',
+      'NINETY'
+    ];
+
+    String convertHundreds(int num) {
+      String result = '';
+
+      if (num >= 100) {
+        result += ones[num ~/ 100] + ' HUNDRED ';
+        num %= 100;
+      }
+
+      if (num >= 20) {
+        result += tens[num ~/ 10] + ' ';
+        num %= 10;
+        if (num > 0) result += ones[num] + ' ';
+      } else if (num >= 10) {
+        result += teens[num - 10] + ' ';
+      } else if (num > 0) {
+        result += ones[num] + ' ';
+      }
+
+      return result;
+    }
+
+    String result = '';
+
+    if (dollars >= 1000) {
+      result += convertHundreds(dollars ~/ 1000) + 'THOUSAND ';
+      dollars %= 1000;
+    }
+
+    if (dollars > 0) {
+      result += convertHundreds(dollars);
+    }
+
+    result += 'DOLLAR';
+    if (dollars != 1) result += 'S';
+
+    if (cents > 0) {
+      result += ' AND ' + convertHundreds(cents) + 'CENT';
+      if (cents != 1) result += 'S';
+    }
+
+    result += ' ONLY';
+    return result.trim();
+  }
+
+  /// Save Excel file to Downloads folder
+  static Future<File> _saveExcelFile(
+      String fileName, excel.Excel workbook) async {
+    try {
+      // Try to save to Downloads folder (most accessible on Android)
+      Directory? downloadsDir;
+
+      if (Platform.isAndroid) {
+        // Android: Try Downloads folder first
+        try {
+          // Using environment variable approach for Downloads
+          final externalDir = await getExternalStorageDirectory();
+          if (externalDir != null) {
+            // Navigate to Downloads from external storage
+            downloadsDir = Directory('${externalDir.path}/../../../Download');
+            if (!downloadsDir.existsSync()) {
+              downloadsDir = Directory(externalDir.path);
+            }
+          }
+        } catch (e) {
+          print('Could not access external storage: $e');
+        }
+
+        // Fallback to app documents directory
+        if (downloadsDir == null || !downloadsDir.existsSync()) {
+          downloadsDir = await getApplicationDocumentsDirectory();
+        }
+      } else if (Platform.isIOS) {
+        // iOS: Use documents directory
+        downloadsDir = await getApplicationDocumentsDirectory();
+      }
+
+      if (downloadsDir == null) {
+        throw Exception('Could not determine save location');
+      }
+
+      // Create invoices subdirectory
+      final invoicesDir = Directory('${downloadsDir.path}/Invoices');
+      if (!invoicesDir.existsSync()) {
+        invoicesDir.createSync(recursive: true);
+      }
+
+      // Save the file
+      final filePath = '${invoicesDir.path}/$fileName';
+      final excelFile = File(filePath);
+      List<int>? excelBytes = workbook.encode();
+
+      if (excelBytes == null) {
+        throw Exception('Failed to encode Excel file');
+      }
+
+      await excelFile.writeAsBytes(excelBytes);
+      print('Excel file saved: $filePath');
+
+      return excelFile;
+    } catch (e) {
+      print('Error saving Excel file: $e');
+      rethrow;
+    }
+  }
+
+  /// Show success dialog with sharing options
+  static void _showExcelExportSuccessDialog(
+    BuildContext context,
+    String fileName,
+    File file,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Expanded(child: Text('Excel Export Successful')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File: $fileName',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('Location: ${file.path}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+            SizedBox(height: 16),
+            Text('What would you like to do?',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _shareExcelFile(context, file, fileName);
+            },
+            icon: Icon(Icons.share),
+            label: Text('Share'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Share Excel file with multiple options
+  static Future<void> _shareExcelFile(
+    BuildContext context,
+    File file,
+    String fileName,
+  ) async {
+    try {
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Share Excel File',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              _buildShareOption(
+                context,
+                Icons.mail,
+                'Email',
+                Colors.blue,
+                () => _shareViaEmail(context, file, fileName),
+              ),
+              SizedBox(height: 12),
+              _buildShareOption(
+                context,
+                Icons.message,
+                'WhatsApp',
+                Colors.green,
+                () => _shareViaWhatsApp(context, file, fileName),
+              ),
+              SizedBox(height: 12),
+              _buildShareOption(
+                context,
+                Icons.share,
+                'More Options',
+                Colors.purple,
+                () => _shareViaMore(context, file, fileName),
+              ),
+              SizedBox(height: 12),
+              _buildShareOption(
+                context,
+                Icons.copy,
+                'Copy File Path',
+                Colors.orange,
+                () => _copyFilePath(context, file),
+              ),
+              SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error opening share options: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Build share option button
+  static Widget _buildShareOption(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 28),
+            SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: color, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Share via email
+  static Future<void> _shareViaEmail(
+    BuildContext context,
+    File file,
+    String fileName,
+  ) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Invoice: $fileName',
+        text: 'Please find the attached invoice in Excel format.',
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not share via email: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Share via WhatsApp
+  static Future<void> _shareViaWhatsApp(
+    BuildContext context,
+    File file,
+    String fileName,
+  ) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Invoice: $fileName',
+        text: 'Invoice file attached.',
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not share via WhatsApp: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Share via more options
+  static Future<void> _shareViaMore(
+    BuildContext context,
+    File file,
+    String fileName,
+  ) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Invoice: $fileName',
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not share file: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Copy file path to clipboard
+  static Future<void> _copyFilePath(BuildContext context, File file) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: file.path));
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('File path copied to clipboard'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error copying file path: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}

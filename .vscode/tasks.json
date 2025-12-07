@@ -11,6 +11,117 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Update Dependencies",
+			"type": "shell",
+			"command": "flutter pub get",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Update Dependencies",
+			"type": "shell",
+			"command": "flutter pub get",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build APK",
+			"type": "shell",
+			"command": "flutter build apk",
+			"args": [
+				"--debug"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Update Dependencies",
+			"type": "shell",
+			"command": "flutter pub get",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build APK",
+			"type": "shell",
+			"command": "flutter build apk",
+			"args": [
+				"--debug"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Update Dependencies",
+			"type": "shell",
+			"command": "flutter pub get",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build APK",
+			"type": "shell",
+			"command": "flutter build apk",
+			"args": [
+				"--debug"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build APK",
+			"type": "shell",
+			"command": "flutter build apk",
+			"args": [
+				"--debug"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build APK",
+			"type": "shell",
+			"command": "flutter build apk",
+			"args": [
+				"--debug"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Update Dependencies",
+			"type": "shell",
+			"command": "flutter pub get",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build APK",
+			"type": "shell",
+			"command": "flutter build apk",
+			"args": [
+				"--debug"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }

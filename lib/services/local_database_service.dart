@@ -25,6 +25,8 @@ class LocalDatabaseService {
     try {
       await _db.database; // This will create tables if needed
       await _db.initializeDefaultData();
+      // Clean up any orphaned boxes from previous issues
+      await _db.cleanupOrphanedBoxes();
       _logger.i('LocalDatabaseService initialized successfully');
     } catch (e, s) {
       _logger.e('Failed to initialize LocalDatabaseService', e, s);
@@ -882,6 +884,55 @@ class LocalDatabaseService {
       _logger.i('Master product type deleted: $id');
     } catch (e, s) {
       _logger.e('Failed to delete master product type', e, s);
+      rethrow;
+    }
+  }
+
+  // ========== BOX OPERATIONS ==========
+
+  /// Update a box
+  Future<void> updateBox(String boxId, Map<String, dynamic> boxData) async {
+    try {
+      await _db.updateBox(boxId, boxData);
+      _logger.i('Box updated: $boxId');
+    } catch (e, s) {
+      _logger.e('Failed to update box', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete a box
+  Future<void> deleteBox(String boxId) async {
+    try {
+      await _db.deleteBox(boxId);
+      _logger.i('Box deleted: $boxId');
+    } catch (e, s) {
+      _logger.e('Failed to delete box', e, s);
+      rethrow;
+    }
+  }
+
+  // ========== PRODUCT OPERATIONS ==========
+
+  /// Update a product
+  Future<void> updateProduct(
+      String productId, Map<String, dynamic> productData) async {
+    try {
+      await _db.updateProduct(productId, productData);
+      _logger.i('Product updated: $productId');
+    } catch (e, s) {
+      _logger.e('Failed to update product', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete a product
+  Future<void> deleteProduct(String productId) async {
+    try {
+      await _db.deleteProduct(productId);
+      _logger.i('Product deleted: $productId');
+    } catch (e, s) {
+      _logger.e('Failed to delete product', e, s);
       rethrow;
     }
   }

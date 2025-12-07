@@ -321,8 +321,6 @@ class DataService {
               await _localService.updateMasterProductType(
                   firebaseProductType.id, updateData);
               productTypesUpdated++;
-              print(
-                  '🔄 SYNC: Updated product type: ${firebaseProductType.name} (qty: ${existingLocal.approxQuantity} → ${firebaseProductType.approxQuantity})');
             }
           }
         } catch (e) {
@@ -333,8 +331,6 @@ class DataService {
 
       _logger.i(
           'Product types sync: $productTypesAdded added, $productTypesUpdated updated');
-      print(
-          '✅ SYNC: Product types sync completed: $productTypesAdded added, $productTypesUpdated updated');
 
       // Sync flower types as part of master data
       onProgress?.call('Syncing flower types...');
@@ -453,26 +449,17 @@ class DataService {
           onProgress?.call(
               'Syncing boxes and products for shipment ${processedShipments}/${localShipments.length}...');
 
-          print('📋 SYNC DEBUG: Processing shipment:');
-          print('   - Invoice Number: ${shipment.invoiceNumber}');
-          print('   - AWB: ${shipment.awb}');
-          print('   - Invoice Title: ${shipment.invoiceTitle}');
-
           // Get boxes for this shipment from Firebase using multiple ID attempts
           List<ShipmentBox> firebaseBoxes = [];
 
           // Try with invoice number first
           firebaseBoxes = await _firebaseService
               .getBoxesForShipment(shipment.invoiceNumber);
-          print(
-              '📦 Boxes found with invoiceNumber (${shipment.invoiceNumber}): ${firebaseBoxes.length}');
 
           // If no boxes found, try with AWB
           if (firebaseBoxes.isEmpty && shipment.awb != shipment.invoiceNumber) {
             firebaseBoxes =
                 await _firebaseService.getBoxesForShipment(shipment.awb);
-            print(
-                '📦 Boxes found with AWB (${shipment.awb}): ${firebaseBoxes.length}');
           }
 
           // Get existing local boxes to prevent duplicates (check both IDs)
@@ -482,7 +469,6 @@ class DataService {
             localBoxes = await _localService.getBoxesForShipment(shipment.awb);
           }
           final existingBoxIds = localBoxes.map((b) => b.id).toSet();
-          print('📦 Existing local boxes: ${existingBoxIds.length}');
 
           int shipmentBoxesSynced = 0;
           int shipmentProductsSynced = 0;
@@ -524,24 +510,16 @@ class DataService {
               });
               shipmentBoxesSynced++;
               totalBoxesSynced++;
-              print(
-                  '📦 Box saved: ${box.id} (${box.boxNumber}) to shipment: $storageShipmentId');
 
               // Get products for this box from Firebase using the same shipment ID that worked for boxes
               var firebaseProducts = await _firebaseService.getProductsForBox(
                   storageShipmentId, box.id);
-              print(
-                  '📦 Found ${firebaseProducts.length} products for box ${box.id}');
 
               // If no products found with the storage shipment ID, try with the original shipment ID as fallback
               if (firebaseProducts.isEmpty &&
                   storageShipmentId != shipment.invoiceNumber) {
-                print(
-                    '📦 Trying fallback shipment ID for products: ${shipment.invoiceNumber}');
                 firebaseProducts = await _firebaseService.getProductsForBox(
                     shipment.invoiceNumber, box.id);
-                print(
-                    '📦 Found ${firebaseProducts.length} products with fallback ID');
               }
 
               // Get existing local products to prevent duplicates
@@ -569,9 +547,6 @@ class DataService {
                     'approxQuantity': product.approxQuantity,
                   });
                   shipmentProductsSynced++;
-                  totalProductsSynced++;
-                  print(
-                      '📦 Product saved: ${product.id} (${product.description}) to box: $savedBoxId');
                   totalProductsSynced++;
                 } catch (e) {
                   _logger.w('Failed to sync product ${product.id}: $e');
@@ -631,13 +606,9 @@ class DataService {
   /// Load all necessary data for the app - LOCAL FIRST: Always from local database for instant response
   Future<Map<String, dynamic>> loadData() async {
     try {
-      print('📊 LOCAL_FIRST: Loading all app data from local database...');
       final result = await _localService.loadData();
-      print(
-          '✅ LOCAL_FIRST: Loaded all app data from local database successfully');
       return result;
     } catch (e, s) {
-      print('❌ LOCAL_FIRST: Error loading app data from local database: $e');
       _logger.e('Failed to load data from local database', e, s);
       throw Exception('Failed to load app data: $e');
     }
@@ -819,36 +790,26 @@ class DataService {
   /// Delete all boxes and products for a shipment (used during updates)
   Future<void> deleteAllBoxesForShipment(String shipmentId) async {
     _logger.i('Deleting all boxes for shipment: $shipmentId');
-    print(
-        '🗑️ DEBUG: DataService.deleteAllBoxesForShipment - shipmentId: $shipmentId');
 
     try {
       // Delete from Firebase if available
       if (await _isFirebaseAvailable()) {
-        print(
-            '🗑️ DEBUG: Deleting boxes from Firebase for shipment: $shipmentId');
         await _firebaseService.deleteAllBoxesForShipment(shipmentId);
         _logger.i('Deleted boxes from Firebase for shipment: $shipmentId');
-        print('✅ DEBUG: Deleted boxes from Firebase successfully');
       }
     } catch (e) {
       _logger.w(
           'Failed to delete boxes from Firebase for shipment $shipmentId', e);
-      print('⚠️ DEBUG: Failed to delete boxes from Firebase: $e');
     }
 
     try {
       // Always delete from local database
-      print(
-          '🗑️ DEBUG: Deleting boxes from local DB for shipment: $shipmentId');
       await _localService.deleteAllBoxesForShipment(shipmentId);
       _logger.i('Deleted boxes from local database for shipment: $shipmentId');
-      print('✅ DEBUG: Deleted boxes from local DB successfully');
     } catch (e) {
       _logger.e(
           'Failed to delete boxes from local database for shipment $shipmentId',
           e);
-      print('❌ DEBUG: Failed to delete boxes from local DB: $e');
       throw Exception('Failed to delete boxes from local database: $e');
     }
   }
@@ -912,56 +873,55 @@ class DataService {
     final service = await _getActiveService();
 
     print(
-        '📦 DEBUG: DataService.autoCreateBoxesAndProducts - shipmentId: $shipmentId, boxCount: ${boxesData.length}');
-    for (int i = 0; i < boxesData.length; i++) {
-      final products = boxesData[i]['products'] as List? ?? [];
-      print(
-          '   Box ${i + 1}: ${boxesData[i]['boxNumber']} (id: ${boxesData[i]['id']}) with ${products.length} products');
-    }
+        '📦 DEBUG: autoCreateBoxesAndProducts called with shipmentId: $shipmentId, boxesData length: ${boxesData.length}');
 
     // Always save to local database first (primary storage)
-    print('💾 DEBUG: Saving ${boxesData.length} boxes to LOCAL DB...');
     final savedBoxNumbers = <String>{};
+    int productCounter = 0; // For generating unique product IDs
     for (final boxData in boxesData) {
       final boxNumber = boxData['boxNumber'] as String? ?? 'Box 1';
       if (savedBoxNumbers.contains(boxNumber)) {
-        print('⚠️ DEBUG: Skipping duplicate box $boxNumber');
         continue;
       }
       savedBoxNumbers.add(boxNumber);
+      print('📦 DEBUG: Saving box: $boxNumber');
       final boxId = await _localService.saveBox(shipmentId, boxData);
-      print('✅ DEBUG: Saved box $boxId to local DB');
+      print('📦 DEBUG: Box saved with ID: $boxId');
 
       if (boxData['products'] != null && boxData['products'] is List) {
         final products = boxData['products'] as List<dynamic>;
-        print(
-            '💾 DEBUG: Saving ${products.length} products for box $boxId to local DB');
+        print('📦 DEBUG: Box $boxNumber has ${products.length} products');
         for (final productData in products) {
           if (productData is Map<String, dynamic>) {
+            // Ensure unique product ID
+            if (!productData.containsKey('id') ||
+                productData['id'] == null ||
+                productData['id'].toString().isEmpty) {
+              productData['id'] =
+                  '${DateTime.now().millisecondsSinceEpoch}_${productCounter++}';
+              print('📦 DEBUG: Generated new product ID: ${productData['id']}');
+            }
             // Add box_id to productData for proper linking
             final enhancedProductData = {
               ...productData,
               'box_id': boxId,
             };
             await _localService.saveProduct(boxId, enhancedProductData);
+            print('📦 DEBUG: Saved product: ${productData['description']}');
           }
         }
-        print('✅ DEBUG: Saved all products for box $boxId to local DB');
       }
     }
 
     // Then save to Firebase (secondary/cloud backup) if available
     if (service == _firebaseService) {
       try {
-        print('🔥 DEBUG: Saving ${boxesData.length} boxes to FIREBASE...');
         await _firebaseService.autoCreateBoxesAndProducts(
             shipmentId, boxesData);
-        print('✅ DEBUG: Saved all boxes to Firebase successfully');
       } catch (e) {
         _logger.w(
             'Failed to save boxes/products to Firebase (continuing with local)',
             e);
-        print('⚠️ DEBUG: Failed to save to Firebase: $e');
         // Don't throw error - local save succeeded, Firebase is just backup
       }
     }
@@ -2095,5 +2055,140 @@ class DataService {
     _firebaseService
         .setForceOffline(offline); // Also set Firebase service offline
     _logger.i('Forced offline mode: $offline');
+  }
+
+  // ========== BOX OPERATIONS ==========
+
+  /// Update a box
+  Future<void> updateBox(String boxId, Map<String, dynamic> boxData) async {
+    final service = await _getActiveService();
+
+    // Always update local database first (primary storage)
+    try {
+      await _localService.updateBox(boxId, boxData);
+      _logger.i('Box updated in local database: $boxId');
+    } catch (e) {
+      _logger.e('Failed to update box in local database', e);
+      throw Exception('Failed to update box in local database: $e');
+    }
+
+    // Then update Firebase if available (secondary/cloud backup)
+    if (service == _firebaseService) {
+      try {
+        if (await _isFirebaseAvailable()) {
+          await _firebaseService.updateBox(boxId, boxData);
+          _logger.i('Box also updated in Firebase: $boxId');
+        }
+      } catch (e) {
+        _logger.w(
+            'Failed to update box in Firebase (continuing with local)', e);
+        // Don't throw error - local update succeeded
+      }
+    }
+  }
+
+  /// Delete a box
+  Future<void> deleteBox(String boxId) async {
+    final service = await _getActiveService();
+
+    // Always delete from local database first (primary storage)
+    try {
+      await _localService.deleteBox(boxId);
+      _logger.i('Box deleted from local database: $boxId');
+    } catch (e) {
+      _logger.e('Failed to delete box from local database', e);
+      throw Exception('Failed to delete box from local database: $e');
+    }
+
+    // Then delete from Firebase if available (secondary/cloud backup)
+    if (service == _firebaseService) {
+      try {
+        if (await _isFirebaseAvailable()) {
+          await _firebaseService.deleteBox(boxId);
+          _logger.i('Box also deleted from Firebase: $boxId');
+        }
+      } catch (e) {
+        _logger.w(
+            'Failed to delete box from Firebase (continuing with local)', e);
+        // Don't throw error - local delete succeeded
+      }
+    }
+  }
+
+  // ========== PRODUCT OPERATIONS ==========
+
+  /// Save products for a box (batch operation)
+  Future<void> saveProductsForBox(
+      String boxId, List<dynamic> productsData) async {
+    for (var productData in productsData) {
+      if (productData is Map<String, dynamic>) {
+        // Ensure unique product ID
+        if (!productData.containsKey('id') ||
+            productData['id'] == null ||
+            productData['id'].toString().isEmpty) {
+          productData['id'] =
+              '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
+        }
+        await saveProduct(boxId, productData);
+      }
+    }
+  }
+
+  /// Update a product
+  Future<void> updateProduct(
+      String productId, Map<String, dynamic> productData) async {
+    final service = await _getActiveService();
+
+    // Always update local database first (primary storage)
+    try {
+      await _localService.updateProduct(productId, productData);
+      _logger.i('Product updated in local database: $productId');
+    } catch (e) {
+      _logger.e('Failed to update product in local database', e);
+      throw Exception('Failed to update product in local database: $e');
+    }
+
+    // Then update Firebase if available (secondary/cloud backup)
+    if (service == _firebaseService) {
+      try {
+        if (await _isFirebaseAvailable()) {
+          await _firebaseService.updateProduct(productId, productData);
+          _logger.i('Product also updated in Firebase: $productId');
+        }
+      } catch (e) {
+        _logger.w(
+            'Failed to update product in Firebase (continuing with local)', e);
+        // Don't throw error - local update succeeded
+      }
+    }
+  }
+
+  /// Delete a product
+  Future<void> deleteProduct(String productId) async {
+    final service = await _getActiveService();
+
+    // Always delete from local database first (primary storage)
+    try {
+      await _localService.deleteProduct(productId);
+      _logger.i('Product deleted from local database: $productId');
+    } catch (e) {
+      _logger.e('Failed to delete product from local database', e);
+      throw Exception('Failed to delete product from local database: $e');
+    }
+
+    // Then delete from Firebase if available (secondary/cloud backup)
+    if (service == _firebaseService) {
+      try {
+        if (await _isFirebaseAvailable()) {
+          await _firebaseService.deleteProduct(productId);
+          _logger.i('Product also deleted from Firebase: $productId');
+        }
+      } catch (e) {
+        _logger.w(
+            'Failed to delete product from Firebase (continuing with local)',
+            e);
+        // Don't throw error - local delete succeeded
+      }
+    }
   }
 }

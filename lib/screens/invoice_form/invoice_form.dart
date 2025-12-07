@@ -679,11 +679,6 @@ class _InvoiceFormState extends State<InvoiceForm>
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-        '🎨 BUILD: InvoiceForm build called - shipmentBoxes.length: ${shipmentBoxes.length}');
-    debugPrint(
-        '🎨 BUILD: _invoiceNumberController.text = "${_invoiceNumberController.text}"');
-
     return Consumer<InvoiceProvider>(
       builder: (context, invoiceProvider, child) {
         if (invoiceProvider.error != null) {
@@ -1420,13 +1415,9 @@ class _InvoiceFormState extends State<InvoiceForm>
             ),
             const SizedBox(height: 12),
             ...(() {
-              debugPrint(
-                  '🎨 RENDER: Building ${shipmentBoxes.length} box cards');
               return shipmentBoxes.asMap().entries.map((entry) {
                 int index = entry.key;
                 ShipmentBox box = entry.value;
-                debugPrint(
-                    '🎨 Rendering box ${index}: ${box.boxNumber} with ${box.products.length} products');
                 return _buildBoxCard(box, index);
               }).toList();
             })(),
@@ -2300,14 +2291,20 @@ class _InvoiceFormState extends State<InvoiceForm>
       debugPrint('📦 Initializing ${boxesData.length} boxes from draft');
 
       shipmentBoxes = boxesData
-          .map((boxData) {
+          .asMap()
+          .entries
+          .map((entry) {
+            final i = entry.key;
+            final boxData = entry.value;
             if (boxData is Map<String, dynamic>) {
               final products = (boxData['products'] as List<dynamic>?)
                       ?.map((productData) {
                         if (productData is Map<String, dynamic>) {
-                          // Generate ID if not present to avoid Firebase errors
-                          final productId = productData['id'] ??
-                              DateTime.now().millisecondsSinceEpoch.toString();
+                          // Generate ID only if not present or empty
+                          final productId = (productData['id'] == null ||
+                                  productData['id'].toString().isEmpty)
+                              ? DateTime.now().millisecondsSinceEpoch.toString()
+                              : productData['id'].toString();
                           return ShipmentProduct(
                             id: productId,
                             boxId: '', // Will be set when box is created
@@ -2327,8 +2324,13 @@ class _InvoiceFormState extends State<InvoiceForm>
                       .toList() ??
                   [];
 
+              final boxId = boxData['id'];
+              final uniqueId = (boxId == null || boxId.isEmpty)
+                  ? '${originalInvoiceNumber}_box_${i + 1}_${DateTime.now().millisecondsSinceEpoch}'
+                  : boxId;
+
               return ShipmentBox(
-                id: boxData['id'] ?? '',
+                id: uniqueId,
                 shipmentId: originalInvoiceNumber ?? '',
                 boxNumber: boxData['boxNumber'] ?? '',
                 length: boxData['length'] ?? 0.0,
@@ -2358,22 +2360,21 @@ class _InvoiceFormState extends State<InvoiceForm>
     final consigneeName = draftData['consignee'] as String?;
 
     if (shipperName != null && shipperName.isNotEmpty) {
-      final matchingShipper = masterShippers.firstWhere(
-        (shipper) => shipper['name'] == shipperName,
-        orElse: () => <String, dynamic>{},
-      );
-      if (matchingShipper.isNotEmpty) {
+      final matchingShippers = masterShippers.where(
+          (Map<String, dynamic> shipper) => shipper['name'] == shipperName);
+      if (matchingShippers.isNotEmpty) {
+        final Map<String, dynamic> matchingShipper = matchingShippers.first;
         selectedShipperId = matchingShipper['id'];
         debugPrint('🔄 Initialized selectedShipperId: $selectedShipperId');
       }
     }
 
     if (consigneeName != null && consigneeName.isNotEmpty) {
-      final matchingConsignee = masterConsignees.firstWhere(
-        (consignee) => consignee['name'] == consigneeName,
-        orElse: () => <String, dynamic>{},
-      );
-      if (matchingConsignee.isNotEmpty) {
+      final matchingConsignees = masterConsignees.where(
+          (Map<String, dynamic> consignee) =>
+              consignee['name'] == consigneeName);
+      if (matchingConsignees.isNotEmpty) {
+        final Map<String, dynamic> matchingConsignee = matchingConsignees.first;
         selectedConsigneeId = matchingConsignee['id'];
         debugPrint('🔄 Initialized selectedConsigneeId: $selectedConsigneeId');
       }
@@ -2387,11 +2388,11 @@ class _InvoiceFormState extends State<InvoiceForm>
     final currentConsigneeName = _consigneeController.text.trim();
 
     if (currentShipperName.isNotEmpty) {
-      final matchingShipper = masterShippers.firstWhere(
-        (shipper) => shipper['name'] == currentShipperName,
-        orElse: () => <String, String>{},
-      );
-      if (matchingShipper.isNotEmpty) {
+      final matchingShippers = masterShippers.where(
+          (Map<String, dynamic> shipper) =>
+              shipper['name'] == currentShipperName);
+      if (matchingShippers.isNotEmpty) {
+        final Map<String, dynamic> matchingShipper = matchingShippers.first;
         selectedShipperId = matchingShipper['id'];
         debugPrint('🔄 Updated selectedShipperId: $selectedShipperId');
       } else {
@@ -2404,11 +2405,11 @@ class _InvoiceFormState extends State<InvoiceForm>
     }
 
     if (currentConsigneeName.isNotEmpty) {
-      final matchingConsignee = masterConsignees.firstWhere(
-        (consignee) => consignee['name'] == currentConsigneeName,
-        orElse: () => <String, String>{},
-      );
-      if (matchingConsignee.isNotEmpty) {
+      final matchingConsignees = masterConsignees.where(
+          (Map<String, dynamic> consignee) =>
+              consignee['name'] == currentConsigneeName);
+      if (matchingConsignees.isNotEmpty) {
+        final Map<String, dynamic> matchingConsignee = matchingConsignees.first;
         selectedConsigneeId = matchingConsignee['id'];
         debugPrint('🔄 Updated selectedConsigneeId: $selectedConsigneeId');
       } else {

@@ -171,7 +171,7 @@ class _OrdersState extends State<Orders> {
     return formatted;
   }
 
-  Future<void> _generatePdf(bool isPreview) async {
+  Future<void> _generatePdf() async {
     try {
       // Parse customer info from the path
       final pathData = decodeText(widget.paths[widget.i]).split('|');
@@ -211,7 +211,7 @@ class _OrdersState extends State<Orders> {
 
       // Generate PDF
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(shipment, items, isPreview);
+      await pdfService.generateShipmentPDF(shipment, items);
     } catch (e) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -286,12 +286,12 @@ class _OrdersState extends State<Orders> {
                               children: [
                                 IconButton(
                                     onPressed: () {
-                                      _generatePdf(true);
+                                      _generatePdf();
                                     },
                                     icon: const Icon(Icons.picture_as_pdf)),
                                 IconButton(
                                     onPressed: () {
-                                      _generatePdf(false);
+                                      _generatePdf();
                                     },
                                     icon: const Icon(Icons.share)),
                               ],
