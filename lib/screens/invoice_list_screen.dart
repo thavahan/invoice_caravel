@@ -1523,13 +1523,16 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             ],
           ),
           child: ClipOval(
-            child: Padding(
-              padding: EdgeInsets.all(4 * scaleFactor),
-              child: Image.asset(
-                'asset/images/Caravel_logo.png',
-                fit: BoxFit.cover,
-                width: 36 * scaleFactor,
-                height: 36 * scaleFactor,
+            child: Container(
+              color: Colors.white,
+              child: Padding(
+                padding: EdgeInsets.all(4 * scaleFactor),
+                child: Image.asset(
+                  'asset/images/Caravel_logo.png',
+                  fit: BoxFit.cover,
+                  width: 36 * scaleFactor,
+                  height: 36 * scaleFactor,
+                ),
               ),
             ),
           ),
