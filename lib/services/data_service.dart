@@ -938,12 +938,12 @@ class DataService {
     // For now, we'll get it from the productData if available, or handle differently
     String result;
     if (service == _firebaseService) {
-      // Firebase needs shipmentId - try to get it from productData or find another way
+      // Firebase needs shipmentId - ensure it's in productData
       final shipmentId = productData['shipmentId'] ?? '';
       if (shipmentId.isEmpty) {
         throw Exception('shipmentId is required for Firebase product save');
       }
-      result = await service.saveProduct(shipmentId, boxId, productData);
+      result = await service.saveProduct(boxId, productData);
     } else {
       // Local service
       result = await service.saveProduct(boxId, productData);
@@ -2119,7 +2119,7 @@ class DataService {
 
   /// Save products for a box (batch operation)
   Future<void> saveProductsForBox(
-      String boxId, List<dynamic> productsData) async {
+      String boxId, List<dynamic> productsData, [String? shipmentId]) async {
     for (var productData in productsData) {
       if (productData is Map<String, dynamic>) {
         // Ensure unique product ID
@@ -2128,6 +2128,10 @@ class DataService {
             productData['id'].toString().isEmpty) {
           productData['id'] =
               '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
+        }
+        // Add shipmentId if provided
+        if (shipmentId != null && !productData.containsKey('shipmentId')) {
+          productData['shipmentId'] = shipmentId;
         }
         await saveProduct(boxId, productData);
       }

@@ -358,7 +358,7 @@ class InvoiceProvider with ChangeNotifier {
         final boxId =
             await _dataService.saveBox(shipment.invoiceNumber, newBoxData);
         await _dataService.saveProductsForBox(
-            boxId, newBoxData['products'] as List? ?? []);
+            boxId, newBoxData['products'] as List? ?? [], shipmentId);
         totalBoxesAdded++;
       }
 
