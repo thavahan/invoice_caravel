@@ -881,10 +881,11 @@ class DataService {
     for (final boxData in boxesData) {
       final boxNumber = boxData['boxNumber'] as String? ?? 'Box 1';
       if (savedBoxNumbers.contains(boxNumber)) {
+        print('📦 DEBUG: Skipping duplicate box number: $boxNumber');
         continue;
       }
       savedBoxNumbers.add(boxNumber);
-      print('📦 DEBUG: Saving box: $boxNumber');
+      print('📦 DEBUG: Processing box: $boxNumber (ID: ${boxData['id']})');
       final boxId = await _localService.saveBox(shipmentId, boxData);
       print('📦 DEBUG: Box saved with ID: $boxId');
 
@@ -913,11 +914,16 @@ class DataService {
       }
     }
 
+    print(
+        '📦 DEBUG: Finished saving ${savedBoxNumbers.length} boxes to local database');
+
     // Then save to Firebase (secondary/cloud backup) if available
     if (service == _firebaseService) {
       try {
+        print('📦 DEBUG: Saving to Firebase...');
         await _firebaseService.autoCreateBoxesAndProducts(
             shipmentId, boxesData);
+        print('📦 DEBUG: Saved to Firebase successfully');
       } catch (e) {
         _logger.w(
             'Failed to save boxes/products to Firebase (continuing with local)',
@@ -2118,8 +2124,8 @@ class DataService {
   // ========== PRODUCT OPERATIONS ==========
 
   /// Save products for a box (batch operation)
-  Future<void> saveProductsForBox(
-      String boxId, List<dynamic> productsData, [String? shipmentId]) async {
+  Future<void> saveProductsForBox(String boxId, List<dynamic> productsData,
+      [String? shipmentId]) async {
     for (var productData in productsData) {
       if (productData is Map<String, dynamic>) {
         // Ensure unique product ID

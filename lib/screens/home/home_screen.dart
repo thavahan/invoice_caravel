@@ -9,6 +9,8 @@ class HomeScreen extends StatelessWidget {
 
   HomeScreen({required this.signURL});
 
+  final GlobalKey<InvoiceFormState> _formKey = GlobalKey<InvoiceFormState>();
+
   @override
   Widget build(BuildContext context) {
     final invoiceProvider =
@@ -26,13 +28,24 @@ class HomeScreen extends StatelessWidget {
           ),
           IconButton(
             onPressed: () {
-              invoiceProvider.previewInvoice();
+              _previewInvoice(context, invoiceProvider);
             },
             icon: const Icon(Icons.picture_as_pdf),
           ),
         ],
       ),
-      body: InvoiceForm(),
+      body: InvoiceForm(key: _formKey),
     );
+  }
+
+  void _previewInvoice(
+      BuildContext context, InvoiceProvider invoiceProvider) async {
+    final formState = _formKey.currentState;
+    if (formState != null) {
+      final shipmentData = formState.getCurrentShipmentData();
+      await invoiceProvider.previewInvoiceWithData(shipmentData);
+    } else {
+      await invoiceProvider.previewInvoice();
+    }
   }
 }

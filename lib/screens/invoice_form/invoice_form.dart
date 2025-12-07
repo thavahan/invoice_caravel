@@ -15,10 +15,10 @@ class InvoiceForm extends StatefulWidget {
   const InvoiceForm({Key? key, this.draftData}) : super(key: key);
 
   @override
-  _InvoiceFormState createState() => _InvoiceFormState();
+  InvoiceFormState createState() => InvoiceFormState();
 }
 
-class _InvoiceFormState extends State<InvoiceForm>
+class InvoiceFormState extends State<InvoiceForm>
     with TickerProviderStateMixin {
   // Form Controllers
   final TextEditingController _bonus_controller = TextEditingController();
@@ -2424,6 +2424,9 @@ class _InvoiceFormState extends State<InvoiceForm>
 
   // Box and Product Management Methods
   void _startAddingNewBox() {
+    debugPrint(
+        '📦 _startAddingNewBox called - current boxes: ${shipmentBoxes.length}');
+
     setState(() {
       // Create a new box directly with default values
       final boxNumber = 'Box No ${(shipmentBoxes.length + 1).toString()}';
@@ -2436,7 +2439,10 @@ class _InvoiceFormState extends State<InvoiceForm>
         height: 15.0,
         products: [],
       );
+
+      debugPrint('📦 Adding new box: ${newBox.id} (${newBox.boxNumber})');
       shipmentBoxes.add(newBox);
+      debugPrint('📦 Total boxes after add: ${shipmentBoxes.length}');
     });
 
     _showTopSuccessMessage('Box added successfully');
@@ -2459,7 +2465,7 @@ class _InvoiceFormState extends State<InvoiceForm>
       // Renumber all remaining boxes sequentially
       _renumberBoxes();
     });
-    _showTopSuccessMessage('Box deleted successfully');
+    _showTopSuccessMessage('Box removed from invoice');
   }
 
   void _deleteProduct(int boxIndex, int productIndex) {
@@ -2478,7 +2484,7 @@ class _InvoiceFormState extends State<InvoiceForm>
       setState(() {});
     });
 
-    _showTopSuccessMessage('Product "${product.type}" deleted successfully');
+    _showTopSuccessMessage('Product "${product.type}" removed from box');
   }
 
   void _editProduct(int boxIndex, int productIndex) {
@@ -3186,20 +3192,26 @@ class _InvoiceFormState extends State<InvoiceForm>
     }
 
     try {
-      // Determine if this is an update (editing existing shipment) or create (new shipment)
-      final isUpdate = widget.draftData != null &&
-          widget.draftData!['invoiceNumber'] != null &&
-          widget.draftData!['invoiceNumber'].toString().isNotEmpty;
-
       // Normalize invoice number for checking
       final normalizedInvoiceNumber =
           _invoiceNumberController.text.toUpperCase().trim();
 
-      // For new shipments, check if invoice number already exists
+      // Check if shipment already exists in database
+      final existingShipment =
+          await _localDbService.getShipment(normalizedInvoiceNumber);
+      final hasDraftData = widget.draftData != null &&
+          widget.draftData!['invoiceNumber'] != null &&
+          widget.draftData!['invoiceNumber'].toString().isNotEmpty;
+
+      // Determine if this is an update (editing existing shipment) or create (new shipment)
+      final isUpdate = existingShipment != null || hasDraftData;
+
+      // For new shipments that don't exist, ensure invoice number is unique
       if (!isUpdate) {
-        final existingShipment =
+        // This shouldn't happen with the new logic, but keep as safety check
+        final doubleCheckExisting =
             await _localDbService.getShipment(normalizedInvoiceNumber);
-        if (existingShipment != null) {
+        if (doubleCheckExisting != null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -3256,9 +3268,7 @@ class _InvoiceFormState extends State<InvoiceForm>
                 'height': box.height,
                 'products': box.products
                     .map((product) => {
-                          'id': product.id.isEmpty
-                              ? DateTime.now().millisecondsSinceEpoch.toString()
-                              : product.id,
+                          'id': product.id, // Always preserve the original ID
                           'type': product.type,
                           'description': product.description,
                           'flowerType': product.flowerType,
@@ -3271,17 +3281,14 @@ class _InvoiceFormState extends State<InvoiceForm>
               })
           .toList();
 
-      debugPrint(
-          '📦 DEBUG: Submitting shipment with ${boxesData.length} boxes');
+      debugPrint('💾 Completing form - boxesData length: ${boxesData.length}');
       for (int i = 0; i < boxesData.length; i++) {
-        final products = boxesData[i]['products'] as List;
         debugPrint(
-            '   Box ${i + 1}: ${boxesData[i]['boxNumber']} with ${products.length} products');
+            '   Box ${i + 1}: ${boxesData[i]['id']} - ${boxesData[i]['boxNumber']}');
       }
 
       // Call appropriate method based on whether this is an update or create
       if (isUpdate) {
-        debugPrint('🔄 Updating existing shipment: ${shipment.invoiceNumber}');
         await invoiceProvider.updateShipmentWithBoxes(shipment, boxesData);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -3289,7 +3296,6 @@ class _InvoiceFormState extends State<InvoiceForm>
           );
         }
       } else {
-        debugPrint('➕ Creating new shipment: ${shipment.invoiceNumber}');
         await invoiceProvider.createShipmentWithBoxes(shipment, boxesData);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -3311,5 +3317,54 @@ class _InvoiceFormState extends State<InvoiceForm>
         );
       }
     }
+  }
+
+  /// Get current shipment data for preview
+  Map<String, dynamic> getCurrentShipmentData() {
+    return {
+      'invoiceNumber': _invoiceNumberController.text,
+      'invoiceTitle': _invoiceTitleController.text,
+      'shipper': _shipperController.text,
+      'consignee': _consigneeController.text,
+      'awb': _awbController.text,
+      'flightNo': _flightNoController.text,
+      'dischargeAirport': _dischargeAirportController.text,
+      'eta': _etaController.text,
+      'totalAmount': _totalAmountController.text,
+      'origin': _originController.text,
+      'destination': _destinationController.text,
+      'bonus': _bonus_controller.text,
+      'type': _typeController.text,
+      'shipperAddress': _shipperAddressController.text,
+      'consigneeAddress': _consigneeAddressController.text,
+      'clientRef': _clientRefController.text,
+      'invoiceDate': _invoiceDateController.text,
+      'dateOfIssue': _dateOfIssueController.text,
+      'placeOfReceipt': _placeOfReceiptController.text,
+      'sgstNo': _sgstNoController.text,
+      'iecCode': _iecCodeController.text,
+      'freightTerms': selectedFreightTerms,
+      'boxes': shipmentBoxes
+          .map((box) => {
+                'id': box.id,
+                'boxNumber': box.boxNumber,
+                'length': box.length,
+                'width': box.width,
+                'height': box.height,
+                'products': box.products
+                    .map((product) => {
+                          'id': product.id,
+                          'type': product.type,
+                          'description': product.description,
+                          'flowerType': product.flowerType,
+                          'hasStems': product.hasStems,
+                          'weight': product.weight,
+                          'rate': product.rate,
+                          'approxQuantity': product.approxQuantity,
+                        })
+                    .toList(),
+              })
+          .toList(),
+    };
   }
 }

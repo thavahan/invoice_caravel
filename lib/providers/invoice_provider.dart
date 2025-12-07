@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:invoice_generator/models/box_product.dart';
 import 'package:invoice_generator/models/invoice.dart';
 import 'package:invoice_generator/models/invoice_item.dart';
 import 'package:invoice_generator/models/product.dart';
@@ -156,50 +157,33 @@ class InvoiceProvider with ChangeNotifier {
       notifyListeners();
 
       // Check if shipment already exists (update scenario)
-      print(
-          '📝 DEBUG: createShipmentWithBoxes - checking if shipment ${shipment.invoiceNumber} already exists');
       final existingShipment =
           await _dataService.getShipment(shipment.invoiceNumber);
       final isUpdate = existingShipment != null;
 
       if (isUpdate) {
-        print(
-            '📝 DEBUG: Shipment ${shipment.invoiceNumber} already exists - this is an UPDATE');
         // Delete existing boxes/products before adding new ones
         try {
-          print(
-              '🗑️ DEBUG: Deleting existing boxes for shipment ${shipment.invoiceNumber}');
           await _dataService.deleteAllBoxesForShipment(shipment.invoiceNumber);
-          print('✅ DEBUG: Deleted existing boxes successfully');
         } catch (e) {
-          print('⚠️ DEBUG: Failed to delete existing boxes: $e');
           _logger.w('Failed to delete existing boxes during update', e);
           // Don't fail the entire operation, just warn
         }
-      } else {
-        print(
-            '📝 DEBUG: Shipment ${shipment.invoiceNumber} is NEW - this is a CREATE');
-      }
+      } else {}
 
       // Save shipment first to both local database and Firebase
-      print('💾 DEBUG: Saving shipment ${shipment.invoiceNumber}');
       await _dataService.saveShipment(shipment);
-      print('✅ DEBUG: Shipment saved successfully');
 
       // Auto-create boxes and products if provided
       if (boxesData.isNotEmpty) {
         try {
-          print(
-              '📦 DEBUG: Auto-creating ${boxesData.length} boxes for shipment ${shipment.invoiceNumber}');
           await _dataService.autoCreateBoxesAndProducts(
             shipment.invoiceNumber,
             boxesData,
           );
-          print('✅ DEBUG: Auto-created boxes successfully');
           _logger.i(
               'Auto-created ${boxesData.length} boxes for shipment ${shipment.invoiceNumber}');
         } catch (e) {
-          print('❌ DEBUG: Failed to auto-create boxes: $e');
           _logger.e(
               'Failed to auto-create boxes/products for shipment ${shipment.invoiceNumber}',
               e);
@@ -211,10 +195,8 @@ class InvoiceProvider with ChangeNotifier {
       final index = _shipments
           .indexWhere((s) => s.invoiceNumber == shipment.invoiceNumber);
       if (index != -1) {
-        print('📝 DEBUG: Updating shipment in list at index $index');
         _shipments[index] = shipment;
       } else {
-        print('📝 DEBUG: Adding new shipment to list');
         _shipments.add(shipment);
       }
 
@@ -233,11 +215,9 @@ class InvoiceProvider with ChangeNotifier {
       }
 
       _logger.i(statusMessage);
-      print('✅ DEBUG: $statusMessage');
     } catch (e, s) {
       _logger.e('Failed to create shipment with boxes', e, s);
       _error = 'Failed to create shipment: $e';
-      print('❌ DEBUG: Error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -276,18 +256,26 @@ class InvoiceProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      _logger.i('Updating shipment with boxes: ${shipment.invoiceNumber}');
-      print(
-          '🔄 DEBUG: Smart update for ${shipment.invoiceNumber} with ${boxesData.length} boxes');
+      _logger.i('🔄 Starting update for shipment: ${shipment.invoiceNumber}');
+      _logger.i('📦 Form data contains ${boxesData.length} boxes');
+      for (var box in boxesData) {
+        _logger.i('📦 Box in form: ${box['id']} - ${box['boxNumber']}');
+      }
 
       // Update the shipment record first
       await _dataService.saveShipment(shipment);
-      print('✅ DEBUG: Shipment record updated');
 
-      // Get existing boxes for this shipment
+      // Get existing boxes for this shipment - FORCE LOCAL ONLY for consistency
+      _dataService.forceOfflineMode(true);
       final existingBoxes =
           await _dataService.getBoxesForShipment(shipment.invoiceNumber);
-      print('📦 DEBUG: Found ${existingBoxes.length} existing boxes');
+      _dataService.forceOfflineMode(false);
+
+      _logger.i(
+          '🗄️ Database contains ${existingBoxes.length} boxes for shipment ${shipment.invoiceNumber}');
+      for (var box in existingBoxes) {
+        _logger.i('🗄️ Box in database: ${box.id} - ${box.boxNumber}');
+      }
 
       // Create maps for efficient lookup
       final existingBoxesMap = {for (var box in existingBoxes) box.id: box};
@@ -297,6 +285,12 @@ class InvoiceProvider with ChangeNotifier {
 
       // Remove empty key if present
       newBoxesMap.remove('');
+
+      _logger.i('🔍 Comparing boxes:');
+      _logger.i(
+          '🔍 Existing boxes map has ${existingBoxesMap.length} entries: ${existingBoxesMap.keys.toList()}');
+      _logger.i(
+          '🔍 New boxes map has ${newBoxesMap.length} entries: ${newBoxesMap.keys.toList()}');
 
       // Categorize boxes: to update, to add, to delete
       final boxesToUpdate = <String>[];
@@ -319,17 +313,24 @@ class InvoiceProvider with ChangeNotifier {
       for (var existingBox in existingBoxes) {
         final boxId = existingBox.id;
         if (!newBoxesMap.containsKey(boxId)) {
+          _logger.i('Box marked for deletion: $boxId');
           boxesToDelete.add(boxId);
         }
       }
 
-      print(
-          '📊 DEBUG: Update plan - Update: ${boxesToUpdate.length}, Add: ${boxesToAdd.length}, Delete: ${boxesToDelete.length}');
+      // Log the categorization results
+      _logger.i(
+          'Existing boxes in DB: ${existingBoxes.length}, New boxes from form: ${boxesData.length}');
+      _logger.i(
+          'Boxes to update: ${boxesToUpdate.length}, to add: ${boxesToAdd.length}, to delete: ${boxesToDelete.length}');
 
       // Execute the plan
       int totalBoxesUpdated = 0;
       int totalBoxesAdded = 0;
       int totalBoxesDeleted = 0;
+
+      _logger.i(
+          'Starting box operations - to delete: ${boxesToDelete.length}, to add: ${boxesToAdd.length}, to update: ${boxesToUpdate.length}');
 
       // 1. Update existing boxes
       for (var boxId in boxesToUpdate) {
@@ -349,7 +350,7 @@ class InvoiceProvider with ChangeNotifier {
 
         // Update products for this box
         await _updateProductsForBox(shipment.invoiceNumber, boxId,
-            newBoxData['products'] as List? ?? []);
+            newBoxData['products'] as List? ?? [], newBoxData);
         totalBoxesUpdated++;
       }
 
@@ -357,19 +358,17 @@ class InvoiceProvider with ChangeNotifier {
       for (var newBoxData in boxesToAdd) {
         final boxId =
             await _dataService.saveBox(shipment.invoiceNumber, newBoxData);
-        await _dataService.saveProductsForBox(
-            boxId, newBoxData['products'] as List? ?? [], shipmentId);
+        await _dataService.saveProductsForBox(boxId,
+            newBoxData['products'] as List? ?? [], shipment.invoiceNumber);
         totalBoxesAdded++;
       }
 
       // 3. Delete removed boxes
       for (var boxId in boxesToDelete) {
+        _logger.i('Deleting box: $boxId');
         await _dataService.deleteBox(boxId);
         totalBoxesDeleted++;
       }
-
-      print(
-          '✅ DEBUG: Update complete - Updated: $totalBoxesUpdated, Added: $totalBoxesAdded, Deleted: $totalBoxesDeleted');
 
       // Update local shipments list
       final index = _shipments
@@ -405,10 +404,25 @@ class InvoiceProvider with ChangeNotifier {
 
   /// Update products for a specific box - smart diff-based
   Future<void> _updateProductsForBox(
-      String shipmentId, String boxId, List<dynamic> productsData) async {
-    // Get existing products for this box
+      String shipmentId, String boxId, List<dynamic> productsData,
+      [Map<String, dynamic>? boxData]) async {
+    // Ensure the box exists by saving it
+    if (boxData != null) {
+      await _dataService.saveBox(shipmentId, {
+        'id': boxId,
+        'box_number': boxData['boxNumber'] ?? boxData['box_number'] ?? 'Box',
+        'length': boxData['length'] ?? 0.0,
+        'width': boxData['width'] ?? 0.0,
+        'height': boxData['height'] ?? 0.0,
+      });
+    }
+
+    // Get existing products for this box - FORCE LOCAL ONLY for consistency
+    _dataService.forceOfflineMode(true);
     final existingProducts =
         await _dataService.getProductsForBox(shipmentId, boxId);
+    _dataService.forceOfflineMode(false);
+    // Create maps for efficient lookup
     final existingProductsMap = {
       for (var product in existingProducts) product.id: product
     };
@@ -439,11 +453,17 @@ class InvoiceProvider with ChangeNotifier {
     // Check which existing products should be deleted
     for (var existingProduct in existingProducts) {
       if (!newProductsMap.containsKey(existingProduct.id)) {
+        _logger.i(
+            'Product marked for deletion: ${existingProduct.id} from box $boxId');
         productsToDelete.add(existingProduct.id);
       }
     }
 
-    // Execute updates
+    _logger.i('Updating products for box $boxId in shipment $shipmentId');
+    _logger.i(
+        'Existing products in DB: ${existingProducts.length}, New products from form: ${productsData.length}');
+    _logger.i(
+        'Products to update: ${productsToUpdate.length}, to add: ${productsToAdd.length}, to delete: ${productsToDelete.length}');
     for (var productId in productsToUpdate) {
       final existingProduct = existingProductsMap[productId]!;
       final newProductData = newProductsMap[productId]!;
@@ -479,6 +499,7 @@ class InvoiceProvider with ChangeNotifier {
 
     // Delete removed products
     for (var productId in productsToDelete) {
+      _logger.i('Deleting product: $productId from box $boxId');
       await _dataService.deleteProduct(productId);
     }
   }
@@ -548,6 +569,88 @@ class InvoiceProvider with ChangeNotifier {
         _error = 'Failed to generate PDF. Please try again.';
         notifyListeners();
       }
+    }
+  }
+
+  /// Generates a preview of the invoice with provided shipment data.
+  Future<void> previewInvoiceWithData(Map<String, dynamic> shipmentData) async {
+    try {
+      // Create shipment from the provided data
+      final shipment = Shipment(
+        invoiceNumber: shipmentData['invoiceNumber'] ?? '',
+        shipper: shipmentData['shipper'] ?? '',
+        consignee: shipmentData['consignee'] ?? '',
+        awb: shipmentData['awb'] ?? '',
+        flightNo: shipmentData['flightNo'] ?? '',
+        dischargeAirport: shipmentData['dischargeAirport'] ?? '',
+        eta: shipmentData['eta'] != null
+            ? DateTime.tryParse(shipmentData['eta']) ??
+                DateTime.now().add(Duration(days: 1))
+            : DateTime.now().add(Duration(days: 1)),
+        totalAmount: double.tryParse(shipmentData['totalAmount'] ?? '0') ?? 0.0,
+        invoiceTitle: shipmentData['invoiceTitle'] ?? '',
+        boxIds: [], // Will be populated from boxes
+      );
+
+      // Convert boxes data to ShipmentBox objects
+      final boxes =
+          (shipmentData['boxes'] as List<dynamic>? ?? []).map((boxData) {
+        final products =
+            (boxData['products'] as List<dynamic>? ?? []).map((productData) {
+          return ShipmentProduct(
+            id: productData['id'] ?? '',
+            boxId: '', // Will be set when box is created
+            type: productData['type'] ?? '',
+            description: productData['description'] ?? '',
+            flowerType: productData['flowerType'] ?? 'LOOSE FLOWERS',
+            hasStems: productData['hasStems'] ?? false,
+            weight: (productData['weight'] ?? 0.0).toDouble(),
+            rate: (productData['rate'] ?? 0.0).toDouble(),
+            approxQuantity: productData['approxQuantity'] ?? 0,
+          );
+        }).toList();
+
+        return ShipmentBox(
+          id: boxData['id'] ?? '',
+          shipmentId: shipment.invoiceNumber,
+          boxNumber: boxData['boxNumber'] ?? '',
+          length: (boxData['length'] ?? 0.0).toDouble(),
+          width: (boxData['width'] ?? 0.0).toDouble(),
+          height: (boxData['height'] ?? 0.0).toDouble(),
+          products: products,
+        );
+      }).toList();
+
+      // Create invoice items from boxes
+      final invoiceItems = boxes
+          .expand((box) => box.products.map((product) => InvoiceItem(
+                item: Item(
+                  id: product.id,
+                  flowerTypeId: product.flowerType,
+                  weightKg: product.weight,
+                  form: product.type,
+                  quantity: product.approxQuantity,
+                ),
+                quantity: 1,
+              )))
+          .toList();
+
+      final invoice = Invoice(
+        invoiceNumber: shipment.invoiceNumber,
+        shipment: shipment,
+        date: DateTime.now(),
+        items: invoiceItems.map((ii) => ii.item).toList(),
+        signUrl: _signUrl,
+      );
+
+      final pdfService = PdfService();
+      await pdfService.generateShipmentPDF(invoice.shipment, invoice.items);
+      _logger.i(
+          'Invoice ${invoice.invoiceNumber} previewed successfully with ${boxes.length} boxes.');
+    } catch (e, s) {
+      _logger.e('Failed to preview invoice with data', e, s);
+      _error = 'Failed to generate PDF. Please try again.';
+      notifyListeners();
     }
   }
 
@@ -681,15 +784,19 @@ class InvoiceProvider with ChangeNotifier {
             '🔄 Normal app startup - skipping auto-sync (already performed at login)');
       }
 
-      // Load shipments (after potential sync)
+      // Load shipments (after potential sync) - FORCE LOCAL ONLY
+      _dataService.forceOfflineMode(true);
       final shipments = await _dataService.getShipments();
+      _dataService.forceOfflineMode(false);
       _shipments = shipments;
 
-      // Load master data
+      // Load master data - FORCE LOCAL ONLY
+      _dataService.forceOfflineMode(true);
       final masterShippers = await _dataService.getMasterShippers();
       final masterConsignees = await _dataService.getMasterConsignees();
       final masterProductTypes = await _dataService.getMasterProductTypes();
       final flowerTypes = await _dataService.getFlowerTypes();
+      _dataService.forceOfflineMode(false);
 
       _masterData = {
         'shippers': masterShippers,
@@ -698,8 +805,10 @@ class InvoiceProvider with ChangeNotifier {
         'flowerTypes': flowerTypes,
       };
 
-      // Load drafts
+      // Load drafts - FORCE LOCAL ONLY
+      _dataService.forceOfflineMode(true);
       final drafts = await _dataService.getDrafts();
+      _dataService.forceOfflineMode(false);
       _drafts = drafts;
 
       _logger.i(
