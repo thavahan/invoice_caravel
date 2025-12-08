@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart' as excel;
 import 'package:share_plus/share_plus.dart';
@@ -26,7 +25,8 @@ class ExcelFileService {
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
               ),
               SizedBox(width: 16),
               Expanded(
@@ -54,9 +54,12 @@ class ExcelFileService {
       final String invoiceNumber =
           invoice['invoiceNumber'] ?? invoice['id'] ?? 'Unknown';
 
-      // Remove default sheet and create invoice sheet
-      workbook.delete('Sheet1');
+      // Create invoice sheet first, then remove default sheet
       final sheet = workbook['INVOICE'];
+      workbook.delete('Sheet1');
+
+      // Ensure INVOICE is the active sheet
+      workbook.setDefaultSheet('INVOICE');
 
       int row = 1;
 
@@ -64,7 +67,7 @@ class ExcelFileService {
       sheet.cell(excel.CellIndex.indexByString('D$row')).value =
           excel.TextCellValue('INVOICE');
       sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
-          excel.CellStyle(bold: true, fontSize: 8);
+          excel.CellStyle(bold: true, fontSize: 12);
       row++;
 
       // ========== ROW 2: SHIPPER & INVOICE DETAILS HEADERS ==========
@@ -111,11 +114,15 @@ class ExcelFileService {
       sheet.cell(excel.CellIndex.indexByString('E$row')).cellStyle =
           excel.CellStyle(
         topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
       sheet.cell(excel.CellIndex.indexByString('F$row')).cellStyle =
           excel.CellStyle(
         topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
       sheet.cell(excel.CellIndex.indexByString('G$row')).cellStyle =
@@ -168,11 +175,15 @@ class ExcelFileService {
       sheet.cell(excel.CellIndex.indexByString('E$row')).cellStyle =
           excel.CellStyle(
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
       sheet.cell(excel.CellIndex.indexByString('F$row')).cellStyle =
           excel.CellStyle(
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
       sheet.cell(excel.CellIndex.indexByString('G$row')).cellStyle =
@@ -183,14 +194,31 @@ class ExcelFileService {
       row++;
 
       // ========== ROWS 4-6: SHIPPER ADDRESS ==========
+      int shipperStartRow = row;
       row = _addFormattedAddress(
           sheet, 'A', detailedInvoiceData['shipperAddress'] ?? 'Address', row);
-      // Add right border to column G for these rows
-      for (int i = 0; i < row - 4; i++) {
-        sheet.cell(excel.CellIndex.indexByString('G${4 + i}')).cellStyle =
-            excel.CellStyle(
-          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
-        );
+
+      // Group shipper section with borders - add borders to all columns for shipper rows
+      for (int shipperRow = shipperStartRow; shipperRow < row; shipperRow++) {
+        // Add borders to columns B through G for each shipper address row
+        for (String col in ['B', 'C', 'D', 'E', 'F', 'G']) {
+          var cell =
+              sheet.cell(excel.CellIndex.indexByString('$col$shipperRow'));
+          var isLastShipperRow = (shipperRow == row - 1);
+
+          cell.cellStyle = excel.CellStyle(
+            topBorder: shipperRow == shipperStartRow
+                ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+                : excel.Border(borderStyle: excel.BorderStyle.Thin),
+            bottomBorder: isLastShipperRow
+                ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+                : excel.Border(borderStyle: excel.BorderStyle.Thin),
+            leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+            rightBorder: col == 'G'
+                ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+                : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          );
+        }
       }
       row++;
 
@@ -206,7 +234,7 @@ class ExcelFileService {
       );
 
       sheet.cell(excel.CellIndex.indexByString('B$row')).value =
-          excel.TextCellValue('Client Ref:');
+          excel.TextCellValue('');
       sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
           excel.CellStyle(
         bold: true,
@@ -224,6 +252,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in consignee header row (D, E, F, G)
+      for (String col in ['D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 8: CONSIGNEE & REFERENCES VALUES ==========
@@ -238,7 +276,7 @@ class ExcelFileService {
       );
 
       sheet.cell(excel.CellIndex.indexByString('B$row')).value =
-          excel.TextCellValue(detailedInvoiceData['clientRef'] ?? '');
+          excel.TextCellValue('');
       sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
           excel.CellStyle(
         bold: true,
@@ -256,18 +294,23 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in consignee values row (D, E, F, G)
+      for (String col in ['D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROWS 9-10: CONSIGNEE ADDRESS ==========
       row = _addFormattedAddress(sheet, 'A',
           detailedInvoiceData['consigneeAddress'] ?? 'Address', row);
-      // Add right border to column G for these rows
-      for (int i = 0; i < row - 9; i++) {
-        sheet.cell(excel.CellIndex.indexByString('G${9 + i}')).cellStyle =
-            excel.CellStyle(
-          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
-        );
-      }
+      // Add right border to column G for consignee address rows
+      _applyRightBorderToColumn(sheet, 'G', 9, row - 1);
       row += 2;
 
       // ========== ROW 12: BILL TO HEADER ==========
@@ -280,6 +323,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in Bill To header row (B, C, D, E, F, G)
+      for (String col in ['B', 'C', 'D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 13: BILL TO VALUE ==========
@@ -293,6 +346,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in Bill To value row (B, C, D, E, F, G)
+      for (String col in ['B', 'C', 'D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 14: AWB & PLACE OF RECEIPT HEADERS ==========
@@ -316,20 +379,30 @@ class ExcelFileService {
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
-      sheet.cell(excel.CellIndex.indexByString('E$row')).value =
+      sheet.cell(excel.CellIndex.indexByString('D$row')).value =
           excel.TextCellValue('Shipper:');
-      sheet.cell(excel.CellIndex.indexByString('E$row')).cellStyle =
+      sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
           excel.CellStyle(
         bold: true,
         topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in AWB header row (C, E, F, G)
+      for (String col in ['C', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 15: AWB & PLACE OF RECEIPT VALUES ==========
       sheet.cell(excel.CellIndex.indexByString('A$row')).value =
-          excel.TextCellValue(detailedInvoiceData['awb'] ?? '');
+          excel.TextCellValue(''); // Keep AWB blank as requested
       sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
           excel.CellStyle(
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
@@ -346,9 +419,70 @@ class ExcelFileService {
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
-      // Shipper address in column E
-      int shipperRow = _addFormattedAddress(
-          sheet, 'E', detailedInvoiceData['shipperAddress'] ?? 'Address', row);
+      // Shipper address in column D - track rows for grouping
+      int awbShipperStartRow = row;
+      int shipperEndRow = _addShipperAddressGrouped(
+          sheet, 'D', detailedInvoiceData['shipperAddress'] ?? 'Address', row);
+
+      // Group shipper section with borders - add borders to columns E, F and G for shipper address rows
+      for (int shipperRow = awbShipperStartRow;
+          shipperRow < shipperEndRow;
+          shipperRow++) {
+        // Column E: Add logo continuation or empty cell with proper borders
+        var cellE = sheet.cell(excel.CellIndex.indexByString('E$shipperRow'));
+        var isLastShipperRow = (shipperRow == shipperEndRow - 1);
+
+        cellE.cellStyle = excel.CellStyle(
+          topBorder: shipperRow == awbShipperStartRow
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          bottomBorder: isLastShipperRow
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+        );
+
+        // Column F: Middle section
+        var cellF = sheet.cell(excel.CellIndex.indexByString('F$shipperRow'));
+        cellF.cellStyle = excel.CellStyle(
+          topBorder: shipperRow == awbShipperStartRow
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          bottomBorder: isLastShipperRow
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+        );
+
+        // Column G: Right edge of the grouped section
+        var cellG = sheet.cell(excel.CellIndex.indexByString('G$shipperRow'));
+        cellG.cellStyle = excel.CellStyle(
+          topBorder: shipperRow == awbShipperStartRow
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          bottomBorder: isLastShipperRow
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
+
+      // Update row to the end of shipper address section
+      row = shipperEndRow;
+
+      // Add borders to empty cells in AWB values row (C) - D, E, F, G now handled by shipper grouping
+      for (String col in ['C']) {
+        var emptyCell = sheet
+            .cell(excel.CellIndex.indexByString('$col$awbShipperStartRow'));
+        emptyCell.cellStyle = excel.CellStyle(
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 16: FLIGHT & AIRPORT DEPARTURE HEADERS ==========
@@ -381,6 +515,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in flight header row (D, E, F, G)
+      for (String col in ['D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 17: FLIGHT & AIRPORT DEPARTURE VALUES ==========
@@ -411,6 +555,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in flight values row (D, E, F, G)
+      for (String col in ['D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 18: AIRPORT DISCHARGE & PLACE DELIVERY HEADERS ==========
@@ -443,6 +597,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in airport discharge header row (D, E, F, G)
+      for (String col in ['D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 19: AIRPORT DISCHARGE & PLACE DELIVERY VALUES ==========
@@ -455,9 +619,9 @@ class ExcelFileService {
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
-      sheet.cell(excel.CellIndex.indexByString('C$row')).value =
+      sheet.cell(excel.CellIndex.indexByString('B$row')).value =
           excel.TextCellValue(detailedInvoiceData['destination'] ?? 'DEST');
-      sheet.cell(excel.CellIndex.indexByString('C$row')).cellStyle =
+      sheet.cell(excel.CellIndex.indexByString('B$row')).cellStyle =
           excel.CellStyle(
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
@@ -472,6 +636,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in airport discharge values row (D, E, F, G)
+      for (String col in ['D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 20: ETA & FREIGHT TERMS HEADERS ==========
@@ -495,6 +669,16 @@ class ExcelFileService {
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+
+      // Add borders to empty cells in ETA header row (C, D, E, F, G)
+      for (String col in ['C', 'D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
       row++;
 
       // ========== ROW 21: ETA & FREIGHT TERMS VALUES ==========
@@ -518,48 +702,56 @@ class ExcelFileService {
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
 
-      // Add right border to column G for rows 12-21
-      for (int i = 12; i <= 21; i++) {
-        if (i == 21) {
-          sheet.cell(excel.CellIndex.indexByString('G$i')).cellStyle =
-              excel.CellStyle(
-            bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
-            rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
-          );
-        } else {
-          sheet.cell(excel.CellIndex.indexByString('G$i')).cellStyle =
-              excel.CellStyle(
-            rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
-          );
-        }
+      // Add borders to empty cells in ETA values row (C, D, E, F)
+      for (String col in ['C', 'D', 'E', 'F', 'G']) {
+        var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+        emptyCell.cellStyle = excel.CellStyle(
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
       }
+
+      // Add borders to the shipping details section
+      _applyRightBorderToColumn(sheet, 'G', 12, 21);
+      // Add bottom border to the last row of this section
+      var lastCell = sheet.cell(excel.CellIndex.indexByString('G21'));
+      var currentStyle = lastCell.cellStyle ?? excel.CellStyle();
+      lastCell.cellStyle = excel.CellStyle(
+        fontSize: currentStyle.fontSize,
+        topBorder: currentStyle.topBorder,
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: currentStyle.leftBorder,
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
       row += 2;
 
       // ========== ROW 23: PRODUCT TABLE HEADER ==========
       final headers = [
-        'Marks & Nos.',
-        'No. & Kind of Pkgs.',
+        'MARKS & NOS.',
+        'NO. & KIND OF PKGS.',
         '',
-        'Description of Goods',
+        'DESCRIPTION OF GOODS',
         '',
-        'Gross Weight',
-        'Net Weight'
+        'GROSS WEIGHT',
+        'NET WEIGHT'
       ];
 
       for (int col = 0; col < headers.length; col++) {
         final colLetter = String.fromCharCode(65 + col);
         var cell = sheet.cell(excel.CellIndex.indexByString('$colLetter$row'));
+
+        // Always set a value - use empty string for blank cells to ensure proper border rendering
+        cell.value = excel.TextCellValue(headers[col]);
+
+        // Apply consistent styling to all header cells - no bottom border for MARKS & NOS. row
         cell.cellStyle = excel.CellStyle(
           bold: true,
           fontSize: 11,
           topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
-          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
           leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
           rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         );
-        if (headers[col].isNotEmpty) {
-          cell.value = excel.TextCellValue(headers[col]);
-        }
       }
       row++;
 
@@ -569,6 +761,11 @@ class ExcelFileService {
       for (int col = 0; col < subHeaders.length; col++) {
         final colLetter = String.fromCharCode(65 + col);
         var cell = sheet.cell(excel.CellIndex.indexByString('$colLetter$row'));
+
+        // Always set a value - use empty string for blank cells to ensure proper border rendering
+        cell.value = excel.TextCellValue(subHeaders[col]);
+
+        // Apply consistent styling to all subheader cells
         cell.cellStyle = excel.CellStyle(
           bold: true,
           fontSize: 11,
@@ -577,25 +774,22 @@ class ExcelFileService {
           leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
           rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         );
-        if (subHeaders[col].isNotEmpty) {
-          cell.value = excel.TextCellValue(subHeaders[col]);
-        }
       }
       row++;
 
       // ========== PRODUCT DETAILS ==========
       row = _addProductDetails(sheet, detailedInvoiceData, row);
-      row += 2;
+      row += 3; // Reduced spacing since we have better visual separation now
 
       // ========== CHARGES SECTION ==========
       _addChargesSection(sheet, detailedInvoiceData, row);
-      row += 20;
+      row += 10;
 
       // ========== TOTAL IN WORDS ==========
       _addTotalInWords(sheet, detailedInvoiceData, row);
 
       // Set column widths
-      sheet.setColumnWidth(0, 15); // Column A - half width
+      sheet.setColumnWidth(0, 30); // Column A - doubled width
 
       // Auto-size remaining columns (using integer indices: 1-6 = B-G)
       for (int i = 1; i < 7; i++) {
@@ -631,12 +825,32 @@ class ExcelFileService {
     }
   }
 
+  /// Apply right border to a specific column for a range of rows
+  static void _applyRightBorderToColumn(
+    excel.Sheet sheet,
+    String columnLetter,
+    int startRow,
+    int endRow,
+  ) {
+    for (int row = startRow; row <= endRow; row++) {
+      var cell = sheet.cell(excel.CellIndex.indexByString('$columnLetter$row'));
+      var currentStyle = cell.cellStyle ?? excel.CellStyle();
+
+      cell.cellStyle = excel.CellStyle(
+        fontSize: currentStyle.fontSize,
+        topBorder: currentStyle.topBorder,
+        bottomBorder: currentStyle.bottomBorder,
+        leftBorder: currentStyle.leftBorder,
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
+  }
+
   /// Add formatted address - splits by comma and prints on separate rows
   /// Last two parts are combined in the same cell (e.g., "State - Postal Code")
-  /// Includes borders on all address cells
+  /// Includes borders on all address cells with top border for first row
   static int _addFormattedAddress(
-      excel.Sheet sheet, String columnLetter, String address, int startRow,
-      {bool isLastRow = false, bool isFirstRow = false}) {
+      excel.Sheet sheet, String columnLetter, String address, int startRow) {
     if (address.isEmpty || address == 'Address') {
       sheet
           .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
@@ -644,6 +858,7 @@ class ExcelFileService {
       sheet
           .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
           .cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
@@ -667,6 +882,7 @@ class ExcelFileService {
       sheet
           .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
           .cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
@@ -681,6 +897,7 @@ class ExcelFileService {
       sheet
           .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
           .cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
@@ -695,6 +912,9 @@ class ExcelFileService {
         sheet
             .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
             .cellStyle = excel.CellStyle(
+          topBorder: i == 0
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : null,
           leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
           rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         );
@@ -709,6 +929,9 @@ class ExcelFileService {
       sheet
           .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
           .cellStyle = excel.CellStyle(
+        topBorder: addressParts.length == 3
+            ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+            : null,
         bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
         rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
@@ -719,8 +942,8 @@ class ExcelFileService {
     return startRow;
   }
 
-  /// Add product details
-  /// Format: BOX NO in column A, product details in column D
+  /// Add product details with enhanced box grouping and visual separation
+  /// Format: BOX NO in column A, product details in column D with proper borders
   static int _addProductDetails(
     excel.Sheet sheet,
     Map<String, dynamic> detailedData,
@@ -730,39 +953,25 @@ class ExcelFileService {
 
     int boxNum = 1;
     for (var box in detailedData['boxes']) {
+      // Box header row with enhanced styling
+      _addBoxHeader(sheet, startRow, boxNum);
+      startRow++;
+
       if (box['products'] != null && (box['products'] as List).isNotEmpty) {
-        bool firstProduct = true;
+        // Add products for this box
         for (var product in box['products']) {
-          // Place BOX NO in column A only for first product in box
-          if (firstProduct) {
-            sheet.cell(excel.CellIndex.indexByString('A$startRow')).value =
-                excel.TextCellValue('BOX NO $boxNum');
-            firstProduct = false;
-          }
-
-          // Place product details in column D
-          final type = product['type'] ?? 'Unknown';
-          final weight = product['weight'] ?? 0;
-          final flowerType = product['flowerType'] ?? 'LOOSE FLOWERS';
-          final hasStems = product['hasStems'] ?? false;
-          final approxQuantity = product['approxQuantity'] ?? 0;
-
-          // Format: TYPE - WEIGHT KG (FLOWER TYPE, STEMS STATUS, APPROX QUANTITY)
-          final stemsText = hasStems ? 'WITH STEMS' : 'NO STEMS';
-          final productDetails =
-              '$type - ${weight}KG ($flowerType, $stemsText, APPROX $approxQuantity NOS)';
-
-          sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
-              excel.TextCellValue(productDetails);
-
+          _addProductRow(sheet, startRow, product, false);
           startRow++;
         }
       } else {
         // Empty box case
-        sheet.cell(excel.CellIndex.indexByString('A$startRow')).value =
-            excel.TextCellValue('BOX NO $boxNum');
-        sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
-            excel.TextCellValue('Empty Box');
+        _addEmptyBoxRow(sheet, startRow);
+        startRow++;
+      }
+
+      // Add separator row between boxes (except for last box)
+      if (boxNum < (detailedData['boxes'] as List).length) {
+        _addBoxSeparator(sheet, startRow);
         startRow++;
       }
 
@@ -770,6 +979,148 @@ class ExcelFileService {
     }
 
     return startRow;
+  }
+
+  /// Add box header with enhanced styling
+  static void _addBoxHeader(excel.Sheet sheet, int row, int boxNum) {
+    // BOX NO in column A with enhanced styling
+    sheet.cell(excel.CellIndex.indexByString('A$row')).value =
+        excel.TextCellValue('BOX NO $boxNum');
+    sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+        excel.CellStyle(
+      bold: true,
+      fontSize: 11,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Header label in column D
+    sheet.cell(excel.CellIndex.indexByString('D$row')).value =
+        excel.TextCellValue('PRODUCTS');
+    sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
+        excel.CellStyle(
+      bold: true,
+      fontSize: 10,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Add borders to empty cells in box header row (B, C, E, F, G)
+    for (String col in ['B', 'C', 'E', 'F', 'G']) {
+      var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+      emptyCell.cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
+  }
+
+  /// Add product row with proper styling
+  static void _addProductRow(excel.Sheet sheet, int row,
+      Map<String, dynamic> product, bool isLastInBox) {
+    // Empty cell in column A for product rows
+    sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+        excel.CellStyle(
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+      bottomBorder: isLastInBox
+          ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+          : excel.Border(borderStyle: excel.BorderStyle.Thin),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Product details in column D
+    final type = product['type'] ?? 'Unknown';
+    final weight = product['weight'] ?? 0;
+    final flowerType = product['flowerType'] ?? 'LOOSE FLOWERS';
+    final hasStems = product['hasStems'] ?? false;
+    final approxQuantity = product['approxQuantity'] ?? 0;
+
+    // Format: TYPE - WEIGHT KG (FLOWER TYPE, STEMS STATUS, APPROX QUANTITY)
+    final stemsText = hasStems ? 'WITH STEMS' : 'NO STEMS';
+    final productDetails =
+        '• $type - ${weight}KG ($flowerType, $stemsText, APPROX $approxQuantity NOS)';
+
+    sheet.cell(excel.CellIndex.indexByString('D$row')).value =
+        excel.TextCellValue(productDetails);
+    sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
+        excel.CellStyle(
+      fontSize: 10,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+      bottomBorder: isLastInBox
+          ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+          : excel.Border(borderStyle: excel.BorderStyle.Thin),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Add borders to empty cells in product row (B, C, E, F, G)
+    for (String col in ['B', 'C', 'E', 'F', 'G']) {
+      var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+      emptyCell.cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+        bottomBorder: isLastInBox
+            ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+            : excel.Border(borderStyle: excel.BorderStyle.Thin),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
+  }
+
+  /// Add empty box row
+  static void _addEmptyBoxRow(excel.Sheet sheet, int row) {
+    // Empty cell in column A
+    sheet.cell(excel.CellIndex.indexByString('A$row')).cellStyle =
+        excel.CellStyle(
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Empty box message in column D
+    sheet.cell(excel.CellIndex.indexByString('D$row')).value =
+        excel.TextCellValue('• Empty Box');
+    sheet.cell(excel.CellIndex.indexByString('D$row')).cellStyle =
+        excel.CellStyle(
+      fontSize: 10,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Add borders to empty cells in empty box row (B, C, E, F, G)
+    for (String col in ['B', 'C', 'E', 'F', 'G']) {
+      var emptyCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+      emptyCell.cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
+  }
+
+  /// Add separator row between boxes
+  static void _addBoxSeparator(excel.Sheet sheet, int row) {
+    // Add thin separator row for visual separation
+    for (String col in ['A', 'B', 'C', 'D', 'E', 'F', 'G']) {
+      var separatorCell = sheet.cell(excel.CellIndex.indexByString('$col$row'));
+      separatorCell.cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
   }
 
   /// Add charges section
@@ -782,22 +1133,58 @@ class ExcelFileService {
     sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
         excel.TextCellValue('CHARGES');
     sheet.cell(excel.CellIndex.indexByString('D$startRow')).cellStyle =
-        excel.CellStyle(bold: true);
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
 
     sheet.cell(excel.CellIndex.indexByString('E$startRow')).value =
         excel.TextCellValue('RATE');
     sheet.cell(excel.CellIndex.indexByString('E$startRow')).cellStyle =
-        excel.CellStyle(bold: true);
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
 
     sheet.cell(excel.CellIndex.indexByString('F$startRow')).value =
         excel.TextCellValue('UNIT');
     sheet.cell(excel.CellIndex.indexByString('F$startRow')).cellStyle =
-        excel.CellStyle(bold: true);
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
 
     sheet.cell(excel.CellIndex.indexByString('G$startRow')).value =
         excel.TextCellValue('AMOUNT');
     sheet.cell(excel.CellIndex.indexByString('G$startRow')).cellStyle =
-        excel.CellStyle(bold: true);
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Add borders to empty cells in charges header row (A, B, C)
+    for (String col in ['A', 'B', 'C']) {
+      var emptyCell =
+          sheet.cell(excel.CellIndex.indexByString('$col$startRow'));
+      emptyCell.cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
 
     startRow++;
 
@@ -834,12 +1221,53 @@ class ExcelFileService {
 
       sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
           excel.TextCellValue(productType.toUpperCase());
+      sheet.cell(excel.CellIndex.indexByString('D$startRow')).cellStyle =
+          excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
       sheet.cell(excel.CellIndex.indexByString('E$startRow')).value =
           excel.DoubleCellValue(rate);
+      sheet.cell(excel.CellIndex.indexByString('E$startRow')).cellStyle =
+          excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
       sheet.cell(excel.CellIndex.indexByString('F$startRow')).value =
           excel.DoubleCellValue(weight);
+      sheet.cell(excel.CellIndex.indexByString('F$startRow')).cellStyle =
+          excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
       sheet.cell(excel.CellIndex.indexByString('G$startRow')).value =
           excel.DoubleCellValue(amount);
+      sheet.cell(excel.CellIndex.indexByString('G$startRow')).cellStyle =
+          excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+
+      // Add borders to empty cells in charges row (A, B, C)
+      for (String col in ['A', 'B', 'C']) {
+        var emptyCell =
+            sheet.cell(excel.CellIndex.indexByString('$col$startRow'));
+        emptyCell.cellStyle = excel.CellStyle(
+          topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+      }
+
       startRow++;
     });
 
@@ -847,17 +1275,48 @@ class ExcelFileService {
     sheet.cell(excel.CellIndex.indexByString('D$startRow')).value =
         excel.TextCellValue('Gross Total');
     sheet.cell(excel.CellIndex.indexByString('D$startRow')).cellStyle =
-        excel.CellStyle(bold: true);
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
 
     sheet.cell(excel.CellIndex.indexByString('F$startRow')).value =
         excel.DoubleCellValue(totalWeight);
     sheet.cell(excel.CellIndex.indexByString('F$startRow')).cellStyle =
-        excel.CellStyle(bold: true);
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
 
     sheet.cell(excel.CellIndex.indexByString('G$startRow')).value =
         excel.DoubleCellValue(grandTotal);
     sheet.cell(excel.CellIndex.indexByString('G$startRow')).cellStyle =
-        excel.CellStyle(bold: true);
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Add borders to empty cells in gross total row (A, B, C, E)
+    for (String col in ['A', 'B', 'C', 'E']) {
+      var emptyCell =
+          sheet.cell(excel.CellIndex.indexByString('$col$startRow'));
+      emptyCell.cellStyle = excel.CellStyle(
+        bold: true,
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
   }
 
   /// Add total in words section
@@ -867,7 +1326,6 @@ class ExcelFileService {
     int startRow,
   ) {
     // Calculate grand total
-    double totalWeight = 0;
     double grandTotal = 0;
 
     if (detailedData['boxes'] != null) {
@@ -879,7 +1337,6 @@ class ExcelFileService {
             double rate =
                 double.tryParse(product['rate']?.toString() ?? '0') ?? 0.0;
 
-            totalWeight += weight;
             grandTotal += (weight * rate);
           }
         }
@@ -890,6 +1347,26 @@ class ExcelFileService {
     String totalInWords = _convertNumberToWords(grandTotal);
     sheet.cell(excel.CellIndex.indexByString('A$startRow')).value =
         excel.TextCellValue('Gross Total (in words): $totalInWords');
+    sheet.cell(excel.CellIndex.indexByString('A$startRow')).cellStyle =
+        excel.CellStyle(
+      bold: true,
+      topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+    );
+
+    // Add borders to empty cells in total in words row (B, C, D, E, F, G)
+    for (String col in ['B', 'C', 'D', 'E', 'F', 'G']) {
+      var emptyCell =
+          sheet.cell(excel.CellIndex.indexByString('$col$startRow'));
+      emptyCell.cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+    }
   }
 
   /// Convert number to words
@@ -1041,255 +1518,99 @@ class ExcelFileService {
     }
   }
 
-  /// Show success dialog with sharing options
-  static void _showExcelExportSuccessDialog(
-    BuildContext context,
-    String fileName,
-    File file,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Expanded(child: Text('Excel Export Successful')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('File: $fileName',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('Location: ${file.path}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-            SizedBox(height: 16),
-            Text('What would you like to do?',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Close'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _shareExcelFile(context, file, fileName);
-            },
-            icon: Icon(Icons.share),
-            label: Text('Share'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Share Excel file with multiple options
-  static Future<void> _shareExcelFile(
-    BuildContext context,
-    File file,
-    String fileName,
-  ) async {
-    try {
-      showModalBottomSheet(
-        context: context,
-        builder: (context) => Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Share Excel File',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              _buildShareOption(
-                context,
-                Icons.mail,
-                'Email',
-                Colors.blue,
-                () => _shareViaEmail(context, file, fileName),
-              ),
-              SizedBox(height: 12),
-              _buildShareOption(
-                context,
-                Icons.message,
-                'WhatsApp',
-                Colors.green,
-                () => _shareViaWhatsApp(context, file, fileName),
-              ),
-              SizedBox(height: 12),
-              _buildShareOption(
-                context,
-                Icons.share,
-                'More Options',
-                Colors.purple,
-                () => _shareViaMore(context, file, fileName),
-              ),
-              SizedBox(height: 12),
-              _buildShareOption(
-                context,
-                Icons.copy,
-                'Copy File Path',
-                Colors.orange,
-                () => _copyFilePath(context, file),
-              ),
-              SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('Close'),
-              ),
-            ],
-          ),
-        ),
+  /// Add shipper address with grouped borders for AWB section
+  /// Connects with the "Shipper:" header with proper top border
+  static int _addShipperAddressGrouped(
+      excel.Sheet sheet, String columnLetter, String address, int startRow) {
+    if (address.isEmpty || address == 'Address') {
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .value = excel.TextCellValue(address);
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error opening share options: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      return startRow + 1;
     }
-  }
 
-  /// Build share option button
-  static Widget _buildShareOption(
-    BuildContext context,
-    IconData icon,
-    String label,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 28),
-            SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, color: color, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
+    // Split address by comma and trim whitespace
+    List<String> addressParts = address
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
 
-  /// Share via email
-  static Future<void> _shareViaEmail(
-    BuildContext context,
-    File file,
-    String fileName,
-  ) async {
-    try {
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Invoice: $fileName',
-        text: 'Please find the attached invoice in Excel format.',
+    // Add each part on a separate row, except combine last two parts
+    if (addressParts.length <= 1) {
+      // Single part - just add it
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .value = excel.TextCellValue(addressParts[0]);
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
-      Navigator.of(context).pop();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not share via email: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      startRow++;
+    } else if (addressParts.length == 2) {
+      // Two parts - combine them with " - "
+      sheet
+              .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+              .value =
+          excel.TextCellValue('${addressParts[0]} - ${addressParts[1]}');
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        topBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
       );
+      startRow++;
+    } else {
+      // More than two parts - add all but last two separately, then combine last two
+      for (int i = 0; i < addressParts.length - 2; i++) {
+        sheet
+            .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+            .value = excel.TextCellValue(addressParts[i]);
+        sheet
+            .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+            .cellStyle = excel.CellStyle(
+          topBorder: i == 0
+              ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+              : excel.Border(borderStyle: excel.BorderStyle.Thin),
+          bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Thin),
+          leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+          rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        );
+        startRow++;
+      }
+      // Combine last two parts
+      String lastTwoCombined =
+          '${addressParts[addressParts.length - 2]} - ${addressParts[addressParts.length - 1]}';
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .value = excel.TextCellValue(lastTwoCombined);
+      sheet
+          .cell(excel.CellIndex.indexByString('$columnLetter$startRow'))
+          .cellStyle = excel.CellStyle(
+        topBorder: addressParts.length == 3
+            ? excel.Border(borderStyle: excel.BorderStyle.Medium)
+            : excel.Border(borderStyle: excel.BorderStyle.Thin),
+        bottomBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        leftBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+        rightBorder: excel.Border(borderStyle: excel.BorderStyle.Medium),
+      );
+      startRow++;
     }
-  }
 
-  /// Share via WhatsApp
-  static Future<void> _shareViaWhatsApp(
-    BuildContext context,
-    File file,
-    String fileName,
-  ) async {
-    try {
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Invoice: $fileName',
-        text: 'Invoice file attached.',
-      );
-      Navigator.of(context).pop();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not share via WhatsApp: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  /// Share via more options
-  static Future<void> _shareViaMore(
-    BuildContext context,
-    File file,
-    String fileName,
-  ) async {
-    try {
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Invoice: $fileName',
-      );
-      Navigator.of(context).pop();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not share file: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  /// Copy file path to clipboard
-  static Future<void> _copyFilePath(BuildContext context, File file) async {
-    try {
-      await Clipboard.setData(ClipboardData(text: file.path));
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('File path copied to clipboard'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error copying file path: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    return startRow;
   }
 }

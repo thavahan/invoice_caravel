@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:invoice_generator/widgets/branded_loading_indicator.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -170,16 +171,7 @@ class _SplashScreenState extends State<SplashScreen>
                   // Loading indicator
                   FadeTransition(
                     opacity: _fadeAnimation,
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.blue.shade600,
-                        ),
-                        strokeWidth: 3,
-                      ),
-                    ),
+                    child: const BrandedLoadingWidget.small(),
                   ),
                 ],
               ),

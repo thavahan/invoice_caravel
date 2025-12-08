@@ -7,6 +7,7 @@ import 'package:invoice_generator/screens/master_data/firestore_data_viewer_scre
 import 'package:invoice_generator/screens/master_data/database_data_viewer_screen.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/providers/auth_provider.dart';
+import 'package:invoice_generator/widgets/branded_loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 /// Main screen for managing master data (shippers, consignees, product types)
@@ -88,7 +89,7 @@ class _MasterDataScreenState extends State<MasterDataScreen> {
           ),
         ),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: BrandedLoadingWidget())
             : RefreshIndicator(
                 onRefresh: _loadCounts,
                 child: SingleChildScrollView(

@@ -8,6 +8,7 @@ import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/services/pdf_service.dart';
+import 'package:invoice_generator/widgets/branded_loading_indicator.dart';
 import 'package:invoice_generator/services/excel_file_service.dart';
 import 'package:invoice_generator/models/shipment.dart';
 import 'package:provider/provider.dart';
@@ -544,43 +545,39 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _refreshInvoices,
-                  child: isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(),
-                        )
-                      : _showDrafts
-                          ? _buildDraftsView()
-                          : filteredInvoices.isEmpty
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.inbox_outlined,
-                                        size: 64,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        _searchController.text.isNotEmpty
-                                            ? 'No invoices found'
-                                            : 'No Invoices',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
+                  child: _showDrafts
+                      ? _buildDraftsView()
+                      : filteredInvoices.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.inbox_outlined,
+                                    size: 64,
+                                    color: Colors.grey[400],
                                   ),
-                                )
-                              : ListView.builder(
-                                  padding: const EdgeInsets.only(top: 16),
-                                  itemCount: filteredInvoices.length,
-                                  itemBuilder: (context, index) {
-                                    final invoice = filteredInvoices[index];
-                                    return _buildGmailStyleInvoiceItem(invoice);
-                                  },
-                                ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchController.text.isNotEmpty
+                                        ? 'No invoices found'
+                                        : 'No Invoices',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.only(top: 16),
+                              itemCount: filteredInvoices.length,
+                              itemBuilder: (context, index) {
+                                final invoice = filteredInvoices[index];
+                                return _buildGmailStyleInvoiceItem(invoice);
+                              },
+                            ),
                 ),
               ),
             ],
@@ -592,7 +589,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.25),
                     child: const Center(
-                      child: CircularProgressIndicator(),
+                      child: BrandedLoadingWidget(),
                     ),
                   ),
                 )
@@ -1187,7 +1184,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
+            BrandedLoadingWidget.small(),
             SizedBox(height: 16),
             Text(
               'Loading drafts...',
@@ -1532,7 +1529,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   child: Padding(
                     padding: EdgeInsets.all(4 * scaleFactor),
                     child: Image.asset(
-                      'asset/images/Caravel_logo.png',
+                      'asset/images/brand_logo.png',
                       fit: BoxFit.cover,
                       width: 36 * scaleFactor,
                       height: 36 * scaleFactor,
@@ -1727,7 +1724,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(),
+                      BrandedLoadingWidget.small(),
                       SizedBox(height: 16),
                       Text('Loading invoice details...'),
                     ],

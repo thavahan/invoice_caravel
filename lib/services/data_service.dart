@@ -26,6 +26,13 @@ class DataService {
   bool _preferFirebase = true; // Default to Firebase when online
   bool _forceOffline = false; // Force offline mode
 
+  // Save status tracking for performance optimization
+  Map<String, dynamic> _lastSaveStatus = {
+    'localAvailable': true,
+    'firebaseAvailable': false,
+    'saveTime': null,
+  };
+
   // Connectivity change callback
   Function()? _onConnectivityChangedCallback;
 
@@ -617,14 +624,12 @@ class DataService {
 
   // ========== SHIPMENT OPERATIONS ==========
 
-  /// Save a shipment - Local database AND Firebase (both required)
+  /// Save a shipment - Local database first, Firebase in background
   Future<void> saveShipment(Shipment shipment) async {
     bool localSaved = false;
-    bool firebaseSaved = false;
     String? localError;
-    String? firebaseError;
 
-    // Always save to local database first (primary storage)
+    // Always save to local database first (primary storage) - this should be fast
     try {
       await _localService.saveShipment(shipment);
       localSaved = true;
@@ -633,52 +638,54 @@ class DataService {
     } catch (e) {
       localError = e.toString();
       _logger.e('Failed to save shipment to local database', e);
+      throw Exception('Failed to save to local database: $localError');
     }
 
-    // Always attempt to save to Firebase (cloud backup)
-    try {
-      if (await _isFirebaseAvailable()) {
-        await _firebaseService.saveShipment(shipment);
-        firebaseSaved = true;
-        _logger.i(
-            'Shipment ${shipment.invoiceNumber} saved to Firebase successfully');
-      } else {
-        firebaseError = 'Firebase not available';
-        _logger.w('Firebase not available for shipment save');
+    // Schedule Firebase backup in background (non-blocking)
+    _scheduleShipmentFirebaseBackup(shipment);
+
+    // Update save status immediately with local save result
+    _lastSaveStatus = {
+      'localAvailable': localSaved,
+      'firebaseAvailable': false, // Will be updated by background task
+      'saveTime': DateTime.now().toIso8601String(),
+    };
+  }
+
+  /// Schedule Firebase shipment backup (non-blocking)
+  void _scheduleShipmentFirebaseBackup(Shipment shipment) {
+    // Run Firebase backup in the background without blocking UI
+    Future.delayed(Duration.zero, () async {
+      try {
+        if (await _isFirebaseAvailable()) {
+          await _firebaseService.saveShipment(shipment);
+          _logger.i(
+              'Shipment ${shipment.invoiceNumber} backed up to Firebase successfully');
+
+          // Update save status to reflect successful Firebase backup
+          _lastSaveStatus = {
+            'localAvailable': true,
+            'firebaseAvailable': true,
+            'saveTime': DateTime.now().toIso8601String(),
+          };
+        } else {
+          _logger.w('Firebase not available for shipment backup');
+        }
+      } catch (e) {
+        _logger.w(
+            'Failed to backup shipment to Firebase (local save succeeded)', e);
+        // Don't block or throw - this is just backup
       }
-    } catch (e) {
-      firebaseError = e.toString();
-      _logger.w('Failed to save shipment to Firebase', e);
-    }
-
-    // Report results
-    if (localSaved && firebaseSaved) {
-      _logger.i(
-          'Shipment ${shipment.invoiceNumber} saved successfully to both local database and Firebase');
-    } else if (localSaved && !firebaseSaved) {
-      _logger.w(
-          'Shipment ${shipment.invoiceNumber} saved to local database only. Firebase error: $firebaseError');
-      // Don't throw error - local save succeeded, Firebase is backup
-    } else if (!localSaved && firebaseSaved) {
-      _logger.e(
-          'Critical: Shipment saved to Firebase but failed locally: $localError');
-      throw Exception(
-          'Failed to save shipment to local database (critical): $localError');
-    } else {
-      _logger.e(
-          'Critical: Failed to save shipment to both local database and Firebase');
-      throw Exception(
-          'Failed to save shipment to local database: $localError. Firebase error: $firebaseError');
-    }
+    });
   }
 
   /// Get save status information for UI feedback
   Future<Map<String, bool>> getLastSaveStatus() async {
-    // This could be enhanced to track actual save status
-    // For now, return current availability status
+    // Return the cached status or check current availability
     return {
-      'localAvailable': true, // Local database should always be available
-      'firebaseAvailable': await _isFirebaseAvailable(),
+      'localAvailable': _lastSaveStatus['localAvailable'] ?? true,
+      'firebaseAvailable':
+          _lastSaveStatus['firebaseAvailable'] ?? await _isFirebaseAvailable(),
     };
   }
 
@@ -869,75 +876,105 @@ class DataService {
     return await _localService.getBoxesForShipment(shipmentId);
   }
 
-  /// Auto-create boxes and products for a shipment (Firebase only)
+  /// Auto-create boxes and products for a shipment (optimized for performance)
   Future<void> autoCreateBoxesAndProducts(
     String shipmentId,
     List<Map<String, dynamic>> boxesData,
   ) async {
-    final service = await _getActiveService();
+    if (boxesData.isEmpty) return;
 
     print(
         '📦 DEBUG: autoCreateBoxesAndProducts called with shipmentId: $shipmentId, boxesData length: ${boxesData.length}');
 
-    // Always save to local database first (primary storage)
-    final savedBoxNumbers = <String>{};
-    int productCounter = 0; // For generating unique product IDs
-    for (final boxData in boxesData) {
-      final boxNumber = boxData['boxNumber'] as String? ?? 'Box 1';
-      if (savedBoxNumbers.contains(boxNumber)) {
-        print('📦 DEBUG: Skipping duplicate box number: $boxNumber');
-        continue;
-      }
-      savedBoxNumbers.add(boxNumber);
-      print('📦 DEBUG: Processing box: $boxNumber (ID: ${boxData['id']})');
-      final boxId = await _localService.saveBox(shipmentId, boxData);
-      print('📦 DEBUG: Box saved with ID: $boxId');
+    // Always save to local database first (primary storage) - BATCH OPERATION
+    try {
+      final savedBoxNumbers = <String>{};
+      int productCounter = 0; // For generating unique product IDs
 
-      if (boxData['products'] != null && boxData['products'] is List) {
-        final products = boxData['products'] as List<dynamic>;
-        print('📦 DEBUG: Box $boxNumber has ${products.length} products');
-        for (final productData in products) {
-          if (productData is Map<String, dynamic>) {
-            // Ensure unique product ID
-            if (!productData.containsKey('id') ||
-                productData['id'] == null ||
-                productData['id'].toString().isEmpty) {
-              productData['id'] =
-                  '${DateTime.now().millisecondsSinceEpoch}_${productCounter++}';
-              print('📦 DEBUG: Generated new product ID: ${productData['id']}');
+      // Pre-process all data to avoid redundant operations
+      final processedBoxes = <Map<String, dynamic>>[];
+      final allProducts = <Map<String, dynamic>>[];
+
+      for (final boxData in boxesData) {
+        final boxNumber = boxData['boxNumber'] as String? ?? 'Box 1';
+        if (savedBoxNumbers.contains(boxNumber)) {
+          print('📦 DEBUG: Skipping duplicate box number: $boxNumber');
+          continue;
+        }
+        savedBoxNumbers.add(boxNumber);
+
+        final processedBox = Map<String, dynamic>.from(boxData);
+        processedBoxes.add(processedBox);
+
+        // Process products for this box
+        if (boxData['products'] != null && boxData['products'] is List) {
+          final products = boxData['products'] as List<dynamic>;
+          for (final productData in products) {
+            if (productData is Map<String, dynamic>) {
+              // Ensure unique product ID
+              final processedProduct = Map<String, dynamic>.from(productData);
+              if (!processedProduct.containsKey('id') ||
+                  processedProduct['id'] == null ||
+                  processedProduct['id'].toString().isEmpty) {
+                processedProduct['id'] =
+                    '${DateTime.now().millisecondsSinceEpoch}_${productCounter++}';
+              }
+              allProducts.add(processedProduct);
             }
-            // Add box_id to productData for proper linking
-            final enhancedProductData = {
-              ...productData,
-              'box_id': boxId,
-            };
-            await _localService.saveProduct(boxId, enhancedProductData);
-            print('📦 DEBUG: Saved product: ${productData['description']}');
           }
         }
       }
+
+      // Batch save to local database
+      for (final boxData in processedBoxes) {
+        final boxId = await _localService.saveBox(shipmentId, boxData);
+
+        // Save products for this box
+        if (boxData['products'] != null && boxData['products'] is List) {
+          final products = boxData['products'] as List<dynamic>;
+          for (final productData in products) {
+            if (productData is Map<String, dynamic>) {
+              final enhancedProductData = {
+                ...productData,
+                'box_id': boxId,
+              };
+              await _localService.saveProduct(boxId, enhancedProductData);
+            }
+          }
+        }
+      }
+
+      print(
+          '📦 DEBUG: Finished saving ${savedBoxNumbers.length} boxes to local database');
+
+      // Schedule Firebase save for later (non-blocking)
+      _scheduleFirebaseBackup(shipmentId, boxesData);
+    } catch (e) {
+      _logger.e('Failed to save boxes/products to local database', e);
+      rethrow;
     }
+  }
 
-    print(
-        '📦 DEBUG: Finished saving ${savedBoxNumbers.length} boxes to local database');
-
-    // Then save to Firebase (secondary/cloud backup) if available
-    if (service == _firebaseService) {
+  /// Schedule Firebase backup operation (non-blocking)
+  void _scheduleFirebaseBackup(
+      String shipmentId, List<Map<String, dynamic>> boxesData) {
+    // Run Firebase backup in the background without blocking UI
+    Future.delayed(Duration.zero, () async {
       try {
-        print('📦 DEBUG: Saving ${boxesData.length} boxes to Firebase...');
-        await _firebaseService.autoCreateBoxesAndProducts(
-            shipmentId, boxesData);
-        print(
-            '📦 DEBUG: Saved ${boxesData.length} boxes to Firebase successfully');
+        if (await _isFirebaseAvailable()) {
+          print('📦 DEBUG: Starting background Firebase backup...');
+          await _firebaseService.autoCreateBoxesAndProducts(
+              shipmentId, boxesData);
+          print('📦 DEBUG: Firebase backup completed successfully');
+        } else {
+          print('📦 DEBUG: Firebase not available, skipping backup');
+        }
       } catch (e) {
         _logger.w(
-            'Failed to save boxes/products to Firebase (continuing with local)',
-            e);
-        // Don't throw error - local save succeeded, Firebase is just backup
+            'Background Firebase backup failed (local save succeeded)', e);
+        // Don't block or throw - this is just backup
       }
-    } else {
-      print('📦 DEBUG: Using local service only - no Firebase save needed');
-    }
+    });
   }
 
   // ========== PRODUCT OPERATIONS ==========

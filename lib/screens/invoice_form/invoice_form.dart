@@ -7,6 +7,7 @@ import 'package:invoice_generator/providers/auth_provider.dart';
 import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
+import 'package:invoice_generator/widgets/branded_loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 class InvoiceForm extends StatefulWidget {
@@ -693,21 +694,7 @@ class InvoiceFormState extends State<InvoiceForm>
         }
 
         if (invoiceProvider.isLoading) {
-          return Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (invoiceProvider.isBusy) {
-          return Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-              ),
-            ),
-          );
+          return const BrandedLoadingIndicator();
         }
 
         if (invoiceProvider.selectedItem != null) {
@@ -3360,25 +3347,30 @@ class InvoiceFormState extends State<InvoiceForm>
             '   Box ${i + 1}: ${boxesData[i]['id']} - ${boxesData[i]['boxNumber']}');
       }
 
-      // Call appropriate method based on whether this is an update or create
+      // Start both operations concurrently for better performance
+      final Future<void> saveOperation;
       if (isUpdate) {
-        await invoiceProvider.updateShipmentWithBoxes(shipment, boxesData);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Shipment updated successfully!')),
-          );
-        }
+        saveOperation =
+            invoiceProvider.updateShipmentWithBoxes(shipment, boxesData);
       } else {
-        await invoiceProvider.createShipmentWithBoxes(shipment, boxesData);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Shipment created successfully!')),
-          );
-        }
+        saveOperation =
+            invoiceProvider.createShipmentWithBoxes(shipment, boxesData);
       }
 
+      // Navigate immediately while save operation continues in background
       if (mounted) {
         Navigator.pop(context, true);
+      }
+
+      // Wait for the save operation to complete and show appropriate feedback
+      try {
+        await saveOperation;
+        debugPrint(
+            '✅ Shipment ${isUpdate ? 'updated' : 'created'} successfully');
+      } catch (e) {
+        debugPrint('❌ Background save error: $e');
+        // Note: We don't show error to user since they've already navigated away
+        // The error will be logged and sync can handle it later
       }
     } catch (e) {
       debugPrint('❌ Error completing form: $e');

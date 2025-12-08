@@ -33,6 +33,9 @@ class SyncProgressIndicator extends StatelessWidget {
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       value: authProvider.syncProgress / 100.0,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.blue.shade700,
+                      ),
                     ),
                   ),
                   SizedBox(width: 12),
@@ -121,6 +124,9 @@ class SyncProgressOverlay extends StatelessWidget {
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       value: authProvider.syncProgress / 100.0,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.blue.shade700,
+                      ),
                     ),
                   ),
                   SizedBox(width: 12),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/models/product.dart';
+import 'package:invoice_generator/widgets/branded_loading_indicator.dart';
 
 /// Screen for managing flower types (add/update/delete)
 class ManageFlowerTypesScreen extends StatefulWidget {
@@ -180,7 +181,7 @@ class _ManageFlowerTypesScreenState extends State<ManageFlowerTypesScreen> {
         child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: BrandedLoadingWidget.small())
           : _flowerTypes.isEmpty
               ? Center(
                   child: Column(
