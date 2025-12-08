@@ -80,6 +80,9 @@ class InvoiceFormState extends State<InvoiceForm>
   // Box and Item Management
   List<ShipmentBox> shipmentBoxes = [];
 
+  // Box expansion states for tap-to-expand functionality
+  Set<int> expandedBoxes = {};
+
   // Simple shipment summary visibility
   bool showShipmentSummary = true;
 
@@ -2924,140 +2927,210 @@ class InvoiceFormState extends State<InvoiceForm>
   }
 
   Widget _buildBoxCard(ShipmentBox box, int index) {
+    final bool isExpanded = expandedBoxes.contains(index);
+    final int productCount = box.products.length;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    box.boxNumber,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'delete':
-                        _deleteBox(index);
-                        break;
-                      case 'add_product':
-                        _startAddingProductToBox(index);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'add_product',
-                      child: Text('Add Product'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete Box'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Dimensions: ${box.length} x ${box.width} x ${box.height} cm',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            if (box.products.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Products (${box.products.length})',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              ...box.products.asMap().entries.map((entry) {
-                final productIndex = entry.key;
-                final product = entry.value;
-                final productTotal = product.weight * product.rate;
-                return Container(
-                  key: ValueKey('product_${product.id}_${productIndex}'),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        children: [
+          // Box Header - Tappable to expand/collapse
+          InkWell(
+            onTap: () {
+              setState(() {
+                if (isExpanded) {
+                  expandedBoxes.remove(index);
+                } else {
+                  expandedBoxes.add(index);
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
                             Text(
-                              product.type,
+                              box.boxNumber,
                               style: Theme.of(context)
                                   .textTheme
-                                  .bodySmall
+                                  .titleMedium
                                   ?.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.bold,
                                   ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${product.weight}kg × \$${product.rate.toStringAsFixed(2)} = \$${productTotal.toStringAsFixed(2)}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Colors.grey[600],
-                                    fontSize: 11,
-                                  ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: productCount > 0
+                                    ? Colors.green[100]
+                                    : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '$productCount ${productCount == 1 ? 'item' : 'items'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: productCount > 0
+                                      ? Colors.green[700]
+                                      : Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
                           ],
                         ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: Theme.of(context).primaryColor,
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: () => _editProduct(index, productIndex),
-                            icon: const Icon(Icons.edit, size: 16),
-                            color: Colors.blue[600],
-                            tooltip: 'Edit Product',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'delete':
+                              _deleteBox(index);
+                              break;
+                            case 'add_product':
+                              _startAddingProductToBox(index);
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'add_product',
+                            child: Text('Add Product'),
                           ),
-                          IconButton(
-                            onPressed: () =>
-                                _deleteProduct(index, productIndex),
-                            icon: const Icon(Icons.delete, size: 16),
-                            color: Colors.red[600],
-                            tooltip: 'Delete Product',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete Box'),
                           ),
                         ],
                       ),
                     ],
                   ),
-                );
-              }),
-            ],
+                ],
+              ),
+            ),
+          ),
+
+          // Products Section - Only show when expanded
+          if (isExpanded && box.products.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Products',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...box.products.asMap().entries.map((entry) {
+                    final productIndex = entry.key;
+                    final product = entry.value;
+                    final productTotal = product.weight * product.rate;
+                    return Container(
+                      key: ValueKey('product_${product.id}_${productIndex}'),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.local_florist,
+                            size: 18,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  product.type,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${product.weight}kg × \$${product.rate.toStringAsFixed(2)} = \$${productTotal.toStringAsFixed(2)}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Colors.grey[600],
+                                        fontSize: 11,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () =>
+                                    _editProduct(index, productIndex),
+                                icon: const Icon(Icons.edit, size: 16),
+                                color: Colors.blue[600],
+                                tooltip: 'Edit Product',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                              ),
+                              // Delete button disabled as per user request
+                              // IconButton(
+                              //   onPressed: () =>
+                              //       _deleteProduct(index, productIndex),
+                              //   icon: const Icon(Icons.delete, size: 16),
+                              //   color: Colors.red[600],
+                              //   tooltip: 'Delete Product',
+                              //   padding: EdgeInsets.zero,
+                              //   constraints: const BoxConstraints(
+                              //     minWidth: 32,
+                              //     minHeight: 32,
+                              //   ),
+                              // ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

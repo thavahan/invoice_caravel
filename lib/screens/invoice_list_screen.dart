@@ -438,7 +438,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                               icon: const Icon(
                                 Icons.menu,
                                 color: Colors.grey,
-                                size: 24,
+                                size: 20,
                               ),
                               onPressed: () {
                                 // Ensure immediate response
@@ -450,20 +450,18 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                   Scaffold.of(context).openDrawer();
                                 }
                               },
-                              padding: const EdgeInsets.all(8),
-                              splashRadius: 20,
+                              padding: const EdgeInsets.all(6),
+                              splashRadius: 16,
                               tooltip: 'Open menu',
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 0),
                             // Gmail-style Search Bar
                             Expanded(
                               child: Container(
                                 margin:
-                                    const EdgeInsets.symmetric(horizontal: 8),
+                                    const EdgeInsets.symmetric(horizontal: 2),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .inputDecorationTheme
-                                      .fillColor,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(28),
                                   border: Border.all(
                                     color: Theme.of(context).dividerColor,
@@ -516,19 +514,19 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 6),
                             // Gmail-style Profile Avatar
                             Container(
                               margin: const EdgeInsets.only(right: 4),
                               child: CircleAvatar(
-                                radius: 16,
+                                radius: 14,
                                 backgroundColor: Colors.blue[600],
                                 child: const Text(
                                   'A',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 14,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ),
@@ -576,7 +574,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                   ),
                                 )
                               : ListView.builder(
-                                  padding: const EdgeInsets.all(0),
+                                  padding: const EdgeInsets.only(top: 16),
                                   itemCount: filteredInvoices.length,
                                   itemBuilder: (context, index) {
                                     final invoice = filteredInvoices[index];
@@ -1228,7 +1226,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(0),
+      padding: const EdgeInsets.only(top: 16),
       itemCount: drafts.length,
       itemBuilder: (context, index) {
         final draft = drafts[index];
@@ -1489,177 +1487,187 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     }
 
     return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[200]!,
-            width: 0.5 * scaleFactor,
-          ),
-        ),
-      ),
-      child: ListTile(
-        contentPadding: EdgeInsets.only(
-          left: 8.0 * scaleFactor,
-          right: 2.0 * scaleFactor,
-          top: 6.0 * scaleFactor,
-          bottom: 6.0 * scaleFactor,
-        ),
-        horizontalTitleGap: 8.0 * scaleFactor,
-        leading: Container(
-          width: 44 * scaleFactor,
-          height: 44 * scaleFactor,
+      margin: EdgeInsets.only(bottom: 8 * scaleFactor),
+      child: Material(
+        elevation: 3,
+        borderRadius: BorderRadius.circular(8 * scaleFactor),
+        child: Container(
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-              width: 1.5 * scaleFactor,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 4 * scaleFactor,
-                offset: Offset(0, 2 * scaleFactor),
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                width: 0.5 * scaleFactor,
               ),
-            ],
+            ),
+            borderRadius: BorderRadius.circular(8 * scaleFactor),
           ),
-          child: ClipOval(
-            child: Container(
-              color: Colors.white,
-              child: Padding(
-                padding: EdgeInsets.all(4 * scaleFactor),
-                child: Image.asset(
-                  'asset/images/Caravel_logo.png',
-                  fit: BoxFit.cover,
-                  width: 36 * scaleFactor,
-                  height: 36 * scaleFactor,
+          child: ListTile(
+            contentPadding: EdgeInsets.only(
+              left: 8.0 * scaleFactor,
+              right: 16.0 * scaleFactor,
+              top: 6.0 * scaleFactor,
+              bottom: 6.0 * scaleFactor,
+            ),
+            horizontalTitleGap: 16.0 * scaleFactor,
+            leading: Container(
+              width: 44 * scaleFactor,
+              height: 44 * scaleFactor,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                  width: 1.5 * scaleFactor,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4 * scaleFactor,
+                    offset: Offset(0, 2 * scaleFactor),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Container(
+                  color: Colors.white,
+                  child: Padding(
+                    padding: EdgeInsets.all(4 * scaleFactor),
+                    child: Image.asset(
+                      'asset/images/Caravel_logo.png',
+                      fit: BoxFit.cover,
+                      width: 36 * scaleFactor,
+                      height: 36 * scaleFactor,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                shipper,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14 * scaleFactor,
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    shipper,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14 * scaleFactor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 2 * scaleFactor),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 12 * scaleFactor,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            SizedBox(height: 1 * scaleFactor),
-            Text(
-              'To: $consignee • $status',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 11 * scaleFactor,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-        trailing: Container(
-          constraints: BoxConstraints(
-            minWidth: 80 * scaleFactor,
-            maxWidth: 140 * scaleFactor,
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: 10 * scaleFactor,
-            vertical: 5 * scaleFactor,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Theme.of(context).primaryColor.withValues(alpha: 0.9),
-                Theme.of(context).primaryColor.withValues(alpha: 0.7),
-                Theme.of(context).primaryColor.withValues(alpha: 0.5),
               ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(20 * scaleFactor),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
-                blurRadius: 8 * scaleFactor,
-                offset: Offset(0, 3 * scaleFactor),
-                spreadRadius: 1 * scaleFactor,
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.1),
-                blurRadius: 2 * scaleFactor,
-                offset: Offset(0, 1 * scaleFactor),
-              ),
-            ],
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.2),
-              width: 1 * scaleFactor,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.access_time,
-                color: Colors.white.withValues(alpha: 0.9),
-                size: 11 * scaleFactor,
-              ),
-              SizedBox(width: 3 * scaleFactor),
-              Flexible(
-                child: Text(
-                  dateStr,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 2 * scaleFactor),
+                Text(
+                  title,
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9 * scaleFactor,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.1 * scaleFactor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12 * scaleFactor,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 4 * scaleFactor),
-                width: 1 * scaleFactor,
-                height: 10 * scaleFactor,
-                color: Colors.white.withValues(alpha: 0.6),
-              ),
-              Flexible(
-                child: Text(
-                  '#$invoiceNumber',
+                SizedBox(height: 1 * scaleFactor),
+                Text(
+                  'To: $consignee',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9 * scaleFactor,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.3 * scaleFactor,
+                    color: Colors.grey[600],
+                    fontSize: 11 * scaleFactor,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
+            trailing: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Invoice number badge
+                Container(
+                  constraints: BoxConstraints(
+                    minWidth: 60 * scaleFactor,
+                    maxWidth: 100 * scaleFactor,
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10 * scaleFactor,
+                    vertical: 5 * scaleFactor,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).primaryColor.withValues(alpha: 0.9),
+                        Theme.of(context).primaryColor.withValues(alpha: 0.7),
+                        Theme.of(context).primaryColor.withValues(alpha: 0.5),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(8 * scaleFactor),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        blurRadius: 2 * scaleFactor,
+                        offset: Offset(0, 1 * scaleFactor),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 1 * scaleFactor,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '#$invoiceNumber',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9 * scaleFactor,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3 * scaleFactor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Status below invoice number
+                SizedBox(height: 4 * scaleFactor),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 8 * scaleFactor,
+                    vertical: 2 * scaleFactor,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8 * scaleFactor),
+                    border: Border.all(
+                      color: _getStatusColor(status).withValues(alpha: 0.3),
+                      width: 1 * scaleFactor,
+                    ),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: _getStatusColor(status),
+                      fontSize: 8 * scaleFactor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+            onTap: () {
+              _showInvoiceDetails(context, invoice);
+            },
           ),
         ),
-        onTap: () {
-          _showInvoiceDetails(context, invoice);
-        },
       ),
     );
   }
@@ -2493,10 +2501,6 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Size: $dimensions',
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-          ),
-          Text(
             'Weight: ${boxWeight.toStringAsFixed(2)} kg • Value: \$${boxTotal.toStringAsFixed(2)}',
             style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
@@ -3108,6 +3112,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             ? DateTime.fromMillisecondsSinceEpoch(
                 detailedInvoiceData['invoiceDate'])
             : null,
+        dateOfIssue: detailedInvoiceData['dateOfIssue'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['dateOfIssue'])
+            : null,
         placeOfReceipt:
             (detailedInvoiceData['placeOfReceipt'] ?? '').toString(),
         sgstNo: (detailedInvoiceData['sgstNo'] ?? '').toString(),
@@ -3307,6 +3315,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         invoiceDate: detailedInvoiceData['invoiceDate'] is int
             ? DateTime.fromMillisecondsSinceEpoch(
                 detailedInvoiceData['invoiceDate'])
+            : null,
+        dateOfIssue: detailedInvoiceData['dateOfIssue'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['dateOfIssue'])
             : null,
         placeOfReceipt:
             (detailedInvoiceData['placeOfReceipt'] ?? '').toString(),
@@ -3559,6 +3571,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         invoiceDate: detailedInvoiceData['invoiceDate'] is int
             ? DateTime.fromMillisecondsSinceEpoch(
                 detailedInvoiceData['invoiceDate'])
+            : null,
+        dateOfIssue: detailedInvoiceData['dateOfIssue'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['dateOfIssue'])
             : null,
         placeOfReceipt:
             (detailedInvoiceData['placeOfReceipt'] ?? '').toString(),

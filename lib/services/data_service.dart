@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:invoice_generator/services/firebase_service.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
+import 'package:invoice_generator/services/database_service.dart';
 import 'package:invoice_generator/models/shipment.dart';
 import 'package:invoice_generator/models/box_product.dart';
 import 'package:invoice_generator/models/master_shipper.dart';
@@ -859,10 +860,13 @@ class DataService {
     return result;
   }
 
-  /// Get boxes for a shipment
+  /// Get boxes for a shipment - ALWAYS from local database for consistency
   Future<List<ShipmentBox>> getBoxesForShipment(String shipmentId) async {
-    final service = await _getActiveService();
-    return await service.getBoxesForShipment(shipmentId);
+    // FORCE LOCAL: Always load boxes from local database for consistency
+    // This ensures preview and invoice list show the same data
+    _logger.d(
+        '📦 DEBUG: Loading boxes for shipment $shipmentId from LOCAL database only');
+    return await _localService.getBoxesForShipment(shipmentId);
   }
 
   /// Auto-create boxes and products for a shipment (Firebase only)
@@ -920,16 +924,19 @@ class DataService {
     // Then save to Firebase (secondary/cloud backup) if available
     if (service == _firebaseService) {
       try {
-        print('📦 DEBUG: Saving to Firebase...');
+        print('📦 DEBUG: Saving ${boxesData.length} boxes to Firebase...');
         await _firebaseService.autoCreateBoxesAndProducts(
             shipmentId, boxesData);
-        print('📦 DEBUG: Saved to Firebase successfully');
+        print(
+            '📦 DEBUG: Saved ${boxesData.length} boxes to Firebase successfully');
       } catch (e) {
         _logger.w(
             'Failed to save boxes/products to Firebase (continuing with local)',
             e);
         // Don't throw error - local save succeeded, Firebase is just backup
       }
+    } else {
+      print('📦 DEBUG: Using local service only - no Firebase save needed');
     }
   }
 
@@ -2082,7 +2089,25 @@ class DataService {
     if (service == _firebaseService) {
       try {
         if (await _isFirebaseAvailable()) {
-          await _firebaseService.updateBox(boxId, boxData);
+          // Get shipmentId from local database for Firebase update
+          String? shipmentId;
+          try {
+            final db = await DatabaseService().database;
+            final result = await db.query(
+              'boxes',
+              columns: ['shipment_id'],
+              where: 'id = ?',
+              whereArgs: [boxId],
+            );
+            if (result.isNotEmpty) {
+              shipmentId = result.first['shipment_id'] as String?;
+              print('🔍 DEBUG: Found shipmentId for box update: $shipmentId');
+            }
+          } catch (e) {
+            print('⚠️ DEBUG: Could not get shipmentId for box update: $e');
+          }
+
+          await _firebaseService.updateBox(boxId, boxData, shipmentId);
           _logger.i('Box also updated in Firebase: $boxId');
         }
       } catch (e) {
@@ -2096,28 +2121,64 @@ class DataService {
   /// Delete a box
   Future<void> deleteBox(String boxId) async {
     final service = await _getActiveService();
+    print('🗑️ DEBUG: deleteBox called for boxId: $boxId');
+
+    // First, get the box details to find shipmentId before deleting
+    String? shipmentId;
+    try {
+      // Query the box from local database to get shipmentId
+      final db = await DatabaseService().database;
+      final results = await db.query(
+        'boxes',
+        where: 'id = ?',
+        whereArgs: [boxId],
+      );
+      if (results.isNotEmpty) {
+        shipmentId = results.first['shipment_id'] as String?;
+        print('🔍 DEBUG: Found box $boxId belongs to shipment: $shipmentId');
+      }
+    } catch (e) {
+      print('⚠️ DEBUG: Could not find shipmentId for box $boxId: $e');
+    }
 
     // Always delete from local database first (primary storage)
     try {
       await _localService.deleteBox(boxId);
+      print('🗑️ DEBUG: Box $boxId deleted from LOCAL database successfully');
       _logger.i('Box deleted from local database: $boxId');
     } catch (e) {
+      print('❌ DEBUG: Failed to delete box $boxId from local database: $e');
       _logger.e('Failed to delete box from local database', e);
       throw Exception('Failed to delete box from local database: $e');
     }
 
-    // Then delete from Firebase if available (secondary/cloud backup)
-    if (service == _firebaseService) {
-      try {
-        if (await _isFirebaseAvailable()) {
-          await _firebaseService.deleteBox(boxId);
-          _logger.i('Box also deleted from Firebase: $boxId');
-        }
-      } catch (e) {
-        _logger.w(
-            'Failed to delete box from Firebase (continuing with local)', e);
-        // Don't throw error - local delete succeeded
+    // ALWAYS try to delete from Firebase (cloud backup) during updates
+    try {
+      print('🔍 DEBUG: Starting Firebase availability check...');
+      print('🔍 DEBUG: _forceOffline = $_forceOffline');
+      print(
+          '🔍 DEBUG: _firebaseService.isInitialized = ${_firebaseService.isInitialized}');
+
+      final isFirebaseAvailable = await _isFirebaseAvailable();
+      print(
+          '🔍 DEBUG: Firebase available for box deletion: $isFirebaseAvailable');
+
+      if (isFirebaseAvailable) {
+        print(
+            '🗑️ DEBUG: Attempting to delete box $boxId from Firebase with shipmentId: $shipmentId');
+        await _firebaseService.deleteBox(boxId, shipmentId);
+        print('🗑️ DEBUG: Box $boxId deleted from FIREBASE successfully');
+        _logger.i('Box also deleted from Firebase: $boxId');
+      } else {
+        print('⚠️ DEBUG: Firebase not available for box deletion');
+        print(
+            '⚠️ DEBUG: Reasons - _forceOffline: $_forceOffline, isInitialized: ${_firebaseService.isInitialized}');
       }
+    } catch (e) {
+      print('⚠️ DEBUG: Failed to delete box $boxId from Firebase: $e');
+      _logger.w(
+          'Failed to delete box from Firebase (continuing with local)', e);
+      // Don't throw error - local delete succeeded
     }
   }
 
@@ -2162,7 +2223,30 @@ class DataService {
     if (service == _firebaseService) {
       try {
         if (await _isFirebaseAvailable()) {
-          await _firebaseService.updateProduct(productId, productData);
+          // Get shipmentId and boxId from local database for Firebase update
+          String? shipmentId;
+          String? boxId;
+          try {
+            final db = await DatabaseService().database;
+            final result = await db.rawQuery('''
+              SELECT p.box_id, b.shipment_id
+              FROM products p
+              JOIN boxes b ON p.box_id = b.id
+              WHERE p.id = ?
+            ''', [productId]);
+            if (result.isNotEmpty) {
+              boxId = result.first['box_id'] as String?;
+              shipmentId = result.first['shipment_id'] as String?;
+              print(
+                  '🔍 DEBUG: Found shipmentId: $shipmentId, boxId: $boxId for product update');
+            }
+          } catch (e) {
+            print(
+                '⚠️ DEBUG: Could not get shipmentId/boxId for product update: $e');
+          }
+
+          await _firebaseService.updateProduct(
+              productId, productData, shipmentId, boxId);
           _logger.i('Product also updated in Firebase: $productId');
         }
       } catch (e) {
@@ -2176,29 +2260,144 @@ class DataService {
   /// Delete a product
   Future<void> deleteProduct(String productId) async {
     final service = await _getActiveService();
+    print('🗑️ DEBUG: deleteProduct called for productId: $productId');
+
+    // First, get the product details to find shipmentId and boxId before deleting
+    String? shipmentId;
+    String? boxId;
+    try {
+      // Query the product from local database to get shipmentId and boxId
+      final db = await DatabaseService().database;
+      final results = await db.query(
+        'products',
+        where: 'id = ?',
+        whereArgs: [productId],
+      );
+      if (results.isNotEmpty) {
+        boxId = results.first['box_id'] as String?;
+        print('🔍 DEBUG: Found product $productId belongs to box: $boxId');
+
+        // Now find the shipmentId for this box
+        if (boxId != null) {
+          final boxResults = await db.query(
+            'boxes',
+            where: 'id = ?',
+            whereArgs: [boxId],
+          );
+          if (boxResults.isNotEmpty) {
+            shipmentId = boxResults.first['shipment_id'] as String?;
+            print(
+                '🔍 DEBUG: Found box $boxId belongs to shipment: $shipmentId');
+          }
+        }
+      }
+    } catch (e) {
+      print(
+          '⚠️ DEBUG: Could not find shipmentId/boxId for product $productId: $e');
+    }
 
     // Always delete from local database first (primary storage)
     try {
       await _localService.deleteProduct(productId);
+      print(
+          '🗑️ DEBUG: Product $productId deleted from LOCAL database successfully');
       _logger.i('Product deleted from local database: $productId');
     } catch (e) {
+      print(
+          '❌ DEBUG: Failed to delete product $productId from local database: $e');
       _logger.e('Failed to delete product from local database', e);
       throw Exception('Failed to delete product from local database: $e');
     }
 
-    // Then delete from Firebase if available (secondary/cloud backup)
-    if (service == _firebaseService) {
-      try {
-        if (await _isFirebaseAvailable()) {
-          await _firebaseService.deleteProduct(productId);
-          _logger.i('Product also deleted from Firebase: $productId');
-        }
-      } catch (e) {
-        _logger.w(
-            'Failed to delete product from Firebase (continuing with local)',
-            e);
-        // Don't throw error - local delete succeeded
+    // ALWAYS try to delete from Firebase (cloud backup) during updates
+    try {
+      final isFirebaseAvailable = await _isFirebaseAvailable();
+      print(
+          '🔍 DEBUG: Firebase available for product deletion: $isFirebaseAvailable');
+      print(
+          '🔍 DEBUG: _forceOffline: $_forceOffline, _firebaseService.isInitialized: ${_firebaseService.isInitialized}');
+
+      if (isFirebaseAvailable) {
+        print(
+            '🗑️ DEBUG: Attempting to delete product $productId from Firebase with shipmentId: $shipmentId, boxId: $boxId');
+        await _firebaseService.deleteProduct(productId, shipmentId, boxId);
+        print(
+            '🗑️ DEBUG: Product $productId deleted from FIREBASE successfully');
+        _logger.i('Product also deleted from Firebase: $productId');
+      } else {
+        print('⚠️ DEBUG: Firebase not available for product deletion');
       }
+    } catch (e) {
+      print('⚠️ DEBUG: Failed to delete product $productId from Firebase: $e');
+      _logger.w(
+          'Failed to delete product from Firebase (continuing with local)', e);
+      // Don't throw error - local delete succeeded
+    }
+  }
+
+  /// MANUAL TEST: Clean up Firebase for KS0001 specifically
+  Future<void> manualFirebaseCleanupTest() async {
+    print('🧪 MANUAL TEST: Starting Firebase cleanup test for KS0001...');
+    await cleanupOrphanedBoxesInFirebase('KS0001');
+    print('🧪 MANUAL TEST: Firebase cleanup test completed');
+  }
+
+  /// Clean up orphaned boxes in Firebase that don't exist in local database
+  Future<void> cleanupOrphanedBoxesInFirebase(String shipmentId) async {
+    try {
+      print('🧹 DEBUG: Starting Firebase cleanup for shipment: $shipmentId');
+      print('🧹 DEBUG: Current _forceOffline: $_forceOffline');
+      print(
+          '🧹 DEBUG: Firebase isInitialized: ${_firebaseService.isInitialized}');
+
+      // For cleanup operations, check Firebase availability directly, ignoring force offline
+      if (!_firebaseService.isInitialized) {
+        print('🧹 DEBUG: Firebase not initialized, skipping cleanup');
+        return;
+      }
+
+      print('🧹 DEBUG: Firebase is initialized, proceeding with cleanup');
+
+      // Get boxes from local database (source of truth)
+      final localBoxes = await _localService.getBoxesForShipment(shipmentId);
+      final localBoxIds = localBoxes.map((box) => box.id).toSet();
+      print(
+          '🧹 DEBUG: Local database has ${localBoxes.length} boxes: $localBoxIds');
+
+      // Get boxes from Firebase
+      final firebaseBoxes =
+          await _firebaseService.getBoxesForShipment(shipmentId);
+      final firebaseBoxIds = firebaseBoxes.map((box) => box.id).toSet();
+      print(
+          '🧹 DEBUG: Firebase has ${firebaseBoxes.length} boxes: $firebaseBoxIds');
+
+      // Find orphaned boxes in Firebase (exist in Firebase but not in local)
+      final orphanedBoxIds = firebaseBoxIds.difference(localBoxIds);
+
+      if (orphanedBoxIds.isEmpty) {
+        print('🧹 DEBUG: No orphaned boxes found in Firebase');
+        return;
+      }
+
+      print(
+          '🧹 DEBUG: Found ${orphanedBoxIds.length} orphaned boxes in Firebase: $orphanedBoxIds');
+
+      // Delete orphaned boxes from Firebase
+      for (final boxId in orphanedBoxIds) {
+        try {
+          print('🧹 DEBUG: Deleting orphaned box $boxId from Firebase...');
+          await _firebaseService.deleteBox(boxId, shipmentId);
+          print(
+              '🧹 DEBUG: Successfully deleted orphaned box $boxId from Firebase');
+        } catch (e) {
+          print('⚠️ DEBUG: Failed to delete orphaned box $boxId: $e');
+        }
+      }
+
+      print('🧹 DEBUG: Firebase cleanup completed for shipment: $shipmentId');
+    } catch (e) {
+      print('⚠️ DEBUG: Error during Firebase cleanup: $e');
+      _logger.w('Failed to cleanup orphaned boxes in Firebase', e);
     }
   }
 }

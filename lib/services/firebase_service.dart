@@ -604,25 +604,51 @@ class FirebaseService {
       final batch = firestore.batch();
 
       for (final boxDoc in boxesSnapshot.docs) {
-        // Delete all products for this box
-        final productsSnapshot = await firestore
-            .collection(
-                '${_userPath}/shipments/$shipmentId/boxes/${boxDoc.id}/products')
-            .get();
+        print('🗑️ DEBUG: Processing box ${boxDoc.id} for deletion');
 
-        print(
-            '🗑️ DEBUG: Box ${boxDoc.id} has ${productsSnapshot.docs.length} products');
+        // Delete all products for this box FIRST using individual deletions
+        final productsPath =
+            '${_userPath}/shipments/$shipmentId/boxes/${boxDoc.id}/products';
+        print('🗑️ DEBUG: Products path: $productsPath');
 
-        for (final productDoc in productsSnapshot.docs) {
-          batch.delete(productDoc.reference);
+        try {
+          final productsSnapshot =
+              await firestore.collection(productsPath).get();
+
+          print(
+              '🗑️ DEBUG: Box ${boxDoc.id} has ${productsSnapshot.docs.length} products');
+
+          // Delete products individually to ensure they're removed
+          for (final productDoc in productsSnapshot.docs) {
+            print('🗑️ DEBUG: Deleting product ${productDoc.id} individually');
+            try {
+              await productDoc.reference.delete();
+              print('🗑️ DEBUG: Successfully deleted product ${productDoc.id}');
+            } catch (e) {
+              print('❌ DEBUG: Error deleting product ${productDoc.id}: $e');
+            }
+          }
+          print(
+              '🗑️ DEBUG: Individual product deletions completed for box ${boxDoc.id}');
+        } catch (e) {
+          print('❌ DEBUG: Error getting products for box ${boxDoc.id}: $e');
+          // Continue with box deletion even if products query fails
         }
 
-        // Delete the box document
+        // Add the box to batch deletion
+        print('🗑️ DEBUG: Adding box ${boxDoc.id} to deletion batch');
         batch.delete(boxDoc.reference);
       }
 
       // Execute the batch delete
-      await batch.commit();
+      try {
+        await batch.commit();
+        print(
+            '✅ DEBUG: Batch delete committed successfully for shipment $shipmentId');
+      } catch (e) {
+        print('❌ DEBUG: Error committing batch delete: $e');
+        throw e; // Re-throw to handle in outer catch
+      }
 
       print('✅ DEBUG: Deleted all boxes and products for shipment $shipmentId');
 
@@ -927,21 +953,14 @@ class FirebaseService {
             .toList();
 
         if (boxesList.isNotEmpty) {
+          _logger.i('Creating ${boxesList.length} boxes from draft data');
           await autoCreateBoxesAndProducts(shipment.invoiceNumber, boxesList);
+        } else {
+          _logger
+              .i('Draft contains empty boxes list - no boxes will be created');
         }
       } else {
-        _logger
-            .i('No boxes data found in draft, creating default empty box...');
-        // Create a default empty box if no boxes exist
-        await autoCreateBoxesAndProducts(shipment.invoiceNumber, [
-          {
-            'boxNumber': 'Box 1',
-            'length': 0.0,
-            'width': 0.0,
-            'height': 0.0,
-            'products': [],
-          }
-        ]);
+        _logger.i('No boxes data found in draft - no boxes will be created');
       }
 
       // Delete the draft
@@ -1491,41 +1510,152 @@ class FirebaseService {
   // ========== BOX OPERATIONS ==========
 
   /// Update a box in Firebase
-  Future<void> updateBox(String boxId, Map<String, dynamic> boxData) async {
+  Future<void> updateBox(String boxId, Map<String, dynamic> boxData,
+      [String? shipmentId]) async {
     try {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
+      print(
+          '📝 FIREBASE: Starting updateBox for boxId: $boxId, shipmentId: $shipmentId');
+      print('📝 FIREBASE: Using _userPath: $_userPath');
+
+      // If shipmentId not provided, search for the box
+      if (shipmentId == null) {
+        print('🔍 FIREBASE: Searching for shipment containing box $boxId...');
+        final shipmentsSnapshot =
+            await firestore.collection('$_userPath/shipments').get();
+
+        print(
+            '🔍 FIREBASE: Found ${shipmentsSnapshot.docs.length} shipments to search');
+
+        for (final shipmentDoc in shipmentsSnapshot.docs) {
+          print(
+              '🔍 FIREBASE: Checking shipment ${shipmentDoc.id} for box $boxId');
+          final boxPath = '$_userPath/shipments/${shipmentDoc.id}/boxes';
+          print('🔍 FIREBASE: Checking path: $boxPath');
+
+          final boxDoc = await firestore.collection(boxPath).doc(boxId).get();
+          if (boxDoc.exists) {
+            shipmentId = shipmentDoc.id;
+            print('🔍 FIREBASE: Found box $boxId in shipment $shipmentId');
+            break;
+          }
+        }
+      }
+
+      if (shipmentId == null) {
+        print('❌ FIREBASE: Could not find shipment for box $boxId');
+        throw Exception('Could not find shipment for box $boxId');
+      }
+
       final boxRef = firestore
-          .collection('users')
-          .doc(userId)
-          .collection('boxes')
+          .collection('$_userPath/shipments/$shipmentId/boxes')
           .doc(boxId);
+      print(
+          '📝 FIREBASE: Updating box at path: $_userPath/shipments/$shipmentId/boxes/$boxId');
+
       await boxRef.update({
         ...boxData,
-        'updated_at': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
-      _logger.i('Box updated in Firebase: $boxId');
+
+      _logger.i('Box updated in Firebase: $boxId in shipment $shipmentId');
+      print('✅ FIREBASE: Successfully updated box $boxId');
     } catch (e, s) {
+      print('❌ FIREBASE: Failed to update box $boxId: $e');
       _logger.e('Failed to update box in Firebase', e, s);
       rethrow;
     }
   }
 
   /// Delete a box from Firebase
-  Future<void> deleteBox(String boxId) async {
+  Future<void> deleteBox(String boxId, [String? shipmentId]) async {
     try {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
-      final boxRef = firestore
-          .collection('users')
-          .doc(userId)
-          .collection('boxes')
-          .doc(boxId);
+      print(
+          '🗑️ FIREBASE: Starting deleteBox for boxId: $boxId, shipmentId: $shipmentId');
+      print('🗑️ FIREBASE: Using _userPath: $_userPath');
+
+      // If shipmentId not provided, try to find it by searching through shipments
+      if (shipmentId == null) {
+        print('🔍 FIREBASE: Searching for shipment containing box $boxId...');
+        final shipmentsSnapshot =
+            await firestore.collection('$_userPath/shipments').get();
+
+        print(
+            '🔍 FIREBASE: Found ${shipmentsSnapshot.docs.length} shipments to search');
+
+        for (final shipmentDoc in shipmentsSnapshot.docs) {
+          print(
+              '🔍 FIREBASE: Checking shipment ${shipmentDoc.id} for box $boxId');
+          final boxPath = '$_userPath/shipments/${shipmentDoc.id}/boxes';
+          print('🔍 FIREBASE: Checking path: $boxPath');
+
+          final boxDoc = await firestore.collection(boxPath).doc(boxId).get();
+          if (boxDoc.exists) {
+            shipmentId = shipmentDoc.id;
+            print('🔍 FIREBASE: Found box $boxId in shipment $shipmentId');
+            break;
+          }
+        }
+      }
+
+      if (shipmentId == null) {
+        print('❌ FIREBASE: Could not find shipment for box $boxId');
+        throw Exception('Could not find shipment for box $boxId');
+      }
+
+      print('🗑️ FIREBASE: Deleting box $boxId from shipment $shipmentId');
+
+      // First delete all products for this box BEFORE deleting the box
+      final productsPath =
+          '$_userPath/shipments/$shipmentId/boxes/$boxId/products';
+      print('🗑️ FIREBASE: Deleting products from path: $productsPath');
+      print(
+          '🗑️ FIREBASE: Full collection path: $_userPath/shipments/$shipmentId/boxes/$boxId/products');
+
+      try {
+        final productsSnapshot = await firestore.collection(productsPath).get();
+        print(
+            '🗑️ FIREBASE: Found ${productsSnapshot.docs.length} products to delete');
+
+        if (productsSnapshot.docs.isNotEmpty) {
+          // Delete products individually to ensure they're removed
+          for (final doc in productsSnapshot.docs) {
+            print('🗑️ FIREBASE: Deleting product ${doc.id} individually');
+            try {
+              await doc.reference.delete();
+              print('🗑️ FIREBASE: Successfully deleted product ${doc.id}');
+            } catch (e) {
+              print('❌ FIREBASE: Error deleting product ${doc.id}: $e');
+            }
+          }
+          print('🗑️ FIREBASE: Individual product deletions completed');
+        } else {
+          print('🗑️ FIREBASE: No products found to delete for box $boxId');
+        }
+      } catch (e) {
+        print('❌ FIREBASE: Error getting products for box $boxId: $e');
+        // Continue with box deletion even if products query fails
+      }
+
+      // Now delete the box document
+      final boxPath = '$_userPath/shipments/$shipmentId/boxes';
+      print('🗑️ FIREBASE: Box deletion path: $boxPath/$boxId');
+
+      final boxRef = firestore.collection(boxPath).doc(boxId);
       await boxRef.delete();
-      _logger.i('Box deleted from Firebase: $boxId');
+      print('🗑️ FIREBASE: Box document deleted successfully');
+
+      _logger.i(
+          'Box and its products deleted from Firebase: $boxId from shipment $shipmentId');
+      print(
+          '✅ FIREBASE: Successfully deleted box $boxId and all its products from Firebase');
     } catch (e, s) {
+      print('❌ FIREBASE: Failed to delete box $boxId: $e');
       _logger.e('Failed to delete box from Firebase', e, s);
       rethrow;
     }
@@ -1534,42 +1664,151 @@ class FirebaseService {
   // ========== PRODUCT OPERATIONS ==========
 
   /// Update a product in Firebase
-  Future<void> updateProduct(
-      String productId, Map<String, dynamic> productData) async {
+  Future<void> updateProduct(String productId, Map<String, dynamic> productData,
+      [String? shipmentId, String? boxId]) async {
     try {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
+      print(
+          '📝 FIREBASE: Starting updateProduct for productId: $productId, shipmentId: $shipmentId, boxId: $boxId');
+      print('📝 FIREBASE: Using _userPath: $_userPath');
+
+      // If shipmentId and boxId not provided, search for the product
+      if (shipmentId == null || boxId == null) {
+        print('🔍 FIREBASE: Searching for product $productId location...');
+        final shipmentsSnapshot =
+            await firestore.collection('$_userPath/shipments').get();
+
+        print(
+            '🔍 FIREBASE: Found ${shipmentsSnapshot.docs.length} shipments to search');
+
+        bool found = false;
+        for (final shipmentDoc in shipmentsSnapshot.docs) {
+          print('🔍 FIREBASE: Checking shipment ${shipmentDoc.id}');
+          final boxesPath = '$_userPath/shipments/${shipmentDoc.id}/boxes';
+          final boxesSnapshot = await firestore.collection(boxesPath).get();
+
+          print(
+              '🔍 FIREBASE: Found ${boxesSnapshot.docs.length} boxes in shipment ${shipmentDoc.id}');
+
+          for (final boxDoc in boxesSnapshot.docs) {
+            final productsPath =
+                '$_userPath/shipments/${shipmentDoc.id}/boxes/${boxDoc.id}/products';
+            print('🔍 FIREBASE: Checking products path: $productsPath');
+
+            final productDoc =
+                await firestore.collection(productsPath).doc(productId).get();
+            if (productDoc.exists) {
+              shipmentId = shipmentDoc.id;
+              boxId = boxDoc.id;
+              found = true;
+              print(
+                  '🔍 FIREBASE: Found product $productId in shipment $shipmentId, box $boxId');
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      if (shipmentId == null || boxId == null) {
+        print('❌ FIREBASE: Could not find location for product $productId');
+        throw Exception('Could not find location for product $productId');
+      }
+
       final productRef = firestore
-          .collection('users')
-          .doc(userId)
-          .collection('products')
+          .collection('$_userPath/shipments/$shipmentId/boxes/$boxId/products')
           .doc(productId);
+      print(
+          '📝 FIREBASE: Updating product at path: $_userPath/shipments/$shipmentId/boxes/$boxId/products/$productId');
+
       await productRef.update({
         ...productData,
-        'updated_at': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
-      _logger.i('Product updated in Firebase: $productId');
+
+      _logger.i(
+          'Product updated in Firebase: $productId in shipment $shipmentId, box $boxId');
+      print('✅ FIREBASE: Successfully updated product $productId');
     } catch (e, s) {
+      print('❌ FIREBASE: Failed to update product $productId: $e');
       _logger.e('Failed to update product in Firebase', e, s);
       rethrow;
     }
   }
 
   /// Delete a product from Firebase
-  Future<void> deleteProduct(String productId) async {
+  Future<void> deleteProduct(String productId,
+      [String? shipmentId, String? boxId]) async {
     try {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
-      final productRef = firestore
-          .collection('users')
-          .doc(userId)
-          .collection('products')
-          .doc(productId);
+      print(
+          '🗑️ FIREBASE: Starting deleteProduct for productId: $productId, shipmentId: $shipmentId, boxId: $boxId');
+      print('🗑️ FIREBASE: Using _userPath: $_userPath');
+
+      // If shipmentId and boxId not provided, search for the product
+      if (shipmentId == null || boxId == null) {
+        print('🔍 FIREBASE: Searching for product $productId location...');
+        final shipmentsSnapshot =
+            await firestore.collection('$_userPath/shipments').get();
+
+        print(
+            '🔍 FIREBASE: Found ${shipmentsSnapshot.docs.length} shipments to search');
+
+        bool found = false;
+        for (final shipmentDoc in shipmentsSnapshot.docs) {
+          print('🔍 FIREBASE: Checking shipment ${shipmentDoc.id}');
+          final boxesPath = '$_userPath/shipments/${shipmentDoc.id}/boxes';
+          final boxesSnapshot = await firestore.collection(boxesPath).get();
+
+          print(
+              '🔍 FIREBASE: Found ${boxesSnapshot.docs.length} boxes in shipment ${shipmentDoc.id}');
+
+          for (final boxDoc in boxesSnapshot.docs) {
+            final productsPath =
+                '$_userPath/shipments/${shipmentDoc.id}/boxes/${boxDoc.id}/products';
+            print('🔍 FIREBASE: Checking products path: $productsPath');
+
+            final productDoc =
+                await firestore.collection(productsPath).doc(productId).get();
+            if (productDoc.exists) {
+              shipmentId = shipmentDoc.id;
+              boxId = boxDoc.id;
+              found = true;
+              print(
+                  '🔍 FIREBASE: Found product $productId in shipment $shipmentId, box $boxId');
+              break;
+            }
+          }
+          if (found) break;
+        }
+      }
+
+      if (shipmentId == null || boxId == null) {
+        print('❌ FIREBASE: Could not find location for product $productId');
+        throw Exception('Could not find location for product $productId');
+      }
+
+      print(
+          '🗑️ FIREBASE: Deleting product $productId from shipment $shipmentId, box $boxId');
+
+      // Delete product from correct collection path
+      final productsPath =
+          '$_userPath/shipments/$shipmentId/boxes/$boxId/products';
+      print('🗑️ FIREBASE: Product deletion path: $productsPath/$productId');
+
+      final productRef = firestore.collection(productsPath).doc(productId);
       await productRef.delete();
-      _logger.i('Product deleted from Firebase: $productId');
+
+      _logger.i(
+          'Product deleted from Firebase: $productId from shipment $shipmentId, box $boxId');
+      print(
+          '✅ FIREBASE: Successfully deleted product $productId from Firebase');
     } catch (e, s) {
+      print('❌ FIREBASE: Failed to delete product $productId: $e');
       _logger.e('Failed to delete product from Firebase', e, s);
       rethrow;
     }

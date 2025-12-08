@@ -271,6 +271,10 @@ class InvoiceProvider with ChangeNotifier {
           await _dataService.getBoxesForShipment(shipment.invoiceNumber);
       _dataService.forceOfflineMode(false);
 
+      // Ensure offline mode is fully disabled before proceeding with updates
+      await Future.delayed(
+          Duration(milliseconds: 100)); // Small delay to ensure state change
+
       _logger.i(
           '🗄️ Database contains ${existingBoxes.length} boxes for shipment ${shipment.invoiceNumber}');
       for (var box in existingBoxes) {
@@ -313,7 +317,10 @@ class InvoiceProvider with ChangeNotifier {
       for (var existingBox in existingBoxes) {
         final boxId = existingBox.id;
         if (!newBoxesMap.containsKey(boxId)) {
-          _logger.i('Box marked for deletion: $boxId');
+          _logger.i(
+              '📦 Box marked for deletion: $boxId (Box Number: ${existingBox.boxNumber})');
+          print(
+              '📦 DEBUG: Box $boxId (${existingBox.boxNumber}) will be deleted - not found in new data');
           boxesToDelete.add(boxId);
         }
       }
@@ -365,9 +372,11 @@ class InvoiceProvider with ChangeNotifier {
 
       // 3. Delete removed boxes
       for (var boxId in boxesToDelete) {
-        _logger.i('Deleting box: $boxId');
+        _logger.i('🗑️ Deleting box: $boxId');
+        print('🗑️ DEBUG: Deleting box $boxId from database');
         await _dataService.deleteBox(boxId);
         totalBoxesDeleted++;
+        print('🗑️ DEBUG: Box $boxId deleted successfully');
       }
 
       // Update local shipments list
@@ -384,6 +393,19 @@ class InvoiceProvider with ChangeNotifier {
       final saveStatus = await _dataService.getLastSaveStatus();
       final localSaved = saveStatus['localAvailable'] ?? false;
       final firebaseSaved = saveStatus['firebaseAvailable'] ?? false;
+
+      // Clean up any orphaned boxes in Firebase
+      try {
+        print(
+            '🧹 PROVIDER: About to call Firebase cleanup for shipment ${shipment.invoiceNumber}');
+        await _dataService
+            .cleanupOrphanedBoxesInFirebase(shipment.invoiceNumber);
+        print(
+            '🧹 PROVIDER: Firebase cleanup completed for shipment ${shipment.invoiceNumber}');
+      } catch (e) {
+        print('❌ PROVIDER: Firebase cleanup failed: $e');
+        _logger.w('Failed to cleanup orphaned boxes in Firebase', e);
+      }
 
       String statusMessage = 'Shipment updated: ${shipment.invoiceNumber}';
       if (localSaved && firebaseSaved) {
@@ -454,7 +476,9 @@ class InvoiceProvider with ChangeNotifier {
     for (var existingProduct in existingProducts) {
       if (!newProductsMap.containsKey(existingProduct.id)) {
         _logger.i(
-            'Product marked for deletion: ${existingProduct.id} from box $boxId');
+            '🗑️ Product marked for deletion: ${existingProduct.id} (${existingProduct.description}) from box $boxId');
+        print(
+            '🗑️ DEBUG: Product ${existingProduct.id} (${existingProduct.description}) will be deleted from box $boxId');
         productsToDelete.add(existingProduct.id);
       }
     }
@@ -499,8 +523,10 @@ class InvoiceProvider with ChangeNotifier {
 
     // Delete removed products
     for (var productId in productsToDelete) {
-      _logger.i('Deleting product: $productId from box $boxId');
+      _logger.i('🗑️ Deleting product: $productId from box $boxId');
+      print('🗑️ DEBUG: Deleting product $productId from box $boxId');
       await _dataService.deleteProduct(productId);
+      print('🗑️ DEBUG: Product $productId deleted successfully');
     }
   }
 

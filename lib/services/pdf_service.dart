@@ -12,14 +12,14 @@ class PdfService {
   static pw.Font? _boldFont;
   static pw.MemoryImage? _logoImage;
 
-  // Advanced pagination configuration - EASILY ADJUSTABLE
+  // Layout constants optimized for readability and professional appearance
   static const double _pageMargin = 20.0;
   static const double _headerHeight = 100.0;
   static const double _footerHeight = 50.0;
-  static const double _itemRowHeight = 25.0;
-  static const double _summaryHeight =
-      250.0; // Reduced from 350 to fit more content
-  static const double _tableHeaderHeight = 30.0;
+  static const double _itemRowHeight = 15.0;
+  static const double _summaryHeight = 120.0;
+  static const double _tableHeaderHeight = 25.0;
+  static const double _sectionSpacing = 8.0;
 
   // Multi-page trigger thresholds - ADJUST THESE TO CONTROL PAGINATION
   static const int FORCE_MULTIPAGE_ITEM_COUNT =
@@ -88,6 +88,7 @@ class PdfService {
   /// Intelligent pagination calculator - supports unlimited pages
   Map<String, dynamic> _calculateOptimalPagination(List<dynamic> items) {
     print('🔍 Analyzing content for optimal N-page distribution...');
+    print('📊 Dataset size: ${items.length} items');
 
     // Calculate content requirements
     final double table1Height =
@@ -113,36 +114,134 @@ class PdfService {
     print(
         '   Table 2 required: ${table2Height}px (${flowerTypes.length} flower types)');
     print('   Available per page: ${availablePerPage}px');
+    print(
+        '   Estimated items per page: ${(availablePerPage / _itemRowHeight).floor()}');
 
     List<Map<String, dynamic>> layouts = [];
     String strategy = '';
 
     // Strategy selection based on content volume
-    final double totalContentNeeded =
-        _summaryHeight + table1Height + table2Height + 60; // +60 for spacing
+    final double totalContentNeeded = _summaryHeight +
+        table1Height +
+        table2Height +
+        10; // +10 for reduced spacing
 
     print('📏 Decision point:');
     print('   Total content needed: ${totalContentNeeded}px');
     print('   Available per page: ${availablePerPage}px');
     print('   Content exceeds page: ${totalContentNeeded > availablePerPage}');
 
-    // MODIFIED STRATEGY: Put Itemized Manifest on page 1 above Flower Type Summary
-    // Page 1: Summary + Table 1 (Itemized Manifest) + Table 2 (Flower Type Summary)
+    // Intelligent pagination: split content across pages if needed
+    if (totalContentNeeded <= availablePerPage) {
+      // Everything fits on one page
+      strategy = 'summary_table1_table2_single_page';
+      layouts.add({
+        'type': 'summary_and_table1_and_table2',
+        'pageNumber': 1,
+        'showSummary': true,
+        'showTable1': true,
+        'showTable2': true,
+        'table1Start': 0,
+        'table1End': items.length,
+      });
+    } else {
+      // Content exceeds one page - implement intelligent splitting
+      print('📄 Large dataset detected - implementing multi-page strategy');
+      print(
+          '📈 Estimated pages needed: ${((items.length * _itemRowHeight) / availablePerPage).ceil() + 1}');
 
-    strategy = 'summary_table1_table2';
+      double remainingSpace = availablePerPage;
+      int currentPage = 1;
+      int table1StartIndex = 0;
+      int totalItemsProcessed = 0;
 
-    // Page 1: Summary + Table 1 + Table 2
-    layouts.add({
-      'type': 'summary_and_table1_and_table2',
-      'pageNumber': 1,
-      'showSummary': true,
-      'showTable1': true,
-      'showTable2': true,
-      'table1Start': 0,
-      'table1End': items.length,
-    });
+      // Page 1: Always include summary + as much of table 1 as possible
+      remainingSpace -= _summaryHeight + _sectionSpacing;
+      if (remainingSpace > 0) {
+        // Calculate available space for table 1 on page 1 (include header space)
+        double availableForTable1 = remainingSpace - _tableHeaderHeight;
+        int itemsPerPage = (availableForTable1 / _itemRowHeight).floor();
+        itemsPerPage = itemsPerPage > 0 ? itemsPerPage : 1; // At least 1 item
+        int table1EndIndex =
+            (table1StartIndex + itemsPerPage).clamp(0, items.length);
+        totalItemsProcessed += (table1EndIndex - table1StartIndex);
+
+        print(
+            '📄 Page 1: Summary + ${table1EndIndex - table1StartIndex} items (${table1StartIndex + 1}-${table1EndIndex})');
+
+        layouts.add({
+          'type': 'summary_and_table1_partial',
+          'pageNumber': currentPage,
+          'showSummary': true,
+          'showTable1': true,
+          'showTable2': false,
+          'table1Start': table1StartIndex,
+          'table1End': table1EndIndex,
+        });
+
+        table1StartIndex = table1EndIndex;
+        currentPage++;
+      }
+
+      // Subsequent pages: Continue with remaining table 1 items
+      while (table1StartIndex < items.length) {
+        // Calculate maximum items that can fit on subsequent pages
+        double spaceForItems = availablePerPage - _tableHeaderHeight;
+
+        // Check if this would be the last batch of items
+        int potentialItemsPerPage = (spaceForItems / _itemRowHeight).floor();
+        bool isLastPage =
+            (table1StartIndex + potentialItemsPerPage) >= items.length;
+
+        if (isLastPage) {
+          // Last page needs space for flower type summary - calculate more precisely
+          double spaceNeededForTable2 =
+              _tableHeaderHeight + ((flowerTypes.length + 1) * _itemRowHeight);
+          spaceForItems -= (spaceNeededForTable2 + _sectionSpacing);
+        }
+
+        int itemsPerPage = (spaceForItems / _itemRowHeight).floor();
+        itemsPerPage = itemsPerPage > 0 ? itemsPerPage : 1;
+        int table1EndIndex =
+            (table1StartIndex + itemsPerPage).clamp(0, items.length);
+
+        // Recalculate if we're actually on the last page after adjustment
+        bool actuallyLastPage = table1EndIndex >= items.length;
+        totalItemsProcessed += (table1EndIndex - table1StartIndex);
+
+        print(
+            '📄 Page ${currentPage}: ${table1EndIndex - table1StartIndex} items (${table1StartIndex + 1}-${table1EndIndex})${actuallyLastPage ? ' + Summary' : ''}');
+
+        layouts.add({
+          'type': actuallyLastPage
+              ? 'table1_final_and_table2'
+              : 'table1_continuation',
+          'pageNumber': currentPage,
+          'showSummary': false,
+          'showTable1': true,
+          'showTable2': actuallyLastPage, // Show table 2 only on final page
+          'table1Start': table1StartIndex,
+          'table1End': table1EndIndex,
+        });
+
+        table1StartIndex = table1EndIndex;
+        currentPage++;
+      }
+
+      print(
+          '📊 Final pagination: ${layouts.length} pages, ${totalItemsProcessed} items processed');
+      strategy = 'intelligent_multi_page_pagination_large_dataset';
+    }
 
     print('📋 Selected strategy: $strategy with ${layouts.length} pages');
+
+    // Performance optimization for large datasets
+    if (items.length > 20) {
+      print(
+          '🚀 Large dataset optimization: Processing ${items.length} items across ${layouts.length} pages');
+      print(
+          '📊 Average items per page: ${(items.length / layouts.length).toStringAsFixed(1)}');
+    }
 
     return {
       'totalPages': layouts.length,
@@ -307,10 +406,14 @@ class PdfService {
         return 'Invoice Summary & Manifest';
       case 'summary_only':
         return 'Invoice Summary';
-      case 'table1_start':
-        return 'Detailed Itemized Manifest';
+      case 'summary_and_table1_partial':
+        return 'Invoice Summary & Manifest (Part 1)';
       case 'table1_continuation':
         return 'Itemized Manifest (Continued)';
+      case 'table1_final_and_table2':
+        return 'Itemized Manifest (Final) & Summary';
+      case 'table1_start':
+        return 'Detailed Itemized Manifest';
       case 'table2_only':
         return 'Flower Type Summary';
       default:
@@ -330,7 +433,7 @@ class PdfService {
 
     // Add spacing between sections
     if (content.isNotEmpty) {
-      content.add(pw.SizedBox(height: 20));
+      content.add(pw.SizedBox(height: 2)); // Minimal spacing
     }
 
     // Add Table 1 if required
@@ -343,7 +446,7 @@ class PdfService {
 
     // Add spacing between tables
     if (layout['showTable1'] == true && layout['showTable2'] == true) {
-      content.add(pw.SizedBox(height: 20));
+      content.add(pw.SizedBox(height: 2)); // Minimal spacing
     }
 
     // Add Table 2 if required
@@ -436,10 +539,10 @@ class PdfService {
           pw.Expanded(
             child: _buildShipmentInfo(shipment, items),
           ),
-          pw.SizedBox(width: 15),
+          pw.SizedBox(width: 8),
           pw.Expanded(
             child: pw.Container(
-              padding: pw.EdgeInsets.all(15),
+              padding: pw.EdgeInsets.all(8),
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(width: 0.5, color: PdfColors.orange600),
                 borderRadius: pw.BorderRadius.circular(5),
@@ -451,12 +554,12 @@ class PdfService {
                   pw.Text('CONSIGNEE DETAILS',
                       style: pw.TextStyle(
                           font: _boldFont!,
-                          fontSize: 12,
+                          fontSize: 9, // Reduced from 10
                           color: PdfColors.orange800)),
-                  pw.SizedBox(height: 10),
-                  _buildDetailRow('Company:', shipment.consignee),
+                  pw.SizedBox(height: 5),
+                  _buildDetailRow('Company', shipment.consignee),
                   _buildDetailRow(
-                      'Address:',
+                      'Address',
                       shipment.consigneeAddress.isEmpty
                           ? 'Not provided'
                           : shipment.consigneeAddress),
@@ -472,7 +575,7 @@ class PdfService {
   /// Build shipment information section (appears on every page)
   pw.Widget _buildShipmentInfo(Shipment shipment, List<dynamic> items) {
     return pw.Container(
-      padding: pw.EdgeInsets.all(15),
+      padding: pw.EdgeInsets.all(5), // Reduced from 8
       decoration: pw.BoxDecoration(
         border: pw.Border.all(width: 0.5, color: PdfColors.purple600),
         borderRadius: pw.BorderRadius.circular(5),
@@ -486,37 +589,43 @@ class PdfService {
               pw.Text('SHIPMENT INFORMATION',
                   style: pw.TextStyle(
                       font: _boldFont!,
-                      fontSize: 12,
+                      fontSize: 10,
                       color: PdfColors.purple800)),
               pw.Spacer(),
-              pw.Text('Invoice: ${shipment.invoiceNumber}',
+              pw.Text(
+                  'Date of Issue: ${shipment.dateOfIssue != null ? _formatDate(shipment.dateOfIssue!) : 'N/A'}',
                   style: pw.TextStyle(
                       font: _boldFont!,
-                      fontSize: 10,
+                      fontSize: 8,
                       color: PdfColors.purple800)),
             ],
           ),
-          pw.SizedBox(height: 10),
+          pw.SizedBox(height: 2), // Reduced from 5
           pw.Row(
             children: [
               pw.Expanded(
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('Flight No:', shipment.flightNo),
-                    _buildDetailRow('Origin:',
-                        shipment.origin.isEmpty ? 'N/A' : shipment.origin),
+                    _buildDetailRow('Invoice No', shipment.invoiceNumber),
+                    _buildDetailRow(
+                        'Invoice Date',
+                        shipment.invoiceDate != null
+                            ? _formatDate(shipment.invoiceDate!)
+                            : 'N/A'),
+                    _buildDetailRow('Flight No', shipment.flightNo),
                   ],
                 ),
               ),
-              pw.SizedBox(width: 20),
+              pw.SizedBox(width: 10),
               pw.Expanded(
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow(
-                        'Discharge Airport:', shipment.dischargeAirport),
-                    _buildDetailRow('ETA:', _formatDate(shipment.eta)),
+                    _buildDetailRow('Origin',
+                        shipment.origin.isEmpty ? 'N/A' : shipment.origin),
+                    _buildDetailRow('Destination', shipment.dischargeAirport),
+                    _buildDetailRow('ETA', _formatDate(shipment.eta)),
                   ],
                 ),
               ),
@@ -530,19 +639,19 @@ class PdfService {
   /// Helper to build detail rows
   pw.Widget _buildDetailRow(String label, String value) {
     return pw.Padding(
-      padding: pw.EdgeInsets.symmetric(vertical: 3),
+      padding: pw.EdgeInsets.symmetric(vertical: 1),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Expanded(
-            flex: 2,
+          pw.SizedBox(
+            width: 80, // Fixed width for label area
             child: pw.Text(label,
-                style: pw.TextStyle(font: _boldFont!, fontSize: 9)),
+                style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
           ),
+          pw.Text(': ', style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
           pw.Expanded(
-            flex: 3,
             child: pw.Text(value,
-                style: pw.TextStyle(font: _regularFont!, fontSize: 9)),
+                style: pw.TextStyle(font: _regularFont!, fontSize: 8)),
           ),
         ],
       ),
@@ -557,7 +666,7 @@ class PdfService {
     return [
       // Table header with pagination info
       pw.Container(
-        padding: pw.EdgeInsets.all(12),
+        padding: pw.EdgeInsets.all(5), // Reduced from 8
         decoration: pw.BoxDecoration(
           color: PdfColors.grey800,
           borderRadius: pw.BorderRadius.only(
@@ -570,10 +679,13 @@ class PdfService {
           children: [
             pw.Text('ITEMIZED MANIFEST',
                 style: pw.TextStyle(
-                    font: _boldFont!, fontSize: 14, color: PdfColors.white)),
+                    font: _boldFont!,
+                    fontSize: 10,
+                    color: PdfColors.white)), // Reduced from 12
             if (totalPages > 1)
               pw.Container(
-                padding: pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: pw.EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 1), // Reduced padding
                 decoration: pw.BoxDecoration(
                   color: PdfColors.white.shade(0.2),
                   borderRadius: pw.BorderRadius.circular(3),
@@ -581,9 +693,7 @@ class PdfService {
                 child: pw.Text(
                     'Items ${startIndex + 1}-$endIndex of ${items.length}',
                     style: pw.TextStyle(
-                        font: _boldFont!,
-                        fontSize: 10,
-                        color: PdfColors.white)),
+                        font: _boldFont!, fontSize: 8, color: PdfColors.white)),
               ),
           ],
         ),
@@ -660,20 +770,20 @@ class PdfService {
                 : null,
             children: [
               pw.Padding(
-                padding: pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(3),
                 child: pw.Text(displayBoxNumber,
-                    style: pw.TextStyle(font: _regularFont!, fontSize: 9),
+                    style: pw.TextStyle(font: _regularFont!, fontSize: 7),
                     textAlign: pw.TextAlign.center),
               ),
               pw.Padding(
-                padding: pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(3),
                 child: pw.Text(_formatItemDescription(item, weight),
-                    style: pw.TextStyle(font: _regularFont!, fontSize: 9)),
+                    style: pw.TextStyle(font: _regularFont!, fontSize: 7)),
               ),
               pw.Padding(
-                padding: pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(3),
                 child: pw.Text(weight.toStringAsFixed(2),
-                    style: pw.TextStyle(font: _regularFont!, fontSize: 9),
+                    style: pw.TextStyle(font: _regularFont!, fontSize: 7),
                     textAlign: pw.TextAlign.center),
               ),
             ]),
@@ -734,26 +844,26 @@ class PdfService {
                 : null,
             children: [
               pw.Padding(
-                padding: pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(3),
                 child: pw.Text(flowerType,
-                    style: pw.TextStyle(font: _regularFont!, fontSize: 9)),
+                    style: pw.TextStyle(font: _regularFont!, fontSize: 7)),
               ),
               pw.Padding(
-                padding: pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(3),
                 child: pw.Text('\$${rate.toStringAsFixed(2)}',
-                    style: pw.TextStyle(font: _regularFont!, fontSize: 9),
+                    style: pw.TextStyle(font: _regularFont!, fontSize: 7),
                     textAlign: pw.TextAlign.right),
               ),
               pw.Padding(
-                padding: pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(3),
                 child: pw.Text('${totalWeight.toStringAsFixed(2)}',
-                    style: pw.TextStyle(font: _regularFont!, fontSize: 9),
+                    style: pw.TextStyle(font: _regularFont!, fontSize: 7),
                     textAlign: pw.TextAlign.center),
               ),
               pw.Padding(
-                padding: pw.EdgeInsets.all(6),
+                padding: pw.EdgeInsets.all(3),
                 child: pw.Text('\$${totalAmount.toStringAsFixed(2)}',
-                    style: pw.TextStyle(font: _boldFont!, fontSize: 9),
+                    style: pw.TextStyle(font: _boldFont!, fontSize: 7),
                     textAlign: pw.TextAlign.right),
               ),
             ]),
@@ -766,26 +876,26 @@ class PdfService {
           decoration: pw.BoxDecoration(color: PdfColors.blue100),
           children: [
             pw.Padding(
-              padding: pw.EdgeInsets.all(8),
+              padding: pw.EdgeInsets.all(4),
               child: pw.Text('GRAND TOTAL',
-                  style: pw.TextStyle(font: _boldFont!, fontSize: 10)),
+                  style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
             ),
             pw.Padding(
-              padding: pw.EdgeInsets.all(8),
+              padding: pw.EdgeInsets.all(4),
               child: pw.Text('',
-                  style: pw.TextStyle(font: _boldFont!, fontSize: 10)),
+                  style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
             ),
             pw.Padding(
-              padding: pw.EdgeInsets.all(8),
+              padding: pw.EdgeInsets.all(4),
               child: pw.Text('${grandTotalWeight.toStringAsFixed(2)}',
-                  style: pw.TextStyle(font: _boldFont!, fontSize: 10),
+                  style: pw.TextStyle(font: _boldFont!, fontSize: 8),
                   textAlign: pw.TextAlign.center),
             ),
             pw.Padding(
-              padding: pw.EdgeInsets.all(8),
+              padding: pw.EdgeInsets.all(4),
               child: pw.Text('\$${grandTotalAmount.toStringAsFixed(2)}',
                   style: pw.TextStyle(
-                      font: _boldFont!, fontSize: 10, color: PdfColors.blue800),
+                      font: _boldFont!, fontSize: 8, color: PdfColors.blue800),
                   textAlign: pw.TextAlign.right),
             ),
           ]),
@@ -794,7 +904,7 @@ class PdfService {
     return [
       // Table header
       pw.Container(
-        padding: pw.EdgeInsets.all(12),
+        padding: pw.EdgeInsets.all(5), // Reduced from 8
         decoration: pw.BoxDecoration(
           color: PdfColors.grey800,
           borderRadius: pw.BorderRadius.only(
@@ -807,16 +917,19 @@ class PdfService {
           children: [
             pw.Text('SUMMARY BY Flower TYPE',
                 style: pw.TextStyle(
-                    font: _boldFont!, fontSize: 14, color: PdfColors.white)),
+                    font: _boldFont!,
+                    fontSize: 10,
+                    color: PdfColors.white)), // Reduced from 12
             pw.Container(
-              padding: pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: pw.EdgeInsets.symmetric(
+                  horizontal: 4, vertical: 1), // Reduced padding
               decoration: pw.BoxDecoration(
                 color: PdfColors.white.shade(0.2),
                 borderRadius: pw.BorderRadius.circular(3),
               ),
               child: pw.Text('${sortedTypes.length} Types',
                   style: pw.TextStyle(
-                      font: _boldFont!, fontSize: 10, color: PdfColors.white)),
+                      font: _boldFont!, fontSize: 8, color: PdfColors.white)),
             ),
           ],
         ),
@@ -931,10 +1044,14 @@ class PdfService {
         return 'Invoice Summary & Manifest';
       case 'summary_only':
         return 'Invoice Summary';
-      case 'table1_start':
-        return 'Detailed Manifest';
+      case 'summary_and_table1_partial':
+        return 'Invoice Summary & Manifest';
       case 'table1_continuation':
         return 'Manifest Continued';
+      case 'table1_final_and_table2':
+        return 'Manifest & Flower Types';
+      case 'table1_start':
+        return 'Detailed Manifest';
       case 'table2_only':
         return 'Flower Type Summary';
       default:
@@ -959,9 +1076,9 @@ class PdfService {
   /// Helper to build table headers
   pw.Widget _buildTableHeader(String text) {
     return pw.Padding(
-      padding: pw.EdgeInsets.all(8),
+      padding: pw.EdgeInsets.all(4),
       child: pw.Text(text,
-          style: pw.TextStyle(font: _boldFont!, fontSize: 10),
+          style: pw.TextStyle(font: _boldFont!, fontSize: 8),
           textAlign: pw.TextAlign.center),
     );
   }
