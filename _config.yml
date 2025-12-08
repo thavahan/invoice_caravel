@@ -1,0 +1,78 @@
+theme: jekyll-theme-minimal
+title: Invoice Generator Documentation
+description: Professional Flutter mobile app for invoice generation with offline-first architecture
+
+# Navigation
+navigation:
+  - title: Quick Start
+    url: /guides/quick-start
+  - title: User Guide  
+    url: /guides/user-guide
+  - title: Developer Guide
+    url: /guides/developer
+  - title: Architecture
+    url: /architecture/
+  - title: API Docs
+    url: /api/
+  - title: Troubleshooting
+    url: /troubleshooting/
+
+# Plugins
+plugins:
+  - jekyll-relative-links
+  - jekyll-optional-front-matter
+  - jekyll-readme-index
+  - jekyll-default-layout
+
+# Relative links  
+relative_links:
+  enabled: true
+  collections: true
+
+# Optional front matter
+optional_front_matter:
+  remove_originals: true
+
+# Default layouts
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: "docs"
+    values:
+      layout: "default"
+
+# Markdown settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  
+# Repository info
+repository: thavahan/invoice_caravel
+
+# Social links
+github_username: thavahan
+
+# Site settings
+google_analytics: # Add your GA tracking ID if needed
+
+# Include/exclude
+include:
+  - docs
+  
+exclude:
+  - android
+  - ios
+  - build
+  - lib
+  - test
+  - .gitignore
+  - .metadata
+  - pubspec.yaml
+  - pubspec.lock
+  - analysis_options.yaml
+  - README.md
