@@ -8,13 +8,13 @@ The Invoice Generator is a production-ready Flutter mobile application for creat
 
 ## 🚀 Quick Navigation
 
-- **[📖 Complete Documentation](./docs/)** - Full documentation index
-- **[🚀 Quick Start Guide](./docs/guides/quick-start.html)** - Get started in 5 minutes  
-- **[📱 User Guide](./docs/guides/user-guide.html)** - Complete feature walkthrough
-- **[👩‍💻 Developer Guide](./docs/guides/developer.html)** - Development guidelines
-- **[🏗️ Architecture](./docs/architecture/)** - System design and architecture
-- **[📡 API Documentation](./docs/api/)** - Service and component docs
-- **[🔧 Troubleshooting](./docs/troubleshooting/)** - Common issues and solutions
+- **[📖 Complete Documentation](./README.md)** - Full documentation index
+- **[🚀 Quick Start Guide](./guides/quick-start.md)** - Get started in 5 minutes  
+- **[📱 User Guide](./guides/user-guide.md)** - Complete feature walkthrough
+- **[👩‍💻 Developer Guide](./guides/developer.md)** - Development guidelines
+- **[🏗️ Architecture](./architecture/overview.md)** - System design and architecture
+- **[📋 API Documentation](./api/excel-service.md)** - Service and component docs
+- **[🔧 Troubleshooting](./troubleshooting/common-issues.md)** - Common issues and solutions
 
 ## ✨ Key Features
 
@@ -39,13 +39,13 @@ The Invoice Generator is a production-ready Flutter mobile application for creat
 ## 📊 Project Status
 
 | Component | Status | Documentation |
-|-----------|--------|---------------|
-| Core Invoice Generation | ✅ Production Ready | [Excel Service](./docs/api/excel-service.html) |
-| PDF Export | ✅ Production Ready | [PDF Service](./docs/api/pdf-service.html) |
-| Offline Functionality | ✅ Production Ready | [Architecture](./docs/architecture/overview.html) |
-| Real-time Sync | ✅ Production Ready | [Data Flow](./docs/architecture/data-flow.html) |
-| Master Data Management | ✅ Production Ready | [Database Services](./docs/api/database.html) |
-| Issue Resolution | ✅ All Fixed | [Troubleshooting](./docs/troubleshooting/) |
+|-----------|--------|―――――――――――――――|
+| Core Invoice Generation | ✅ Production Ready | [Excel Service](./api/excel-service.md) |
+| PDF Export | ✅ Production Ready | [PDF Service](./api/pdf-service.md) |
+| Offline Functionality | ✅ Production Ready | [Architecture](./architecture/overview.md) |
+| Real-time Sync | ✅ Production Ready | [Data Flow](./architecture/data-flow.md) |
+| Master Data Management | ✅ Production Ready | [Database Services](./api/database.md) |
+| Issue Resolution | ✅ All Fixed | [Troubleshooting](./troubleshooting/debugging.md) |
 
 ## 🏗️ Architecture Overview
 

@@ -27,9 +27,11 @@ A comprehensive mobile application for generating professional invoices with adv
 ### Quick Links
 - **[📖 Complete Documentation](./docs/)** - Full documentation index
 - **[🚀 Quick Start Guide](./docs/guides/quick-start.md)** - Get up and running in 5 minutes
-- **[🏗️ Architecture Overview](./docs/architecture/)** - Technical architecture and design decisions
-- **[📋 API Reference](./docs/api/)** - Service and component documentation
-- **[🔧 Troubleshooting](./docs/troubleshooting/)** - Common issues and solutions
+- **[👥 User Guide](./docs/guides/user-guide.md)** - Complete feature walkthrough
+- **[👩‍💻 Developer Guide](./docs/guides/developer.md)** - Development guidelines
+- **[🏗️ Architecture Overview](./docs/architecture/overview.md)** - Technical architecture and design decisions
+- **[📋 API Reference](./docs/api/excel-service.md)** - Service and component documentation
+- **[🔧 Troubleshooting](./docs/troubleshooting/common-issues.md)** - Common issues and solutions
 
 ### Documentation Structure
 
@@ -140,14 +142,15 @@ lib/
 | **Offline Functionality** | ✅ Production Ready | [Architecture](./docs/architecture/overview.md) |
 | **Real-time Sync** | ✅ Production Ready | [Data Flow](./docs/architecture/data-flow.md) |
 | **Master Data Management** | ✅ Production Ready | [Database Services](./docs/api/database.md) |
-| **Issue Resolution** | ✅ All Issues Fixed | [Troubleshooting](./docs/troubleshooting/) |
+| **Issue Resolution** | ✅ All Issues Fixed | [Troubleshooting](./docs/troubleshooting/debugging.md) |
 
 ## 🤝 Contributing
 
 1. Read the [Development Guide](./docs/guides/developer.md)
-2. Check [Architecture Documentation](./docs/architecture/)
-3. Review [API Documentation](./docs/api/)
+2. Check [Architecture Documentation](./docs/architecture/overview.md)
+3. Review [API Documentation](./docs/api/excel-service.md)
 4. Follow established patterns and conventions
+5. See [Contributing Guidelines](./CONTRIBUTING.md)
 
 ## 📄 License
 
