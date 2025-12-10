@@ -191,7 +191,12 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
             Expanded(
               child: SingleChildScrollView(
                 controller: scrollController,
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  24,
+                  24,
+                  24 + MediaQuery.of(context).viewInsets.bottom,
+                ),
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -329,100 +334,248 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
             // Action Buttons
             Padding(
               padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        FocusScope.of(context).unfocus();
-                        Navigator.pop(context, false);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (formKey.currentState!.validate()) {
-                          try {
-                            // Dismiss keyboard before saving
-                            FocusScope.of(context).unfocus();
-
-                            // Format address as single string
-                            final formattedAddress =
-                                MasterConsignee.formatAddress(
-                              phone: phoneController.text.trim(),
-                              addressLine1: addr1Controller.text.trim(),
-                              addressLine2: addr2Controller.text.trim(),
-                              city: cityController.text.trim(),
-                              state: stateController.text.trim(),
-                              pincode: pincodeController.text.trim(),
-                              landmark: landmarkController.text.trim(),
-                            );
-
-                            final consigneeData = {
-                              'name': nameController.text.trim(),
-                              'address': formattedAddress,
-                              'phone': phoneController.text.trim(),
-                                'address_line1': addr1Controller.text.trim(),
-                                'address_line2': addr2Controller.text.trim(),
-                              'city': cityController.text.trim(),
-                              'state': stateController.text.trim(),
-                              'pincode': pincodeController.text.trim(),
-                              'landmark': landmarkController.text.trim(),
-                            };
-
-                            if (consignee == null) {
-                              await _dataService
-                                  .saveMasterConsignee(consigneeData);
-                              print(
-                                  '✅ MASTER_DATA_UI: New consignee saved: ${consigneeData['name']}');
-                            } else {
-                              await _dataService.updateMasterConsignee(
-                                  consignee.id, consigneeData);
-                              print(
-                                  '✅ MASTER_DATA_UI: Consignee updated: ${consigneeData['name']}');
-                            }
-
-                            // Close dialog first
-                            Navigator.pop(context, true);
-
-                            // Force immediate refresh after successful save
-                            await Future.delayed(
-                                const Duration(milliseconds: 100));
-                            await _loadConsignees();
-
-                            print(
-                                '🔄 MASTER_DATA_UI: Consignees refreshed after save');
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error saving consignee: $e'),
-                                backgroundColor: Colors.red,
+              child: consignee == null
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              FocusScope.of(context).unfocus();
+                              Navigator.pop(context, false);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
                         ),
-                      ),
-                      child: Text(consignee == null ? 'Add' : 'Update'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                try {
+                                  // Dismiss keyboard before saving
+                                  FocusScope.of(context).unfocus();
+
+                                  // Format address as single string
+                                  final formattedAddress =
+                                      MasterConsignee.formatAddress(
+                                    phone: phoneController.text.trim(),
+                                    addressLine1: addr1Controller.text.trim(),
+                                    addressLine2: addr2Controller.text.trim(),
+                                    city: cityController.text.trim(),
+                                    state: stateController.text.trim(),
+                                    pincode: pincodeController.text.trim(),
+                                    landmark: landmarkController.text.trim(),
+                                  );
+
+                                  final consigneeData = {
+                                    'name': nameController.text.trim(),
+                                    'address': formattedAddress,
+                                    'phone': phoneController.text.trim(),
+                                    'address_line1': addr1Controller.text.trim(),
+                                    'address_line2': addr2Controller.text.trim(),
+                                    'city': cityController.text.trim(),
+                                    'state': stateController.text.trim(),
+                                    'pincode': pincodeController.text.trim(),
+                                    'landmark': landmarkController.text.trim(),
+                                  };
+
+                                  await _dataService
+                                      .saveMasterConsignee(consigneeData);
+                                  print(
+                                      '✅ MASTER_DATA_UI: New consignee saved: ${consigneeData['name']}');
+
+                                  // Close dialog first
+                                  Navigator.pop(context, true);
+
+                                  // Force immediate refresh after successful save
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 100));
+                                  await _loadConsignees();
+
+                                  print(
+                                      '🔄 MASTER_DATA_UI: Consignees refreshed after save');
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error saving consignee: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Add'),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  FocusScope.of(context).unfocus();
+                                  Navigator.pop(context, false);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Delete Consignee'),
+                                      content: Text(
+                                          'Are you sure you want to delete "${consignee.name}"? This action cannot be undone.'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, true),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                          ),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirmed == true) {
+                                    try {
+                                      await _dataService.deleteMasterConsignee(consignee.id);
+                                      print('✅ MASTER_DATA_UI: Consignee deleted: ${consignee.name}');
+
+                                      // Close dialog first
+                                      Navigator.pop(context, true);
+
+                                      // Force immediate refresh after successful delete
+                                      await Future.delayed(
+                                          const Duration(milliseconds: 100));
+                                      await _loadConsignees();
+
+                                      print('🔄 MASTER_DATA_UI: Consignees refreshed after delete');
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Error deleting consignee: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                try {
+                                  // Dismiss keyboard before saving
+                                  FocusScope.of(context).unfocus();
+
+                                  // Format address as single string
+                                  final formattedAddress =
+                                      MasterConsignee.formatAddress(
+                                    phone: phoneController.text.trim(),
+                                    addressLine1: addr1Controller.text.trim(),
+                                    addressLine2: addr2Controller.text.trim(),
+                                    city: cityController.text.trim(),
+                                    state: stateController.text.trim(),
+                                    pincode: pincodeController.text.trim(),
+                                    landmark: landmarkController.text.trim(),
+                                  );
+
+                                  final consigneeData = {
+                                    'name': nameController.text.trim(),
+                                    'address': formattedAddress,
+                                    'phone': phoneController.text.trim(),
+                                    'address_line1': addr1Controller.text.trim(),
+                                    'address_line2': addr2Controller.text.trim(),
+                                    'city': cityController.text.trim(),
+                                    'state': stateController.text.trim(),
+                                    'pincode': pincodeController.text.trim(),
+                                    'landmark': landmarkController.text.trim(),
+                                  };
+
+                                  await _dataService.updateMasterConsignee(
+                                      consignee.id, consigneeData);
+                                  print(
+                                      '✅ MASTER_DATA_UI: Consignee updated: ${consigneeData['name']}');
+
+                                  // Close dialog first
+                                  Navigator.pop(context, true);
+
+                                  // Force immediate refresh after successful save
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 100));
+                                  await _loadConsignees();
+
+                                  print(
+                                      '🔄 MASTER_DATA_UI: Consignees refreshed after save');
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error saving consignee: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Update'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -618,40 +771,7 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
                                   ),
                                 ),
                               ),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _showAddEditDialog(consignee: consignee);
-                                  } else if (value == 'delete') {
-                                    _deleteConsignee(consignee);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Edit'),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete,
-                                            size: 20, color: Colors.red),
-                                        SizedBox(width: 8),
-                                        Text('Delete',
-                                            style:
-                                                TextStyle(color: Colors.red)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              onTap: () => _showAddEditDialog(consignee: consignee),
                             ),
                           );
                         },

@@ -191,7 +191,12 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
             Expanded(
               child: SingleChildScrollView(
                 controller: scrollController,
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  24,
+                  24,
+                  24 + MediaQuery.of(context).viewInsets.bottom,
+                ),
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -329,99 +334,247 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
             // Action Buttons
             Padding(
               padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        FocusScope.of(context).unfocus();
-                        Navigator.pop(context, false);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (formKey.currentState!.validate()) {
-                          try {
-                            // Dismiss keyboard before saving
-                            FocusScope.of(context).unfocus();
-
-                            // Format address as single string
-                            final formattedAddress =
-                                MasterShipper.formatAddress(
-                              phone: phoneController.text.trim(),
-                              addressLine1: addr1Controller.text.trim(),
-                              addressLine2: addr2Controller.text.trim(),
-                              city: cityController.text.trim(),
-                              state: stateController.text.trim(),
-                              pincode: pincodeController.text.trim(),
-                              landmark: landmarkController.text.trim(),
-                            );
-
-                            final shipperData = {
-                              'name': nameController.text.trim(),
-                              'address': formattedAddress,
-                              'phone': phoneController.text.trim(),
-                              'address_line1': addr1Controller.text.trim(),
-                              'address_line2': addr2Controller.text.trim(),
-                              'city': cityController.text.trim(),
-                              'state': stateController.text.trim(),
-                              'pincode': pincodeController.text.trim(),
-                              'landmark': landmarkController.text.trim(),
-                            };
-
-                            if (shipper == null) {
-                              await _dataService.saveMasterShipper(shipperData);
-                              print(
-                                  '✅ MASTER_DATA_UI: New shipper saved: ${shipperData['name']}');
-                            } else {
-                              await _dataService.updateMasterShipper(
-                                  shipper.id, shipperData);
-                              print(
-                                  '✅ MASTER_DATA_UI: Shipper updated: ${shipperData['name']}');
-                            }
-
-                            // Close dialog first
-                            Navigator.pop(context, true);
-
-                            // Force immediate refresh after successful save
-                            await Future.delayed(
-                                const Duration(milliseconds: 100));
-                            await _loadShippers();
-
-                            print(
-                                '🔄 MASTER_DATA_UI: Shippers refreshed after save');
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error saving shipper: $e'),
-                                backgroundColor: Colors.red,
+              child: shipper == null
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              FocusScope.of(context).unfocus();
+                              Navigator.pop(context, false);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
                         ),
-                      ),
-                      child: Text(shipper == null ? 'Add' : 'Update'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                try {
+                                  // Dismiss keyboard before saving
+                                  FocusScope.of(context).unfocus();
+
+                                  // Format address as single string
+                                  final formattedAddress =
+                                      MasterShipper.formatAddress(
+                                    phone: phoneController.text.trim(),
+                                    addressLine1: addr1Controller.text.trim(),
+                                    addressLine2: addr2Controller.text.trim(),
+                                    city: cityController.text.trim(),
+                                    state: stateController.text.trim(),
+                                    pincode: pincodeController.text.trim(),
+                                    landmark: landmarkController.text.trim(),
+                                  );
+
+                                  final shipperData = {
+                                    'name': nameController.text.trim(),
+                                    'address': formattedAddress,
+                                    'phone': phoneController.text.trim(),
+                                    'address_line1': addr1Controller.text.trim(),
+                                    'address_line2': addr2Controller.text.trim(),
+                                    'city': cityController.text.trim(),
+                                    'state': stateController.text.trim(),
+                                    'pincode': pincodeController.text.trim(),
+                                    'landmark': landmarkController.text.trim(),
+                                  };
+
+                                  await _dataService.saveMasterShipper(shipperData);
+                                  print(
+                                      '✅ MASTER_DATA_UI: New shipper saved: ${shipperData['name']}');
+
+                                  // Close dialog first
+                                  Navigator.pop(context, true);
+
+                                  // Force immediate refresh after successful save
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 100));
+                                  await _loadShippers();
+
+                                  print(
+                                      '🔄 MASTER_DATA_UI: Shippers refreshed after save');
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error saving shipper: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Add'),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  FocusScope.of(context).unfocus();
+                                  Navigator.pop(context, false);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Delete Shipper'),
+                                      content: Text(
+                                          'Are you sure you want to delete "${shipper.name}"? This action cannot be undone.'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, true),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                          ),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirmed == true) {
+                                    try {
+                                      await _dataService.deleteMasterShipper(shipper.id);
+                                      print('✅ MASTER_DATA_UI: Shipper deleted: ${shipper.name}');
+
+                                      // Close dialog first
+                                      Navigator.pop(context, true);
+
+                                      // Force immediate refresh after successful delete
+                                      await Future.delayed(
+                                          const Duration(milliseconds: 100));
+                                      await _loadShippers();
+
+                                      print('🔄 MASTER_DATA_UI: Shippers refreshed after delete');
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Error deleting shipper: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                try {
+                                  // Dismiss keyboard before saving
+                                  FocusScope.of(context).unfocus();
+
+                                  // Format address as single string
+                                  final formattedAddress =
+                                      MasterShipper.formatAddress(
+                                    phone: phoneController.text.trim(),
+                                    addressLine1: addr1Controller.text.trim(),
+                                    addressLine2: addr2Controller.text.trim(),
+                                    city: cityController.text.trim(),
+                                    state: stateController.text.trim(),
+                                    pincode: pincodeController.text.trim(),
+                                    landmark: landmarkController.text.trim(),
+                                  );
+
+                                  final shipperData = {
+                                    'name': nameController.text.trim(),
+                                    'address': formattedAddress,
+                                    'phone': phoneController.text.trim(),
+                                    'address_line1': addr1Controller.text.trim(),
+                                    'address_line2': addr2Controller.text.trim(),
+                                    'city': cityController.text.trim(),
+                                    'state': stateController.text.trim(),
+                                    'pincode': pincodeController.text.trim(),
+                                    'landmark': landmarkController.text.trim(),
+                                  };
+
+                                  await _dataService.updateMasterShipper(
+                                      shipper.id, shipperData);
+                                  print(
+                                      '✅ MASTER_DATA_UI: Shipper updated: ${shipperData['name']}');
+
+                                  // Close dialog first
+                                  Navigator.pop(context, true);
+
+                                  // Force immediate refresh after successful save
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 100));
+                                  await _loadShippers();
+
+                                  print(
+                                      '🔄 MASTER_DATA_UI: Shippers refreshed after save');
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error saving shipper: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Update'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -617,40 +770,7 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
                                   ),
                                 ),
                               ),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _showAddEditDialog(shipper: shipper);
-                                  } else if (value == 'delete') {
-                                    _deleteShipper(shipper);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Edit'),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete,
-                                            size: 20, color: Colors.red),
-                                        SizedBox(width: 8),
-                                        Text('Delete',
-                                            style:
-                                                TextStyle(color: Colors.red)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              onTap: () => _showAddEditDialog(shipper: shipper),
                             ),
                           );
                         },
