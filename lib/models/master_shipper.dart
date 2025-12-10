@@ -84,7 +84,24 @@ class MasterShipper {
       'pincode': pincode,
       'landmark': landmark,
       'createdAt': createdAt.millisecondsSinceEpoch,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': updatedAt?.millisecondsSinceEpoch ??
+          DateTime.now().millisecondsSinceEpoch,
+    };
+  }
+
+  /// Convert to update format (includes current timestamp)
+  Map<String, dynamic> toUpdateMap() {
+    return {
+      'name': name,
+      'address': address,
+      'phone': phone,
+      'address_line1': addressLine1,
+      'address_line2': addressLine2,
+      'city': city,
+      'state': state,
+      'pincode': pincode,
+      'landmark': landmark,
+      'updated_at': DateTime.now().millisecondsSinceEpoch,
     };
   }
 

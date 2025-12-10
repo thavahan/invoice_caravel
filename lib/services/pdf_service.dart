@@ -333,7 +333,7 @@ class PdfService {
                           color: PdfColors.blue800)),
                   pw.SizedBox(height: 3),
                   pw.Text(
-                      '741/19 Thiruvengadam Salai,Sankarankoil,Tirunelveli,Tamilnadu,627556',
+                      '741/19 Thiruvengadam Salai,Sankarankoil,\nTirunelveli,Tamilnadu,627556',
                       style: pw.TextStyle(
                           font: _regularFont!,
                           fontSize: 10,
