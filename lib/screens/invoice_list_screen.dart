@@ -711,8 +711,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(
-              color: Colors.blue,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -722,11 +722,11 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.end,
-                    children: const [
+                    children: [
                       Text(
                         'Invoice Manager',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
@@ -735,7 +735,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       Text(
                         'Manage your logistics invoices',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimary
+                              .withOpacity(0.7),
                           fontSize: 14,
                         ),
                       ),
@@ -743,9 +746,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.logout,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 28,
                   ),
                   tooltip: 'Logout',
@@ -755,17 +758,17 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             ),
           ),
           _buildDrawerItem(Icons.dashboard, 'Dashboard', true),
-          _buildDrawerItem(Icons.receipt_long, 'All Invoices', false),
-          _buildDrawerItem(Icons.pending, 'Pending Shipments', false),
-          _buildDrawerItem(Icons.local_shipping, 'In Transit', false),
-          _buildDrawerItem(Icons.check_circle, 'Delivered', false),
+          // _buildDrawerItem(Icons.receipt_long, 'All Invoices', false),
+          // _buildDrawerItem(Icons.pending, 'Pending Shipments', false),
+          // _buildDrawerItem(Icons.local_shipping, 'In Transit', false),
+          // _buildDrawerItem(Icons.check_circle, 'Delivered', false),
           _buildDrawerItem(Icons.cloud_sync, 'Sync to Cloud', false),
-          const Divider(),
+          // const Divider(),
           _buildDrawerItem(Icons.settings_applications, 'Master Data', false),
-          _buildDrawerItem(Icons.analytics, 'Reports', false),
-          _buildDrawerItem(Icons.inventory, 'Inventory', false),
-          _buildDrawerItem(Icons.people, 'Customers', false),
-          _buildDrawerItem(Icons.location_on, 'Tracking', false),
+          // _buildDrawerItem(Icons.analytics, 'Reports', false),
+          // _buildDrawerItem(Icons.inventory, 'Inventory', false),
+          // _buildDrawerItem(Icons.people, 'Customers', false),
+          // _buildDrawerItem(Icons.location_on, 'Tracking', false),
           const Divider(),
           _buildDrawerItem(Icons.settings, 'Settings', false),
           _buildThemeToggle(),
@@ -1116,17 +1119,22 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? Colors.blue : Colors.grey[600],
+        color: isSelected
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected ? Colors.blue : Colors.grey[800],
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurface,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
       selected: isSelected,
-      selectedTileColor: Colors.blue.withValues(alpha: 0.1),
+      selectedTileColor:
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
       onTap: () {
         Navigator.pop(context);
 
@@ -1152,12 +1160,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         return ListTile(
           leading: Icon(
             themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          title: const Text(
+          title: Text(
             'Dark Theme',
             style: TextStyle(
               fontWeight: FontWeight.normal,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           trailing: Switch(
@@ -1165,7 +1174,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             onChanged: (value) {
               themeProvider.toggleTheme();
             },
-            activeColor: Colors.blue,
+            activeColor: Theme.of(context).colorScheme.primary,
           ),
           onTap: () {
             themeProvider.toggleTheme();
@@ -1716,8 +1725,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: const Center(
@@ -1739,8 +1748,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             final calculatedTotals = _calculateInvoiceTotals(boxes);
 
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
@@ -1751,7 +1760,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                     width: 50,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withOpacity(0.4),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
@@ -1761,7 +1773,12 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+                        bottom: BorderSide(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withOpacity(0.3),
+                            width: 1),
                       ),
                     ),
                     child: Row(
@@ -1775,7 +1792,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.grey[800],
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -1784,7 +1802,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                     'Untitled Invoice',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1800,7 +1820,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                             // Edit button
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.blue[50],
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: IconButton(
@@ -1808,8 +1830,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                   Navigator.pop(context); // Close bottom sheet
                                   _editInvoice(detailedInvoice);
                                 },
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
+                                icon: Icon(Icons.edit,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimaryContainer),
                                 tooltip: 'Edit Invoice',
                               ),
                             ),
@@ -1818,15 +1842,19 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                             // Export/Print button
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.green[50],
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: IconButton(
                                 onPressed: () {
                                   _showExportOptions(context, detailedInvoice);
                                 },
-                                icon: const Icon(Icons.print,
-                                    color: Colors.green),
+                                icon: Icon(Icons.print,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSecondaryContainer),
                                 tooltip: 'Export/Print',
                               ),
                             ),
@@ -1835,7 +1863,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                             // More options button
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.grey[100],
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: PopupMenuButton<String>(
@@ -1852,7 +1882,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                   }
                                 },
                                 icon: Icon(Icons.more_vert,
-                                    color: Colors.grey[600]),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant),
                                 itemBuilder: (context) => [
                                   const PopupMenuItem(
                                     value: 'status',
@@ -1862,13 +1894,19 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                                       contentPadding: EdgeInsets.zero,
                                     ),
                                   ),
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: 'delete',
                                     child: ListTile(
                                       leading: Icon(Icons.delete,
-                                          color: Colors.red, size: 20),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error,
+                                          size: 20),
                                       title: Text('Delete',
-                                          style: TextStyle(color: Colors.red)),
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .error)),
                                       contentPadding: EdgeInsets.zero,
                                     ),
                                   ),
@@ -2092,7 +2130,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               '$label:',
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
-                color: isTotal ? Colors.black : Colors.grey,
+                color: isTotal
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: isTotal ? 16 : 14,
               ),
             ),
@@ -2103,7 +2143,9 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               style: TextStyle(
                 fontSize: isTotal ? 18 : 16,
                 fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-                color: isTotal ? Colors.green[700] : Colors.black,
+                color: isTotal
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -2391,13 +2433,14 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue[50],
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
               children: [
-                Icon(Icons.inventory_2, size: 20, color: Colors.blue[700]),
+                Icon(Icons.inventory_2,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -2408,7 +2451,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue[800],
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -2416,7 +2459,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                         '${boxes.length} boxes containing ${_getTotalProducts(boxes)} items',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.blue[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -2426,7 +2469,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.blue[100],
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -2434,7 +2477,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: Colors.blue[700],
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
                   ),
                 ),
@@ -2449,7 +2492,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             itemCount: boxes.length,
             separatorBuilder: (context, index) => Divider(
               height: 1,
-              color: Colors.grey[200],
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
             ),
             itemBuilder: (context, index) => _buildBoxItem(boxes[index], index),
           ),
@@ -2485,28 +2528,34 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.orange[100],
+          color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(Icons.inventory, color: Colors.orange[700], size: 20),
+        child: Icon(Icons.inventory,
+            color: Theme.of(context).colorScheme.onPrimaryContainer, size: 20),
       ),
       title: Text(
         boxNumber,
-        style: const TextStyle(fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Weight: ${boxWeight.toStringAsFixed(2)} kg • Value: \$${boxTotal.toStringAsFixed(2)}',
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12),
           ),
         ],
       ),
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.green[100],
+          color: Theme.of(context).colorScheme.secondaryContainer,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
@@ -2514,7 +2563,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: Colors.green[700],
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
           ),
         ),
       ),
@@ -2546,9 +2595,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       margin: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -2556,10 +2606,11 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.blue[100],
+              color: Theme.of(context).colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(Icons.category, color: Colors.blue[700], size: 16),
+            child: Icon(Icons.category,
+                color: Theme.of(context).colorScheme.primary, size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2579,7 +2630,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                 Text(
                   structuredDetails,
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 12,
                   ),
                   maxLines: 1,
@@ -2589,7 +2640,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                 Text(
                   '${weight}kg × \$${rate.toStringAsFixed(2)} = \$${productTotal.toStringAsFixed(2)}',
                   style: TextStyle(
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -2645,20 +2696,21 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: Colors.grey[700]),
+                Icon(icon,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   title,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -2847,8 +2899,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(20),
@@ -2859,7 +2911,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               width: 50,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withOpacity(0.4),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -2869,7 +2924,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 20),
@@ -2885,11 +2940,12 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.red[50],
+                          color: Theme.of(context).colorScheme.errorContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child:
-                            const Icon(Icons.picture_as_pdf, color: Colors.red),
+                        child: Icon(Icons.picture_as_pdf,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer),
                       ),
                       title: const Text('Export as PDF'),
                       subtitle: const Text('Save invoice as PDF document'),
@@ -2905,11 +2961,14 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.green[50],
+                          color:
+                              Theme.of(context).colorScheme.secondaryContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child:
-                            const Icon(Icons.table_chart, color: Colors.green),
+                        child: Icon(Icons.table_chart,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSecondaryContainer),
                       ),
                       title: const Text('Export as Excel'),
                       subtitle: const Text('Save invoice data as spreadsheet'),
@@ -2925,10 +2984,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.blue[50],
+                          color: Theme.of(context).colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.print, color: Colors.blue),
+                        child: Icon(Icons.print,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer),
                       ),
                       title: const Text('Print Invoice'),
                       subtitle: const Text('Print physical copy'),
@@ -2944,10 +3006,14 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.orange[50],
+                          color:
+                              Theme.of(context).colorScheme.tertiaryContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.share, color: Colors.orange),
+                        child: Icon(Icons.share,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onTertiaryContainer),
                       ),
                       title: const Text('Share Invoice'),
                       subtitle: const Text('Share via email or messaging'),
@@ -2963,10 +3029,11 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.purple[50],
+                          color: Theme.of(context).colorScheme.surfaceContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.email, color: Colors.purple),
+                        child: Icon(Icons.email,
+                            color: Theme.of(context).colorScheme.onSurface),
                       ),
                       title: const Text('Email Invoice'),
                       subtitle: const Text('Send invoice via email'),

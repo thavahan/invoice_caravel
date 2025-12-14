@@ -15,9 +15,18 @@ class InvoiceForm extends StatefulWidget {
 
   const InvoiceForm({Key? key, this.draftData}) : super(key: key);
 
+  // Static method to refresh master data in all open invoice forms
+  static void refreshMasterData() {
+    // This will be implemented to notify all open forms to refresh
+    _refreshCallbacks.forEach((callback) => callback());
+  }
+
   @override
   InvoiceFormState createState() => InvoiceFormState();
 }
+
+// Static list to hold refresh callbacks from all open invoice forms
+List<VoidCallback> _refreshCallbacks = [];
 
 class InvoiceFormState extends State<InvoiceForm>
     with TickerProviderStateMixin {
@@ -156,7 +165,6 @@ class InvoiceFormState extends State<InvoiceForm>
 
   // Product form state
   String? selectedFlowerType;
-  bool hasStems = false; // Default to No
 
   // Base approx quantity from product type for calculation
   int? baseApproxQuantity;
@@ -175,6 +183,9 @@ class InvoiceFormState extends State<InvoiceForm>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _animationController.forward();
+
+    // Register this form for refresh callbacks
+    _refreshCallbacks.add(_refreshMasterData);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Only load initial data if this is a NEW form (not editing existing data)
@@ -278,7 +289,22 @@ class InvoiceFormState extends State<InvoiceForm>
     _approxQuantityController.dispose();
     _pageController.dispose();
     _animationController.dispose();
+
+    // Remove this form from refresh callbacks
+    _refreshCallbacks.remove(_refreshMasterData);
+
     super.dispose();
+  }
+
+  // Method to refresh master data when called externally
+  void _refreshMasterData() {
+    if (mounted) {
+      debugPrint(
+          '🔄 INVOICE_FORM: Refreshing master data due to external update');
+      _loadMasterDataFromLocal().catchError((e) {
+        debugPrint('⚠️ INVOICE_FORM: Error refreshing master data: $e');
+      });
+    }
   }
 
   // Custom method to show success messages at the top without interfering with bottom buttons
@@ -509,6 +535,8 @@ class InvoiceFormState extends State<InvoiceForm>
                     'name': item.name ?? 'Unknown Product Type',
                     'approx_quantity':
                         item.approxQuantity ?? 1, // Use database field name
+                    'has_stems':
+                        item.hasStems ?? false, // Include has_stems field
                   };
                 }
               })
@@ -620,6 +648,8 @@ class InvoiceFormState extends State<InvoiceForm>
                     'name': productType.name,
                     'approx_quantity':
                         productType.approxQuantity, // Use database field name
+                    'has_stems':
+                        productType.hasStems, // Include has_stems field
                   })
               .toList();
 
@@ -867,13 +897,13 @@ class InvoiceFormState extends State<InvoiceForm>
                     ),
                   ),
                 ),
-
-                // Navigation Footer - Hide when adding product
-                if (!isAddingNewProduct)
-                  _buildNavigationFooter(invoiceProvider),
               ],
             ),
           ),
+          // Navigation Footer - Move to bottomNavigationBar to prevent overflow
+          bottomNavigationBar: !isAddingNewProduct
+              ? _buildNavigationFooter(invoiceProvider)
+              : null,
         );
       },
     );
@@ -1348,7 +1378,7 @@ class InvoiceFormState extends State<InvoiceForm>
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
-                          'Boxes & Items Management',
+                          'Boxes Management',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -1504,7 +1534,8 @@ class InvoiceFormState extends State<InvoiceForm>
             ),
           ),
 
-          const SizedBox(height: 100),
+          // Reduced spacing since navigation is now in bottomNavigationBar
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1525,69 +1556,67 @@ class InvoiceFormState extends State<InvoiceForm>
           ),
         ],
       ),
-      child: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Previous Button - Only show when NOT on first step
-            if (currentStep > 0)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    // Dismiss keyboard before navigation
-                    FocusScope.of(context).unfocus();
-                    if (currentStep > 0) {
-                      _pageController.previousPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Previous'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              )
-            else
-              // Empty space when on first step
-              const Expanded(child: SizedBox()),
-
-            const SizedBox(width: 16),
-
-            // Next/Complete Button - Always show
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Previous Button - Only show when NOT on first step
+          if (currentStep > 0)
             Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () async {
+              child: OutlinedButton.icon(
+                onPressed: () {
                   // Dismiss keyboard before navigation
                   FocusScope.of(context).unfocus();
-                  if (currentStep < 2) {
-                    // Go to next step
-                    _pageController.nextPage(
+                  if (currentStep > 0) {
+                    _pageController.previousPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     );
-                  } else {
-                    // Complete the form
-                    await _completeForm(invoiceProvider);
                   }
                 },
-                icon: Icon(currentStep < 2 ? Icons.arrow_forward : Icons.check),
-                label: Text(currentStep < 2 ? 'Next' : 'Complete'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Previous'),
+                style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
               ),
+            )
+          else
+            // Empty space when on first step
+            const Expanded(child: SizedBox()),
+
+          const SizedBox(width: 16),
+
+          // Next/Complete Button - Always show
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                // Dismiss keyboard before navigation
+                FocusScope.of(context).unfocus();
+                if (currentStep < 2) {
+                  // Go to next step
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                } else {
+                  // Complete the form
+                  await _completeForm(invoiceProvider);
+                }
+              },
+              icon: Icon(currentStep < 2 ? Icons.arrow_forward : Icons.check),
+              label: Text(currentStep < 2 ? 'Next' : 'Complete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -2502,7 +2531,6 @@ class InvoiceFormState extends State<InvoiceForm>
       _itemWeightController.clear();
       _itemRateController.clear();
       selectedFlowerType = null;
-      hasStems = false;
       _approxQuantityController.clear();
       selectedProductTypeId = null;
       baseApproxQuantity = null;
@@ -2516,7 +2544,6 @@ class InvoiceFormState extends State<InvoiceForm>
                   .any((ft) => ft['flower_name'] == product.flowerType)
           ? product.flowerType
           : null; // null will show "Select Flower Type"
-      hasStems = product.hasStems;
       _approxQuantityController.text = product.approxQuantity.toString();
 
       // Set product type ID if it matches master data
@@ -2593,6 +2620,27 @@ class InvoiceFormState extends State<InvoiceForm>
       return;
     }
 
+    // Get hasStems from selected product type
+    bool productHasStems = false;
+    if (selectedProductTypeId != null && selectedProductTypeId != 'custom') {
+      try {
+        final Map<String, dynamic> productType = masterProductTypes
+            .firstWhere((pt) => pt['id'] == selectedProductTypeId);
+        final hasStemsValue = productType['has_stems'];
+        if (hasStemsValue is bool) {
+          productHasStems = hasStemsValue;
+        } else if (hasStemsValue is int) {
+          productHasStems = hasStemsValue == 1;
+        } else {
+          productHasStems = false;
+        }
+        debugPrint(
+            '🎯 PRODUCT_TYPE: Selected "${productType['name']}" with hasStems=$productHasStems (raw value: $hasStemsValue)');
+      } catch (e) {
+        debugPrint('Error getting hasStems from product type: $e');
+      }
+    }
+
     setState(() {
       final product = ShipmentProduct(
         id: editingProductIndex != null
@@ -2601,8 +2649,8 @@ class InvoiceFormState extends State<InvoiceForm>
         boxId: shipmentBoxes[selectedBoxIndex!].id,
         type: _productTypeController.text,
         description: '', // No longer used
-        flowerType: selectedFlowerType ?? '',
-        hasStems: hasStems,
+        flowerType: selectedFlowerType ?? 'LOOSE FLOWERS',
+        hasStems: productHasStems,
         weight: weight,
         rate: rate,
         approxQuantity: approxQuantity,
@@ -2654,8 +2702,8 @@ class InvoiceFormState extends State<InvoiceForm>
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
             colors: [
-              Colors.green[50]!,
-              Colors.green[100]!,
+              Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+              Theme.of(context).colorScheme.primaryContainer.withOpacity(0.6),
             ],
           ),
         ),
@@ -2665,23 +2713,24 @@ class InvoiceFormState extends State<InvoiceForm>
             Row(
               children: [
                 Icon(Icons.add_shopping_cart,
-                    color: Colors.green[700], size: 28),
+                    color: Theme.of(context).colorScheme.primary, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     editingProductIndex != null
                         ? 'Edit Product'
                         : 'Add New Product',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: _cancelAddingProduct,
                   icon: const Icon(Icons.close),
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -2778,28 +2827,6 @@ class InvoiceFormState extends State<InvoiceForm>
                 },
               ),
             ),
-
-            // Has Stems Toggle
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              child: SwitchListTile(
-                title: const Text('Has Stems?'),
-                value: hasStems,
-                onChanged: (value) {
-                  setState(() {
-                    hasStems = value;
-                  });
-                },
-                secondary: Icon(
-                  hasStems ? Icons.grass : Icons.grass_outlined,
-                  color: Theme.of(context).primaryColor,
-                ),
-                activeColor: Theme.of(context).primaryColor,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-
-            const SizedBox(height: 16),
 
             // Weight and Rate Row
             Row(
@@ -2960,8 +2987,13 @@ class InvoiceFormState extends State<InvoiceForm>
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: productCount > 0
-                                    ? Colors.green[100]
-                                    : Colors.grey[100],
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withOpacity(0.3)
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerLow,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -2969,8 +3001,10 @@ class InvoiceFormState extends State<InvoiceForm>
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: productCount > 0
-                                      ? Colors.green[700]
-                                      : Colors.grey[600],
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -3040,16 +3074,21 @@ class InvoiceFormState extends State<InvoiceForm>
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.grey[50],
+                        color:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.grey[200]!),
+                        border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withOpacity(0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.local_florist,
                             size: 18,
-                            color: Colors.green,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -3130,7 +3169,6 @@ class InvoiceFormState extends State<InvoiceForm>
       _itemWeightController.clear();
       _itemRateController.clear();
       selectedFlowerType = null;
-      hasStems = false;
       _approxQuantityController.text = '0';
       // Reset base approx quantity when starting new product
       baseApproxQuantity = null;
@@ -3357,20 +3395,24 @@ class InvoiceFormState extends State<InvoiceForm>
             invoiceProvider.createShipmentWithBoxes(shipment, boxesData);
       }
 
-      // Navigate immediately while save operation continues in background
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
-
-      // Wait for the save operation to complete and show appropriate feedback
+      // Wait for the save operation to complete before navigating
       try {
         await saveOperation;
         debugPrint(
             '✅ Shipment ${isUpdate ? 'updated' : 'created'} successfully');
+
+        // Navigate back after successful save
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       } catch (e) {
-        debugPrint('❌ Background save error: $e');
-        // Note: We don't show error to user since they've already navigated away
-        // The error will be logged and sync can handle it later
+        debugPrint('❌ Save error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to save shipment: ${e.toString()}')),
+          );
+        }
+        return; // Don't navigate if save failed
       }
     } catch (e) {
       debugPrint('❌ Error completing form: $e');

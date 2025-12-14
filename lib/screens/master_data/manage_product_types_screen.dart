@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/models/master_product_type.dart';
+import 'package:invoice_generator/screens/invoice_form/invoice_form.dart';
 
 /// Screen for managing master product types data
 class ManageProductTypesScreen extends StatefulWidget {
@@ -88,101 +89,307 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
     final approxQuantityController = TextEditingController(
         text: productType?.approxQuantity.toString() ?? '1');
     final formKey = GlobalKey<FormState>();
+    bool hasStems = productType?.hasStems ?? false; // Default to No stems
 
-    await showDialog<bool>(
+    await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-            productType == null ? 'Add Product Type' : 'Edit Product Type'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Type Name *',
-                    border: OutlineInputBorder(),
-                  ),
-                  textCapitalization: TextCapitalization.words,
-                  validator: (value) =>
-                      value?.trim().isEmpty == true ? 'Name is required' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: approxQuantityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Approximate Quantity *',
-                    hintText: 'Enter estimated quantity per shipment',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value?.trim().isEmpty == true) {
-                      return 'Approximate quantity is required';
-                    }
-                    final quantity = int.tryParse(value!);
-                    if (quantity == null || quantity <= 0) {
-                      return 'Please enter a valid positive number';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                try {
-                  final productTypeData = {
-                    'name': nameController.text.trim(),
-                    'approx_quantity':
-                        int.tryParse(approxQuantityController.text) ?? 1,
-                  };
-
-                  if (productType == null) {
-                    await _dataService.saveMasterProductType(productTypeData);
-                  } else {
-                    await _dataService.updateMasterProductType(
-                        productType.id, productTypeData);
-                  }
-
-                  // Close dialog first
-                  Navigator.pop(context, true);
-
-                  // Force immediate refresh after successful save
-                  await Future.delayed(const Duration(milliseconds: 100));
-                  await _loadProductTypes();
-                } catch (e) {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error saving product type: $e'),
-                      backgroundColor: Colors.red,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) => Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      productType == null
+                          ? 'Add Product Type'
+                          : 'Edit Product Type',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
-                  );
-                }
-              }
-            },
-            child: Text(productType == null ? 'Add' : 'Update'),
-          ),
-        ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Form Content
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  24,
+                  24,
+                  24 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Product Type Name *',
+                          prefixIcon: const Icon(Icons.category),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (value) => value?.trim().isEmpty == true
+                            ? 'Name is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: approxQuantityController,
+                        decoration: InputDecoration(
+                          labelText: 'Approximate Quantity *',
+                          hintText: 'Enter estimated quantity per shipment',
+                          prefixIcon: const Icon(Icons.numbers),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value?.trim().isEmpty == true) {
+                            return 'Approximate quantity is required';
+                          }
+                          final quantity = int.tryParse(value!);
+                          if (quantity == null || quantity <= 0) {
+                            return 'Please enter a valid positive number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      StatefulBuilder(
+                        builder: (context, setState) => SwitchListTile(
+                          title: const Text('Has Stems'),
+                          subtitle:
+                              const Text('Whether this product type has stems'),
+                          value: hasStems,
+                          onChanged: (value) {
+                            setState(() {
+                              hasStems = value ?? false;
+                            });
+                          },
+                          secondary: const Icon(Icons.grass),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Action Buttons
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: productType == null
+                  ? SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (formKey.currentState!.validate()) {
+                            try {
+                              // Dismiss keyboard before saving
+                              FocusScope.of(context).unfocus();
+
+                              final productTypeData = {
+                                'name': nameController.text.trim(),
+                                'approx_quantity': int.tryParse(
+                                        approxQuantityController.text) ??
+                                    1,
+                                'has_stems': hasStems ? 1 : 0,
+                              };
+
+                              await _dataService
+                                  .saveMasterProductType(productTypeData);
+
+                              // Close dialog first
+                              Navigator.pop(context, true);
+
+                              // Force immediate refresh after successful save
+                              await Future.delayed(
+                                  const Duration(milliseconds: 100));
+                              await _loadProductTypes();
+                            } catch (e) {
+                              ScaffoldMessenger.of(context)
+                                  .hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content:
+                                      Text('Error saving product type: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Add'),
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Delete Product Type'),
+                                  content: Text(
+                                      'Are you sure you want to delete "${productType.name}"? This action cannot be undone.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                      ),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirmed == true) {
+                                try {
+                                  await _dataService
+                                      .deleteMasterProductType(productType.id);
+                                  print(
+                                      '✅ Product type deleted: ${productType.name}');
+
+                                  // Close dialog first
+                                  Navigator.pop(context, true);
+
+                                  // Force immediate refresh after successful delete
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 100));
+                                  await _loadProductTypes();
+
+                                  print(
+                                      '🔄 Product types refreshed after delete');
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context)
+                                      .hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Error deleting product type: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                try {
+                                  // Dismiss keyboard before saving
+                                  FocusScope.of(context).unfocus();
+
+                                  final productTypeData = {
+                                    'name': nameController.text.trim(),
+                                    'approx_quantity': int.tryParse(
+                                            approxQuantityController.text) ??
+                                        1,
+                                    'has_stems': hasStems ? 1 : 0,
+                                  };
+
+                                  await _dataService.updateMasterProductType(
+                                      productType.id, productTypeData);
+
+                                  // Close dialog first
+                                  Navigator.pop(context, true);
+
+                                  // Force immediate refresh after successful save
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 100));
+                                  await _loadProductTypes();
+
+                                  print(
+                                      '🔄 Product types refreshed after save');
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context)
+                                      .hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text('Error saving product type: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Update'),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
 
-    // Controllers will be disposed by the frame callback
-    // Refresh is handled inside the dialog save action
-
-    // Dispose controllers after the current frame to avoid using disposed controllers
+    // Dispose controllers after the current frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       nameController.dispose();
       approxQuantityController.dispose();
@@ -421,51 +628,51 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
                               ),
                               subtitle: Padding(
                                 padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  'Approx. Quantity: ${productType.approxQuantity}',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                    fontSize: 14,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Approx. Quantity: ${productType.approxQuantity}',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          productType.hasStems
+                                              ? Icons.grass
+                                              : Icons.grass_outlined,
+                                          size: 16,
+                                          color: productType.hasStems
+                                              ? Colors.green
+                                              : Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          productType.hasStems
+                                              ? 'Has Stems'
+                                              : 'No Stems',
+                                          style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _showAddEditDialog(
-                                        productType: productType);
-                                  } else if (value == 'delete') {
-                                    _deleteProductType(productType);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Edit'),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete,
-                                            size: 20, color: Colors.red),
-                                        SizedBox(width: 8),
-                                        Text('Delete',
-                                            style:
-                                                TextStyle(color: Colors.red)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              onTap: () =>
+                                  _showAddEditDialog(productType: productType),
                             ),
                           );
                         },

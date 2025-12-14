@@ -42,7 +42,7 @@ class DatabaseService {
 
       final db = await openDatabase(
         path,
-        version: 1, // Database version with user isolation
+        version: 2, // Database version with updated flower_types table
         onCreate: _createTables,
         onUpgrade: _upgradeDatabase,
       );
@@ -149,7 +149,8 @@ class DatabaseService {
           user_id TEXT NOT NULL,
           flower_name TEXT NOT NULL,
           description TEXT,
-          created_at INTEGER NOT NULL
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER
         )
       ''');
 

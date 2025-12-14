@@ -65,102 +65,186 @@ class _ManageFlowerTypesScreenState extends State<ManageFlowerTypesScreen> {
         TextEditingController(text: flowerType?.flowerName ?? '');
     final formKey = GlobalKey<FormState>();
 
-    await showDialog<bool>(
+    await showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title:
-            Text(flowerType == null ? 'Add Flower Type' : 'Edit Flower Type'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: nameController,
-            decoration: const InputDecoration(
-              labelText: 'Flower Type *',
-              border: OutlineInputBorder(),
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Text(
+                        flowerType == null
+                            ? 'Add Flower Type'
+                            : 'Edit Flower Type',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Form Fields
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Flower Type *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.local_florist),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (value) => value?.trim().isEmpty == true
+                        ? 'Name is required'
+                        : null,
+                  ),
+                  const SizedBox(height: 24),
+                  // Buttons
+                  Row(
+                    children: [
+                      if (flowerType != null) ...[
+                        // Delete button (only for editing)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Delete Flower Type'),
+                                  content: Text(
+                                      'Delete "${flowerType.flowerName}"?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                      ),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirmed == true) {
+                                try {
+                                  await _dataService
+                                      .deleteFlowerType(flowerType.id);
+                                  Navigator.pop(context); // Close bottom sheet
+                                  await _loadFlowerTypes();
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Error deleting flower type: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            icon: const Icon(Icons.delete, color: Colors.white),
+                            label: const Text('Delete'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      // Add/Update button
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (formKey.currentState!.validate()) {
+                              try {
+                                final data = {
+                                  'flower_name': nameController.text.trim(),
+                                  'description': '',
+                                };
+
+                                if (flowerType == null) {
+                                  await _dataService.saveFlowerType(data);
+                                } else {
+                                  await _dataService.updateFlowerType(
+                                      flowerType.id, data);
+                                }
+
+                                Navigator.pop(context);
+                                await Future.delayed(
+                                    const Duration(milliseconds: 100));
+                                await _loadFlowerTypes();
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Error saving flower type: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          icon: Icon(
+                            flowerType == null ? Icons.add : Icons.save,
+                            color: Colors.white,
+                          ),
+                          label: Text(flowerType == null ? 'Add' : 'Update'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                flowerType == null ? Colors.blue : Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Add extra bottom padding to prevent overflow
+                  SizedBox(
+                      height: MediaQuery.of(context).viewInsets.bottom > 0
+                          ? 8
+                          : 16),
+                ],
+              ),
             ),
-            textCapitalization: TextCapitalization.words,
-            validator: (value) =>
-                value?.trim().isEmpty == true ? 'Name is required' : null,
           ),
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                try {
-                  final data = {
-                    'flower_name': nameController.text.trim(),
-                    'description': '',
-                  };
-
-                  if (flowerType == null) {
-                    await _dataService.saveFlowerType(data);
-                  } else {
-                    await _dataService.updateFlowerType(flowerType.id, data);
-                  }
-
-                  Navigator.pop(context, true);
-                  await Future.delayed(const Duration(milliseconds: 100));
-                  await _loadFlowerTypes();
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Error saving flower type: $e'),
-                        backgroundColor: Colors.red),
-                  );
-                }
-              }
-            },
-            child: Text(flowerType == null ? 'Add' : 'Update'),
-          ),
-        ],
       ),
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       nameController.dispose();
     });
-  }
-
-  Future<void> _deleteFlowerType(FlowerType flowerType) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Flower Type'),
-        content: Text('Delete "${flowerType.flowerName}"?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Delete')),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _dataService.deleteFlowerType(flowerType.id);
-        await _loadFlowerTypes();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('"${flowerType.flowerName}" deleted'),
-                backgroundColor: Colors.green),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Error deleting: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 
   @override
@@ -214,6 +298,9 @@ class _ManageFlowerTypesScreenState extends State<ManageFlowerTypesScreen> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(16),
                         leading: CircleAvatar(
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
                             child: Icon(Icons.local_florist,
                                 color: Theme.of(context).colorScheme.primary)),
                         title: Text(f.flowerName,
@@ -222,33 +309,7 @@ class _ManageFlowerTypesScreenState extends State<ManageFlowerTypesScreen> {
                         subtitle: f.description.isNotEmpty
                             ? Text(f.description)
                             : null,
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              _showAddEditDialog(flowerType: f);
-                            } else if (value == 'delete') {
-                              _deleteFlowerType(f);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                                value: 'edit',
-                                child: Row(children: [
-                                  Icon(Icons.edit, size: 20),
-                                  SizedBox(width: 8),
-                                  Text('Edit')
-                                ])),
-                            const PopupMenuItem(
-                                value: 'delete',
-                                child: Row(children: [
-                                  Icon(Icons.delete,
-                                      size: 20, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text('Delete',
-                                      style: TextStyle(color: Colors.red))
-                                ])),
-                          ],
-                        ),
+                        onTap: () => _showAddEditDialog(flowerType: f),
                       ),
                     );
                   },

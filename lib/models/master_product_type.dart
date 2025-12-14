@@ -5,6 +5,7 @@ class MasterProductType {
   final String id;
   final String name;
   final int approxQuantity;
+  final bool hasStems;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -12,6 +13,7 @@ class MasterProductType {
     required this.id,
     required this.name,
     required this.approxQuantity,
+    required this.hasStems,
     required this.createdAt,
     this.updatedAt,
   });
@@ -22,6 +24,7 @@ class MasterProductType {
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       approxQuantity: (map['approx_quantity'] ?? 1).toInt(),
+      hasStems: (map['has_stems'] ?? 0) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
       updatedAt: map['updated_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['updated_at'])
@@ -35,6 +38,7 @@ class MasterProductType {
       'id': id,
       'name': name,
       'approx_quantity': approxQuantity,
+      'has_stems': hasStems ? 1 : 0,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt?.millisecondsSinceEpoch,
     };
@@ -53,6 +57,7 @@ class MasterProductType {
     String? id,
     String? name,
     int? approxQuantity,
+    bool? hasStems,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -60,6 +65,7 @@ class MasterProductType {
       id: id ?? this.id,
       name: name ?? this.name,
       approxQuantity: approxQuantity ?? this.approxQuantity,
+      hasStems: hasStems ?? this.hasStems,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

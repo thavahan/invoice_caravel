@@ -256,7 +256,7 @@ class FirebaseService {
       _logger.i('Saving shipment $normalizedInvoiceNumber to Firebase...');
 
       final shipmentData = {
-        ...shipment.toMap(),
+        ...shipment.toFirebase(),
         'invoiceNumber': normalizedInvoiceNumber,
         'awb': normalizedAwb,
         'userId': currentUserId,
@@ -550,7 +550,7 @@ class FirebaseService {
       await firestore
           .collection('${_userPath}/shipments')
           .doc(normalizedInvoiceNumber)
-          .update(data);
+          .set(data, SetOptions(merge: true));
 
       _logger.i('Shipment $invoiceNumber updated successfully in Firebase');
       print(

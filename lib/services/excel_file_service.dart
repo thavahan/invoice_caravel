@@ -1043,7 +1043,7 @@ class ExcelFileService {
     final approxQuantity = product['approxQuantity'] ?? 0;
 
     // Format: TYPE - WEIGHT KG (FLOWER TYPE, STEMS STATUS, APPROX QUANTITY)
-    final stemsText = hasStems ? 'WITH STEMS' : 'NO STEMS';
+    final stemsText = hasStems ? '' : 'NO STEMS';
     final productDetails =
         '• $type - ${weight}KG ($flowerType, $stemsText, APPROX $approxQuantity NOS)';
 

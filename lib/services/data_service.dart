@@ -657,10 +657,20 @@ class DataService {
     // Run Firebase backup in the background without blocking UI
     Future.delayed(Duration.zero, () async {
       try {
-        if (await _isFirebaseAvailable()) {
+        _logger.i(
+            '🔄 Starting Firebase backup for shipment: ${shipment.invoiceNumber}');
+        final isFirebaseInitialized = _firebaseService.isInitialized;
+        final currentUserId = _firebaseService.currentUserId;
+        final forceOffline = _forceOffline;
+
+        _logger.i(
+            '📊 Firebase backup status - Initialized: $isFirebaseInitialized, UserID: $currentUserId, ForceOffline: $forceOffline');
+
+        if (!forceOffline && isFirebaseInitialized && currentUserId != null) {
+          _logger.i('🔥 Attempting to backup shipment to Firebase...');
           await _firebaseService.saveShipment(shipment);
           _logger.i(
-              'Shipment ${shipment.invoiceNumber} backed up to Firebase successfully');
+              '✅ Shipment ${shipment.invoiceNumber} backed up to Firebase successfully');
 
           // Update save status to reflect successful Firebase backup
           _lastSaveStatus = {
@@ -669,14 +679,67 @@ class DataService {
             'saveTime': DateTime.now().toIso8601String(),
           };
         } else {
-          _logger.w('Firebase not available for shipment backup');
+          if (forceOffline) {
+            _logger
+                .i('⏸️ Firebase backup skipped - Force offline mode enabled');
+          } else if (!isFirebaseInitialized) {
+            _logger.w('⚠️ Firebase backup skipped - Firebase not initialized');
+          } else if (currentUserId == null) {
+            _logger.w('⚠️ Firebase backup skipped - User not authenticated');
+          }
         }
-      } catch (e) {
+      } catch (e, s) {
         _logger.w(
-            'Failed to backup shipment to Firebase (local save succeeded)', e);
+            '❌ Failed to backup shipment to Firebase (local save succeeded)',
+            e,
+            s);
         // Don't block or throw - this is just backup
       }
     });
+  }
+
+  /// Force synchronous shipment update to both local and Firebase
+  /// Use this when you need to ensure Firebase is updated immediately
+  Future<void> forceUpdateShipmentSync(Shipment shipment) async {
+    // Update local first
+    try {
+      await _localService.saveShipment(shipment);
+      _logger.i('✅ Shipment updated in local database successfully');
+    } catch (e) {
+      _logger.e('❌ Failed to update shipment in local database', e);
+      throw Exception('Failed to update shipment in local database: $e');
+    }
+
+    // Then update Firebase synchronously
+    try {
+      _logger.i('🔄 Force updating shipment in Firebase...');
+      final isFirebaseInitialized = _firebaseService.isInitialized;
+      final currentUserId = _firebaseService.currentUserId;
+      final forceOffline = _forceOffline;
+
+      _logger.i(
+          '📊 Firebase status - Initialized: $isFirebaseInitialized, UserID: $currentUserId, ForceOffline: $forceOffline');
+
+      if (!forceOffline && isFirebaseInitialized && currentUserId != null) {
+        _logger.i('🔥 Synchronously updating shipment in Firebase...');
+        await _firebaseService.saveShipment(shipment);
+        _logger.i('✅ Shipment successfully updated in Firebase');
+      } else {
+        if (forceOffline) {
+          _logger.i('⏸️ Firebase update skipped - Force offline mode enabled');
+        } else if (!isFirebaseInitialized) {
+          _logger.w('⚠️ Firebase update skipped - Firebase not initialized');
+        } else if (currentUserId == null) {
+          _logger.w('⚠️ Firebase update skipped - User not authenticated');
+        }
+      }
+    } catch (e, s) {
+      _logger.w(
+          '❌ Failed to update shipment in Firebase (continuing with local)',
+          e,
+          s);
+      // Don't throw error - local update succeeded
+    }
   }
 
   /// Get save status information for UI feedback
@@ -752,21 +815,40 @@ class DataService {
     // Always update local database first
     try {
       await _localService.updateShipment(invoiceNumber, updates);
-      _logger.i('Shipment updated in local database successfully');
+      _logger.i('✅ Shipment updated in local database successfully');
     } catch (e) {
-      _logger.e('Failed to update shipment in local database', e);
+      _logger.e('❌ Failed to update shipment in local database', e);
       throw Exception('Failed to update shipment in local database: $e');
     }
 
     // Then update Firebase if available
     try {
-      if (await _isFirebaseAvailable()) {
+      _logger.i('🔄 Checking Firebase availability for shipment update...');
+      final isFirebaseInitialized = _firebaseService.isInitialized;
+      final currentUserId = _firebaseService.currentUserId;
+      final forceOffline = _forceOffline;
+
+      _logger.i(
+          '📊 Firebase status - Initialized: $isFirebaseInitialized, UserID: $currentUserId, ForceOffline: $forceOffline');
+
+      if (!forceOffline && isFirebaseInitialized && currentUserId != null) {
+        _logger.i('🔥 Attempting to update shipment in Firebase...');
         await _firebaseService.updateShipment(invoiceNumber, updates);
-        _logger.i('Shipment also updated in Firebase');
+        _logger.i('✅ Shipment successfully updated in Firebase');
+      } else {
+        if (forceOffline) {
+          _logger.i('⏸️ Firebase update skipped - Force offline mode enabled');
+        } else if (!isFirebaseInitialized) {
+          _logger.w('⚠️ Firebase update skipped - Firebase not initialized');
+        } else if (currentUserId == null) {
+          _logger.w('⚠️ Firebase update skipped - User not authenticated');
+        }
       }
-    } catch (e) {
+    } catch (e, s) {
       _logger.w(
-          'Failed to update shipment in Firebase (continuing with local)', e);
+          '❌ Failed to update shipment in Firebase (continuing with local)',
+          e,
+          s);
       // Don't throw error - local update succeeded
     }
   }
@@ -1424,6 +1506,7 @@ class DataService {
             'id': item.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
             'name': item.name ?? '',
             'approx_quantity': item.approxQuantity ?? 1,
+            'has_stems': item.hasStems ? 1 : 0, // Include has_stems field
             'created_at': item.createdAt.millisecondsSinceEpoch,
             'updated_at': item.updatedAt?.millisecondsSinceEpoch,
           };
@@ -1449,6 +1532,7 @@ class DataService {
         id: generatedId,
         name: productTypeData['name'] ?? '',
         approxQuantity: productTypeData['approx_quantity'] as int? ?? 1,
+        hasStems: (productTypeData['has_stems'] ?? 0) == 1,
         createdAt: productTypeData['createdAt'] != null
             ? DateTime.fromMillisecondsSinceEpoch(
                 productTypeData['createdAt'] as int)
@@ -1469,6 +1553,7 @@ class DataService {
           id: generatedId, // Use the same ID as local
           name: productTypeData['name'] ?? '',
           approxQuantity: productTypeData['approx_quantity'] as int? ?? 1,
+          hasStems: (productTypeData['has_stems'] ?? 0) == 1,
           createdAt: productTypeData['createdAt'] != null
               ? DateTime.fromMillisecondsSinceEpoch(
                   productTypeData['createdAt'] as int)

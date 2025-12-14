@@ -139,6 +139,97 @@ class Shipment {
     };
   }
 
+  /// Convert to Firebase format
+  Map<String, dynamic> toFirebase() {
+    return {
+      'invoiceNumber': invoiceNumber,
+      'invoice_number': invoiceNumber, // Keep legacy field for compatibility
+      'shipper': shipper,
+      'shipper_address': shipperAddress,
+      'shipperAddress': shipperAddress, // Keep legacy field for compatibility
+      'consignee': consignee,
+      'consignee_address': consigneeAddress,
+      'consigneeAddress':
+          consigneeAddress, // Keep legacy field for compatibility
+      'client_ref': clientRef,
+      'clientRef': clientRef, // Keep legacy field for compatibility
+      'AWB': awb,
+      'awb': awb, // Keep legacy field for compatibility
+      'flight_no': flightNo,
+      'flightNo': flightNo, // Keep legacy field for compatibility
+      'discharge_airport': dischargeAirport,
+      'dischargeAirport':
+          dischargeAirport, // Keep legacy field for compatibility
+      'origin': origin,
+      'destination': destination,
+      'eta': eta.millisecondsSinceEpoch,
+      'invoice_date': invoiceDate?.millisecondsSinceEpoch,
+      'invoiceDate': invoiceDate
+          ?.millisecondsSinceEpoch, // Keep legacy field for compatibility
+      'date_of_issue': dateOfIssue?.millisecondsSinceEpoch,
+      'dateOfIssue': dateOfIssue
+          ?.millisecondsSinceEpoch, // Keep legacy field for compatibility
+      'place_of_receipt': placeOfReceipt,
+      'placeOfReceipt': placeOfReceipt, // Keep legacy field for compatibility
+      'sgst_no': sgstNo,
+      'sgstNo': sgstNo, // Keep legacy field for compatibility
+      'iec_code': iecCode,
+      'iecCode': iecCode, // Keep legacy field for compatibility
+      'freight_terms': freightTerms,
+      'freightTerms': freightTerms, // Keep legacy field for compatibility
+      'total_amount': totalAmount,
+      'totalAmount': totalAmount, // Keep legacy field for compatibility
+      'invoice_title': invoiceTitle,
+      'invoiceTitle': invoiceTitle, // Keep legacy field for compatibility
+      'status': status,
+      'box_ids': boxIds,
+      'boxIds': boxIds, // Keep legacy field for compatibility
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+    };
+  }
+
+  /// Create Shipment from Firebase data
+  factory Shipment.fromFirebase(Map<String, dynamic> map) {
+    return Shipment(
+      invoiceNumber: map['invoiceNumber'] ?? map['invoice_number'] ?? '',
+      shipper: map['shipper'] ?? '',
+      shipperAddress: map['shipperAddress'] ?? map['shipper_address'] ?? '',
+      consignee: map['consignee'] ?? '',
+      consigneeAddress:
+          map['consigneeAddress'] ?? map['consignee_address'] ?? '',
+      clientRef: map['clientRef'] ?? map['client_ref'] ?? '',
+      awb: map['AWB'] ?? map['awb'] ?? '',
+      flightNo: map['flightNo'] ?? map['flight_no'] ?? '',
+      dischargeAirport:
+          map['dischargeAirport'] ?? map['discharge_airport'] ?? '',
+      origin: map['origin'] ?? '',
+      destination: map['destination'] ?? '',
+      eta: map['eta'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['eta'])
+          : DateTime.now(),
+      invoiceDate: map['invoiceDate'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['invoiceDate'])
+          : (map['invoice_date'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(map['invoice_date'])
+              : null),
+      dateOfIssue: map['dateOfIssue'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['dateOfIssue'])
+          : (map['date_of_issue'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(map['date_of_issue'])
+              : null),
+      placeOfReceipt: map['placeOfReceipt'] ?? map['place_of_receipt'] ?? '',
+      sgstNo: map['sgstNo'] ?? map['sgst_no'] ?? '',
+      iecCode: map['iecCode'] ?? map['iec_code'] ?? '',
+      freightTerms: map['freightTerms'] ?? map['freight_terms'] ?? '',
+      totalAmount:
+          (map['totalAmount'] ?? map['total_amount'] ?? 0.0).toDouble(),
+      invoiceTitle: map['invoiceTitle'] ?? map['invoice_title'] ?? '',
+      status: map['status'] ?? 'pending',
+      boxIds: List<String>.from(map['boxIds'] ?? map['box_ids'] ?? []),
+    );
+  }
+
   /// Legacy method for Firebase compatibility
   Map<String, dynamic> toMap() {
     return {

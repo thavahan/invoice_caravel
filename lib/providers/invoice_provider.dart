@@ -262,8 +262,8 @@ class InvoiceProvider with ChangeNotifier {
         _logger.i('📦 Box in form: ${box['id']} - ${box['boxNumber']}');
       }
 
-      // Update the shipment record first
-      await _dataService.saveShipment(shipment);
+      // Update the shipment record first - FORCE SYNCHRONOUS FIREBASE UPDATE
+      await _dataService.forceUpdateShipmentSync(shipment);
 
       // Get existing boxes for this shipment - FORCE LOCAL ONLY for consistency
       _dataService.forceOfflineMode(true);

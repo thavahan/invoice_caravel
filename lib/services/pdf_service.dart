@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'dart:math' as Math;
 import '../models/shipment.dart';
 
 /// Advanced PDF Service with intelligent N-page generation
@@ -16,16 +17,18 @@ class PdfService {
   static const double _pageMargin = 20.0;
   static const double _headerHeight = 100.0;
   static const double _footerHeight = 50.0;
-  static const double _itemRowHeight = 15.0;
+  static const double _itemRowHeight = 12.0;
   static const double _summaryHeight = 120.0;
   static const double _tableHeaderHeight = 25.0;
   static const double _sectionSpacing = 8.0;
+  static const double _grossTotalHeight =
+      30.0; // Height for gross total in words section
 
   // Multi-page trigger thresholds - ADJUST THESE TO CONTROL PAGINATION
   static const int FORCE_MULTIPAGE_ITEM_COUNT =
-      1; // LOWERED FOR TESTING - Force multi-page when more than this many items
+      15; // Force multi-page when more than this many items
   static const int ITEMS_PER_TABLE_PAGE =
-      8; // Increased for better production use - items per page
+      25; // Items per page for optimal layout
 
   /// Main PDF generation supporting N number of pages
   Future<void> generateShipmentPDF(
@@ -85,56 +88,63 @@ class PdfService {
     }
   }
 
-  /// Intelligent pagination calculator - supports unlimited pages
+  /// Intelligent pagination calculator - purely content-driven
   Map<String, dynamic> _calculateOptimalPagination(List<dynamic> items) {
-    print('🔍 Analyzing content for optimal N-page distribution...');
+    print('🔍 Analyzing content for dynamic pagination...');
     print('📊 Dataset size: ${items.length} items');
 
-    // Calculate content requirements
-    final double table1Height =
-        _tableHeaderHeight + (items.length * _itemRowHeight);
-
-    // Calculate unique flower types for table 2
-    final Set<String> flowerTypes = {};
-    for (final item in items) {
-      flowerTypes.add(_getItemValue(item, 'type', 'UNKNOWN').toUpperCase());
-    }
-    final double table2Height =
-        _tableHeaderHeight + ((flowerTypes.length + 1) * _itemRowHeight);
-
-    // Calculate available space per page (dynamic calculation)
+    // Calculate available space per page
     final double availablePerPage = PdfPageFormat.a4.height -
         (_pageMargin * 2) -
         _headerHeight -
         _footerHeight;
 
+    // Calculate unique product types for table 2
+    final Set<String> productTypes = {};
+    for (final item in items) {
+      productTypes.add(_getItemValue(item, 'type', 'UNKNOWN').toUpperCase());
+    }
+
+    // Calculate exact content requirements
+    final double summaryHeight = _summaryHeight;
+    final double table1HeaderHeight = _tableHeaderHeight;
+    final double table1DataHeight = items.length * _itemRowHeight;
+    final double table2HeaderHeight = _tableHeaderHeight;
+    final double table2DataHeight =
+        (productTypes.length + 1) * _itemRowHeight; // +1 for total row
+    final double grossTotalHeight = _grossTotalHeight;
+    final double spacingBetweenSections = _sectionSpacing *
+        3; // Between summary-table1, table1-table2, table2-gross
+
+    final double totalContentNeeded = summaryHeight +
+        table1HeaderHeight +
+        table1DataHeight +
+        table2HeaderHeight +
+        table2DataHeight +
+        grossTotalHeight +
+        spacingBetweenSections;
+
     print('📏 Content analysis:');
-    print('   Summary required: ${_summaryHeight}px');
-    print('   Table 1 required: ${table1Height}px (${items.length} items)');
+    print('   Summary: ${summaryHeight}px');
+    print('   Table 1 header: ${table1HeaderHeight}px');
+    print('   Table 1 data: ${table1DataHeight}px (${items.length} items)');
+    print('   Table 2 header: ${table2HeaderHeight}px');
     print(
-        '   Table 2 required: ${table2Height}px (${flowerTypes.length} flower types)');
+        '   Table 2 data: ${table2DataHeight}px (${productTypes.length} types + total)');
+    print('   Gross total: ${grossTotalHeight}px');
+    print('   Spacing: ${spacingBetweenSections}px');
+    print('   Total content needed: ${totalContentNeeded}px');
     print('   Available per page: ${availablePerPage}px');
     print(
-        '   Estimated items per page: ${(availablePerPage / _itemRowHeight).floor()}');
+        '   Content fits in one page: ${totalContentNeeded <= availablePerPage}');
 
     List<Map<String, dynamic>> layouts = [];
     String strategy = '';
 
-    // Strategy selection based on content volume
-    final double totalContentNeeded = _summaryHeight +
-        table1Height +
-        table2Height +
-        10; // +10 for reduced spacing
-
-    print('📏 Decision point:');
-    print('   Total content needed: ${totalContentNeeded}px');
-    print('   Available per page: ${availablePerPage}px');
-    print('   Content exceeds page: ${totalContentNeeded > availablePerPage}');
-
-    // Intelligent pagination: split content across pages if needed
     if (totalContentNeeded <= availablePerPage) {
-      // Everything fits on one page
-      strategy = 'summary_table1_table2_single_page';
+      // Everything fits on one page - show all content together
+      print('✅ All content fits on single page - using single page layout');
+      strategy = 'single_page_all_content';
       layouts.add({
         'type': 'summary_and_table1_and_table2',
         'pageNumber': 1,
@@ -145,29 +155,24 @@ class PdfService {
         'table1End': items.length,
       });
     } else {
-      // Content exceeds one page - implement intelligent splitting
-      print('📄 Large dataset detected - implementing multi-page strategy');
-      print(
-          '📈 Estimated pages needed: ${((items.length * _itemRowHeight) / availablePerPage).ceil() + 1}');
+      // Content exceeds one page - split intelligently
+      print('📄 Content exceeds one page - implementing multi-page strategy');
 
-      double remainingSpace = availablePerPage;
       int currentPage = 1;
       int table1StartIndex = 0;
-      int totalItemsProcessed = 0;
+      double remainingPageSpace = availablePerPage;
 
-      // Page 1: Always include summary + as much of table 1 as possible
-      remainingSpace -= _summaryHeight + _sectionSpacing;
-      if (remainingSpace > 0) {
-        // Calculate available space for table 1 on page 1 (include header space)
-        double availableForTable1 = remainingSpace - _tableHeaderHeight;
-        int itemsPerPage = (availableForTable1 / _itemRowHeight).floor();
-        itemsPerPage = itemsPerPage > 0 ? itemsPerPage : 1; // At least 1 item
-        int table1EndIndex =
-            (table1StartIndex + itemsPerPage).clamp(0, items.length);
-        totalItemsProcessed += (table1EndIndex - table1StartIndex);
+      // Page 1: Summary + as many items as possible
+      remainingPageSpace -=
+          (summaryHeight + _sectionSpacing + table1HeaderHeight);
+
+      if (remainingPageSpace > 0) {
+        int itemsFitOnFirstPage = (remainingPageSpace / _itemRowHeight).floor();
+        itemsFitOnFirstPage = itemsFitOnFirstPage.clamp(
+            1, items.length); // At least 1 item, max all items
 
         print(
-            '📄 Page 1: Summary + ${table1EndIndex - table1StartIndex} items (${table1StartIndex + 1}-${table1EndIndex})');
+            '📄 Page 1: Summary + ${itemsFitOnFirstPage} items (1-${itemsFitOnFirstPage})');
 
         layouts.add({
           'type': 'summary_and_table1_partial',
@@ -175,85 +180,122 @@ class PdfService {
           'showSummary': true,
           'showTable1': true,
           'showTable2': false,
-          'table1Start': table1StartIndex,
-          'table1End': table1EndIndex,
+          'table1Start': 0,
+          'table1End': itemsFitOnFirstPage,
         });
 
-        table1StartIndex = table1EndIndex;
+        table1StartIndex = itemsFitOnFirstPage;
         currentPage++;
       }
 
-      // Subsequent pages: Continue with remaining table 1 items
+      // Continue with remaining items on subsequent pages
       while (table1StartIndex < items.length) {
-        // Calculate maximum items that can fit on subsequent pages
-        double spaceForItems = availablePerPage - _tableHeaderHeight;
+        double pageSpace = availablePerPage - table1HeaderHeight;
 
-        // Check if this would be the last batch of items
-        int potentialItemsPerPage = (spaceForItems / _itemRowHeight).floor();
-        bool isLastPage =
-            (table1StartIndex + potentialItemsPerPage) >= items.length;
+        // Calculate remaining items
+        int remainingItems = items.length - table1StartIndex;
 
-        if (isLastPage) {
-          // Last page needs space for flower type summary - calculate more precisely
-          double spaceNeededForTable2 =
-              _tableHeaderHeight + ((flowerTypes.length + 1) * _itemRowHeight);
-          spaceForItems -= (spaceNeededForTable2 + _sectionSpacing);
+        // Check if this could be the last page (include space for Table 2)
+        double spaceForTable2 = table2HeaderHeight +
+            table2DataHeight +
+            _sectionSpacing +
+            grossTotalHeight +
+            _sectionSpacing;
+        double spaceForItemsOnLastPage = pageSpace - spaceForTable2;
+
+        // Calculate max items that can fit on last page with Table 2
+        int maxItemsOnLastPage = spaceForItemsOnLastPage > 0
+            ? (spaceForItemsOnLastPage / _itemRowHeight).floor()
+            : 0;
+
+        print('📊 Page ${currentPage} analysis:');
+        print('   Remaining items: $remainingItems');
+        print('   Page space: ${pageSpace}px');
+        print('   Space for Table 2: ${spaceForTable2}px');
+        print('   Space for items on last page: ${spaceForItemsOnLastPage}px');
+        print('   Max items on last page: $maxItemsOnLastPage');
+
+        // Decision logic: Can we fit remaining items + Table 2 on this page?
+        bool canFitAllRemainingWithTable2 =
+            remainingItems <= maxItemsOnLastPage && maxItemsOnLastPage > 0;
+
+        if (canFitAllRemainingWithTable2) {
+          // This is the last page - include remaining items + Table 2 + Gross Total
+          print(
+              '✅ Final page: ${remainingItems} items (${table1StartIndex + 1}-${items.length}) + PRODUCT SUMMARY');
+
+          layouts.add({
+            'type': 'table1_final_and_table2',
+            'pageNumber': currentPage,
+            'showSummary': false,
+            'showTable1': true,
+            'showTable2': true,
+            'table1Start': table1StartIndex,
+            'table1End': items.length,
+          });
+
+          break; // Exit loop
+        } else {
+          // Fill this page with as many items as possible and continue
+          int itemsOnThisPage =
+              (pageSpace / _itemRowHeight).floor().clamp(1, remainingItems);
+
+          // But if this would leave too few items for the last page, adjust
+          int itemsAfterThisPage = remainingItems - itemsOnThisPage;
+          if (itemsAfterThisPage > 0 &&
+              itemsAfterThisPage <= 2 &&
+              maxItemsOnLastPage >= itemsAfterThisPage) {
+            // Reduce items on this page to leave more for the last page with Table 2
+            itemsOnThisPage = Math.max(1, remainingItems - maxItemsOnLastPage);
+            print(
+                '📄 Adjusted page ${currentPage}: ${itemsOnThisPage} items to optimize last page');
+          }
+
+          print(
+              '📄 Continuation page ${currentPage}: ${itemsOnThisPage} items (${table1StartIndex + 1}-${table1StartIndex + itemsOnThisPage})');
+
+          layouts.add({
+            'type': 'table1_continuation',
+            'pageNumber': currentPage,
+            'showSummary': false,
+            'showTable1': true,
+            'showTable2': false,
+            'table1Start': table1StartIndex,
+            'table1End': table1StartIndex + itemsOnThisPage,
+          });
+
+          table1StartIndex += itemsOnThisPage;
+          currentPage++;
         }
+      }
 
-        int itemsPerPage = (spaceForItems / _itemRowHeight).floor();
-        itemsPerPage = itemsPerPage > 0 ? itemsPerPage : 1;
-        int table1EndIndex =
-            (table1StartIndex + itemsPerPage).clamp(0, items.length);
-
-        // Recalculate if we're actually on the last page after adjustment
-        bool actuallyLastPage = table1EndIndex >= items.length;
-        totalItemsProcessed += (table1EndIndex - table1StartIndex);
-
-        print(
-            '📄 Page ${currentPage}: ${table1EndIndex - table1StartIndex} items (${table1StartIndex + 1}-${table1EndIndex})${actuallyLastPage ? ' + Summary' : ''}');
-
+      // Safety check: Ensure Table 2 is always added if not already included
+      bool hasTable2 = layouts.any((layout) => layout['showTable2'] == true);
+      if (!hasTable2) {
+        print('🚨 Safety check: Adding Table 2 to dedicated final page');
         layouts.add({
-          'type': actuallyLastPage
-              ? 'table1_final_and_table2'
-              : 'table1_continuation',
+          'type': 'table2_only',
           'pageNumber': currentPage,
           'showSummary': false,
-          'showTable1': true,
-          'showTable2': actuallyLastPage, // Show table 2 only on final page
-          'table1Start': table1StartIndex,
-          'table1End': table1EndIndex,
+          'showTable1': false,
+          'showTable2': true,
+          'table1Start': 0,
+          'table1End': 0,
         });
-
-        table1StartIndex = table1EndIndex;
-        currentPage++;
       }
 
       print(
-          '📊 Final pagination: ${layouts.length} pages, ${totalItemsProcessed} items processed');
-      strategy = 'intelligent_multi_page_pagination_large_dataset';
+          '📊 Final pagination: ${layouts.length} pages, all ${items.length} items distributed');
+      strategy = 'content_driven_multi_page';
     }
 
     print('📋 Selected strategy: $strategy with ${layouts.length} pages');
-
-    // Performance optimization for large datasets
-    if (items.length > 20) {
-      print(
-          '🚀 Large dataset optimization: Processing ${items.length} items across ${layouts.length} pages');
-      print(
-          '📊 Average items per page: ${(items.length / layouts.length).toStringAsFixed(1)}');
-    }
 
     return {
       'totalPages': layouts.length,
       'layouts': layouts,
       'strategy': strategy,
-      'itemsPerPage': strategy.contains('table1') && layouts.length > 1
-          ? (layouts.where((l) => l['showTable1'] == true).first['table1End']
-                  as int) -
-              (layouts
-                  .where((l) => l['showTable1'] == true)
-                  .first['table1Start'] as int)
-          : items.length,
+      'itemsPerPage': layouts.length == 1 ? items.length : 'variable',
     };
   }
 
@@ -275,7 +317,33 @@ class PdfService {
             // Page header
             _buildAdvancedHeader(
                 shipment, pageNumber, totalPages, layout['type'], logoImage),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 10),
+
+            // Add "continued from" indicator for continuation pages
+            if (pageNumber > 1 && layout['showTable1'] == true) ...[
+              pw.Container(
+                padding: pw.EdgeInsets.all(4),
+                margin: pw.EdgeInsets.only(bottom: 8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.orange50,
+                  borderRadius: pw.BorderRadius.circular(3),
+                  border: pw.Border.all(color: PdfColors.orange200, width: 0.5),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      '← Continued from previous page ←',
+                      style: pw.TextStyle(
+                        font: _boldFont!,
+                        fontSize: 8,
+                        color: PdfColors.orange800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             // Dynamic content based on layout
             ...(_buildPageContent(
@@ -401,7 +469,7 @@ class PdfService {
       case 'complete_invoice':
         return 'Complete Invoice Document';
       case 'summary_and_table2':
-        return 'Invoice Summary & Flower Types';
+        return 'Invoice Summary & Product Types';
       case 'summary_and_table1_and_table2':
         return 'Invoice Summary & Manifest';
       case 'summary_only':
@@ -411,11 +479,11 @@ class PdfService {
       case 'table1_continuation':
         return 'Itemized Manifest (Continued)';
       case 'table1_final_and_table2':
-        return 'Itemized Manifest (Final) & Summary';
+        return 'Itemized Manifest (Final) & Product Summary';
       case 'table1_start':
         return 'Detailed Itemized Manifest';
       case 'table2_only':
-        return 'Flower Type Summary';
+        return 'Product Type Summary';
       default:
         return 'Invoice Document';
     }
@@ -426,34 +494,99 @@ class PdfService {
       Map<String, dynamic> layout, int pageNumber, int totalPages) {
     List<pw.Widget> content = [];
 
+    print('📄 Building page $pageNumber with layout: $layout');
+
     // Add invoice summary if required
     if (layout['showSummary'] == true) {
+      print('📄 Adding summary to page $pageNumber');
       content.addAll(_buildInvoiceSummary(shipment, items));
     }
 
     // Add spacing between sections
     if (content.isNotEmpty) {
-      content.add(pw.SizedBox(height: 2)); // Minimal spacing
+      content.add(pw.SizedBox(height: _sectionSpacing));
     }
 
     // Add Table 1 if required
     if (layout['showTable1'] == true) {
       final int startIdx = layout['table1Start'] ?? 0;
       final int endIdx = layout['table1End'] ?? items.length;
+      print(
+          '📄 Adding Table 1 to page $pageNumber: items ${startIdx + 1}-$endIdx');
       content.addAll(
           _buildTable1(items, startIdx, endIdx, pageNumber, totalPages));
     }
 
     // Add spacing between tables
     if (layout['showTable1'] == true && layout['showTable2'] == true) {
-      content.add(pw.SizedBox(height: 2)); // Minimal spacing
+      content.add(pw.SizedBox(height: _sectionSpacing));
     }
 
     // Add Table 2 if required
     if (layout['showTable2'] == true) {
-      content.addAll(_buildTable2(items));
+      print('📄 Adding Table 2 (product summary) to page $pageNumber');
+      try {
+        final table2Widgets = _buildTable2(items);
+        if (table2Widgets.isNotEmpty) {
+          content.addAll(table2Widgets);
+          print(
+              '✅ Product summary table added successfully with ${table2Widgets.length} widgets');
+        } else {
+          print('⚠️ Product summary table is empty - no widgets returned');
+        }
+      } catch (e) {
+        print('❌ Error building Table 2: $e');
+        // Add placeholder if error occurs
+        content.add(pw.Container(
+            padding: pw.EdgeInsets.all(8),
+            child: pw.Text('Error loading product summary: $e',
+                style: pw.TextStyle(
+                    font: _regularFont!, fontSize: 8, color: PdfColors.red))));
+      }
     }
 
+    // Add Gross Total in words if Table 2 is shown (final page or single page)
+    if (layout['showTable2'] == true) {
+      print('📄 Adding Gross Total to page $pageNumber');
+      final totalAmount = _calculateProductSummary(items)['total'] as double;
+      content.add(pw.SizedBox(height: _sectionSpacing));
+      content.add(_buildGrossTotalInWords(totalAmount));
+    }
+
+    // Add continuation indicator for non-final pages (only if not showing Table 2)
+    if (pageNumber < totalPages &&
+        layout['showTable1'] == true &&
+        layout['showTable2'] == false) {
+      final int endIdx = layout['table1End'] ?? items.length;
+      if (endIdx < items.length) {
+        content.add(pw.SizedBox(height: 8));
+        content.add(
+          pw.Container(
+            padding: pw.EdgeInsets.all(4),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue50,
+              borderRadius: pw.BorderRadius.circular(3),
+              border: pw.Border.all(color: PdfColors.blue200, width: 0.5),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.Text(
+                  '→ Data continues on next page →',
+                  style: pw.TextStyle(
+                    font: _boldFont!,
+                    fontSize: 8,
+                    color: PdfColors.blue800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    print('📄 Page $pageNumber content built: ${content.length} widgets');
     return content;
   }
 
@@ -537,11 +670,15 @@ class PdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Expanded(
-            child: _buildShipmentInfo(shipment, items),
+            child: pw.Container(
+              height: 70, // Fixed height for equal sizing
+              child: _buildShipmentInfo(shipment, items),
+            ),
           ),
           pw.SizedBox(width: 8),
           pw.Expanded(
             child: pw.Container(
+              height: 70, // Fixed height for equal sizing
               padding: pw.EdgeInsets.all(8),
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(width: 0.5, color: PdfColors.orange600),
@@ -644,7 +781,7 @@ class PdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
-            width: 80, // Fixed width for label area
+            width: 60, // Fixed width for label area
             child: pw.Text(label,
                 style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
           ),
@@ -665,6 +802,7 @@ class PdfService {
 
     return [
       // Table header with pagination info
+      pw.SizedBox(height: 8),
       pw.Container(
         padding: pw.EdgeInsets.all(5), // Reduced from 8
         decoration: pw.BoxDecoration(
@@ -674,27 +812,54 @@ class PdfService {
             topRight: pw.Radius.circular(5),
           ),
         ),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        child: pw.Column(
           children: [
-            pw.Text('ITEMIZED MANIFEST',
-                style: pw.TextStyle(
-                    font: _boldFont!,
-                    fontSize: 10,
-                    color: PdfColors.white)), // Reduced from 12
-            if (totalPages > 1)
-              pw.Container(
-                padding: pw.EdgeInsets.symmetric(
-                    horizontal: 4, vertical: 1), // Reduced padding
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.white.shade(0.2),
-                  borderRadius: pw.BorderRadius.circular(3),
-                ),
-                child: pw.Text(
-                    'Items ${startIndex + 1}-$endIndex of ${items.length}',
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('ITEMIZED MANIFEST',
                     style: pw.TextStyle(
-                        font: _boldFont!, fontSize: 8, color: PdfColors.white)),
+                        font: _boldFont!,
+                        fontSize: 10,
+                        color: PdfColors.white)), // Reduced from 12
+                if (totalPages > 1)
+                  pw.Container(
+                    padding: pw.EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 1), // Reduced padding
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.white.shade(0.2),
+                      borderRadius: pw.BorderRadius.circular(3),
+                    ),
+                    child: pw.Text(
+                        'Items ${startIndex + 1}-$endIndex of ${items.length}',
+                        style: pw.TextStyle(
+                            font: _boldFont!,
+                            fontSize: 8,
+                            color: PdfColors.white)),
+                  ),
+              ],
+            ),
+            // Add continuation indicators
+            if (totalPages > 1) ...[
+              pw.SizedBox(height: 2),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  if (startIndex > 0)
+                    pw.Text('← Continued from previous page',
+                        style: pw.TextStyle(
+                            font: _regularFont!,
+                            fontSize: 6,
+                            color: PdfColors.white)),
+                  if (endIndex < items.length)
+                    pw.Text('Continued on next page →',
+                        style: pw.TextStyle(
+                            font: _regularFont!,
+                            fontSize: 6,
+                            color: PdfColors.white)),
+                ],
               ),
+            ],
           ],
         ),
       ),
@@ -793,49 +958,104 @@ class PdfService {
     return rows;
   }
 
-  /// Build Table 2 - Flower Type Summary
-  List<pw.Widget> _buildTable2(List<dynamic> items) {
-    // Calculate flower type summary
-    Map<String, Map<String, double>> flowerSummary = {};
+  /// Calculate product summary and grand total amount from items
+  Map<String, dynamic> _calculateProductSummary(List<dynamic> items) {
+    try {
+      Map<String, Map<String, double>> productSummary = {};
 
-    for (final item in items) {
-      String flowerType = _getItemValue(item, 'type', 'UNKNOWN').toUpperCase();
-      double weight =
-          double.tryParse(_getItemValue(item, 'weight', '0')) ?? 0.0;
-      double rate = double.tryParse(_getItemValue(item, 'rate', '0')) ?? 0.0;
-
-      if (flowerSummary.containsKey(flowerType)) {
-        flowerSummary[flowerType]!['totalWeight'] =
-            (flowerSummary[flowerType]!['totalWeight'] ?? 0.0) + weight;
-        flowerSummary[flowerType]!['totalAmount'] =
-            (flowerSummary[flowerType]!['totalAmount'] ?? 0.0) +
-                (weight * rate);
-      } else {
-        flowerSummary[flowerType] = {
-          'rate': rate,
-          'totalWeight': weight,
-          'totalAmount': weight * rate,
-        };
+      print('📦 Calculating product summary for ${items.length} items');
+      for (int i = 0; i < items.length && i < 3; i++) {
+        print('   Item $i: ${items[i]}');
       }
-    }
 
-    var sortedTypes = flowerSummary.keys.toList()..sort();
+      for (final item in items) {
+        String productType =
+            _getItemValue(item, 'type', 'UNKNOWN').toUpperCase();
+        double weight =
+            double.tryParse(_getItemValue(item, 'weight', '0')) ?? 0.0;
+        double rate = double.tryParse(_getItemValue(item, 'rate', '0')) ?? 0.0;
+
+        print(
+            '   Processing: productType="$productType", weight=$weight, rate=$rate');
+
+        if (productSummary.containsKey(productType)) {
+          productSummary[productType]!['totalWeight'] =
+              (productSummary[productType]!['totalWeight'] ?? 0.0) + weight;
+          productSummary[productType]!['totalAmount'] =
+              (productSummary[productType]!['totalAmount'] ?? 0.0) +
+                  (weight * rate);
+        } else {
+          productSummary[productType] = {
+            'rate': rate,
+            'totalWeight': weight,
+            'totalAmount': weight * rate,
+          };
+        }
+      }
+
+      double grandTotalAmount = 0.0;
+      for (var summary in productSummary.values) {
+        grandTotalAmount += summary['totalAmount'] ?? 0.0;
+      }
+
+      print(
+          '📦 Product summary calculated: ${productSummary.length} types, total \$${grandTotalAmount.toStringAsFixed(2)}');
+
+      return {
+        'summary': productSummary,
+        'total': grandTotalAmount,
+      };
+    } catch (e) {
+      print('❌ Error calculating flower summary: $e');
+      return {
+        'summary': <String, Map<String, double>>{},
+        'total': 0.0,
+      };
+    }
+  }
+
+  /// Build Table 2 - Product Type Summary
+  List<pw.Widget> _buildTable2(List<dynamic> items) {
+    final summaryData = _calculateProductSummary(items);
+    final productSummary =
+        summaryData['summary'] as Map<String, Map<String, double>>;
+    final grandTotalAmount = summaryData['total'] as double;
+
+    var sortedTypes = productSummary.keys.toList()..sort();
     double grandTotalWeight = 0.0;
-    double grandTotalAmount = 0.0;
+
+    print(
+        '📦 Building product summary table with ${sortedTypes.length} product types');
+    if (sortedTypes.isEmpty) {
+      print(
+          '⚠️ WARNING: No product types found in summary! Returning empty table.');
+      return [
+        pw.Container(
+            padding: pw.EdgeInsets.all(8),
+            child: pw.Text('No product type data available',
+                style: pw.TextStyle(
+                    font: _regularFont!,
+                    fontSize: 10,
+                    color: PdfColors.grey700)))
+      ];
+    }
+    for (var type in sortedTypes) {
+      print(
+          '   ✓ $type: ${productSummary[type]!['totalWeight']}kg @ \$${productSummary[type]!['rate']} = \$${productSummary[type]!['totalAmount']}');
+    }
 
     List<pw.TableRow> rows = [];
 
     // Build data rows
     for (int index = 0; index < sortedTypes.length; index++) {
-      String flowerType = sortedTypes[index];
-      var summary = flowerSummary[flowerType]!;
+      String productType = sortedTypes[index];
+      var summary = productSummary[productType]!;
 
       double totalWeight = summary['totalWeight'] ?? 0.0;
       double rate = summary['rate'] ?? 0.0;
       double totalAmount = summary['totalAmount'] ?? 0.0;
 
       grandTotalWeight += totalWeight;
-      grandTotalAmount += totalAmount;
 
       rows.add(
         pw.TableRow(
@@ -845,7 +1065,7 @@ class PdfService {
             children: [
               pw.Padding(
                 padding: pw.EdgeInsets.all(3),
-                child: pw.Text(flowerType,
+                child: pw.Text(productType,
                     style: pw.TextStyle(font: _regularFont!, fontSize: 7)),
               ),
               pw.Padding(
@@ -915,7 +1135,7 @@ class PdfService {
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('SUMMARY BY Flower TYPE',
+            pw.Text('SUMMARY BY FLOWER TYPE',
                 style: pw.TextStyle(
                     font: _boldFont!,
                     fontSize: 10,
@@ -984,6 +1204,105 @@ class PdfService {
     ];
   }
 
+  /// Build Gross Total in words
+  pw.Widget _buildGrossTotalInWords(double amount) {
+    print('🧾 Building Gross Total in words: $amount');
+    String amountInWords = _numberToWords(amount);
+    print('🧾 Amount in words: $amountInWords');
+    return pw.Container(
+      padding: pw.EdgeInsets.all(4),
+      child: pw.Text(
+        'Gross Total (in words): $amountInWords ONLY',
+        style: pw.TextStyle(
+          font: _boldFont!,
+          fontSize: 9,
+          color: PdfColors.black,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  /// Convert number to words
+  String _numberToWords(double amount) {
+    int dollars = amount.floor();
+    int cents = ((amount - dollars) * 100).round();
+
+    String dollarsWords = _convertToWords(dollars);
+    String centsWords = _convertToWords(cents);
+
+    String result = dollarsWords.isNotEmpty ? '$dollarsWords DOLLARS' : '';
+    if (cents > 0) {
+      result += dollarsWords.isNotEmpty ? ' AND ' : '';
+      result += '$centsWords CENTS';
+    }
+
+    return result.isNotEmpty ? result : 'ZERO DOLLARS';
+  }
+
+  /// Helper to convert integer to words
+  String _convertToWords(int number) {
+    if (number == 0) return '';
+
+    const List<String> units = [
+      '',
+      'ONE',
+      'TWO',
+      'THREE',
+      'FOUR',
+      'FIVE',
+      'SIX',
+      'SEVEN',
+      'EIGHT',
+      'NINE'
+    ];
+    const List<String> teens = [
+      'TEN',
+      'ELEVEN',
+      'TWELVE',
+      'THIRTEEN',
+      'FOURTEEN',
+      'FIFTEEN',
+      'SIXTEEN',
+      'SEVENTEEN',
+      'EIGHTEEN',
+      'NINETEEN'
+    ];
+    const List<String> tens = [
+      '',
+      '',
+      'TWENTY',
+      'THIRTY',
+      'FORTY',
+      'FIFTY',
+      'SIXTY',
+      'SEVENTY',
+      'EIGHTY',
+      'NINETY'
+    ];
+
+    String result = '';
+
+    if (number >= 100) {
+      result += '${units[number ~/ 100]} HUNDRED ';
+      number %= 100;
+    }
+
+    if (number >= 20) {
+      result += '${tens[number ~/ 10]} ';
+      number %= 10;
+    } else if (number >= 10) {
+      result += '${teens[number - 10]} ';
+      number = 0;
+    }
+
+    if (number > 0) {
+      result += '${units[number]} ';
+    }
+
+    return result.trim();
+  }
+
   /// Build advanced page footer with contextual information
   pw.Widget _buildAdvancedFooter(
       int pageNumber, int totalPages, String pageType, int totalItems) {
@@ -1045,15 +1364,15 @@ class PdfService {
       case 'summary_only':
         return 'Invoice Summary';
       case 'summary_and_table1_partial':
-        return 'Invoice Summary & Manifest';
+        return 'Invoice Summary & Manifest (Continued on next page...)';
       case 'table1_continuation':
-        return 'Manifest Continued';
+        return 'Manifest Continued (Items from previous page)';
       case 'table1_final_and_table2':
-        return 'Manifest & Flower Types';
+        return 'Manifest Final Page & Product Types';
       case 'table1_start':
-        return 'Detailed Manifest';
+        return 'Detailed Manifest (Continued...)';
       case 'table2_only':
-        return 'Flower Type Summary';
+        return 'Product Type Summary';
       default:
         return 'Invoice Document';
     }
@@ -1093,8 +1412,9 @@ class PdfService {
     int approxQuantity =
         item is Map ? ((item['approxQuantity'] as num?)?.toInt() ?? 0) : 0;
 
-    String stemsText = hasStems ? 'WITH STEMS' : 'NO STEMS';
-    String description = '$flowerType, $stemsText, APPROX $approxQuantity NOS';
+    String stemsText = hasStems ? '' : 'NO STEMS';
+    String description =
+        '$flowerType${stemsText.isNotEmpty ? ', $stemsText' : ''}, APPROX $approxQuantity NOS';
 
     // Format: "JASMIN - 6.7 KG (TIED GARLANDS, NO STEMS, APPROX 6240 NOS)"
     String formattedDescription =
@@ -1121,6 +1441,8 @@ class PdfService {
             return (obj.rate ?? fallback).toString();
           case 'boxNumber':
             return (obj.boxNumber ?? fallback).toString();
+          case 'flowerType':
+            return (obj.flowerType ?? fallback).toString();
           default:
             return fallback;
         }

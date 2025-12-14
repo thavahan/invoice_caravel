@@ -335,112 +335,78 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
             Padding(
               padding: const EdgeInsets.all(24),
               child: shipper == null
-                  ? Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
+                  ? SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (formKey.currentState!.validate()) {
+                            try {
+                              // Dismiss keyboard before saving
                               FocusScope.of(context).unfocus();
-                              Navigator.pop(context, false);
-                            },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text('Cancel'),
+
+                              // Format address as single string
+                              final formattedAddress =
+                                  MasterShipper.formatAddress(
+                                phone: phoneController.text.trim(),
+                                addressLine1: addr1Controller.text.trim(),
+                                addressLine2: addr2Controller.text.trim(),
+                                city: cityController.text.trim(),
+                                state: stateController.text.trim(),
+                                pincode: pincodeController.text.trim(),
+                                landmark: landmarkController.text.trim(),
+                              );
+
+                              final shipperData = {
+                                'name': nameController.text.trim(),
+                                'address': formattedAddress,
+                                'phone': phoneController.text.trim(),
+                                'address_line1': addr1Controller.text.trim(),
+                                'address_line2': addr2Controller.text.trim(),
+                                'city': cityController.text.trim(),
+                                'state': stateController.text.trim(),
+                                'pincode': pincodeController.text.trim(),
+                                'landmark': landmarkController.text.trim(),
+                              };
+
+                              await _dataService.saveMasterShipper(shipperData);
+                              print(
+                                  '✅ MASTER_DATA_UI: New shipper saved: ${shipperData['name']}');
+
+                              // Close dialog first
+                              Navigator.pop(context, true);
+
+                              // Force immediate refresh after successful save
+                              await Future.delayed(
+                                  const Duration(milliseconds: 100));
+                              await _loadShippers();
+
+                              print(
+                                  '🔄 MASTER_DATA_UI: Shippers refreshed after save');
+                            } catch (e) {
+                              ScaffoldMessenger.of(context)
+                                  .hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error saving shipper: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              if (formKey.currentState!.validate()) {
-                                try {
-                                  // Dismiss keyboard before saving
-                                  FocusScope.of(context).unfocus();
-
-                                  // Format address as single string
-                                  final formattedAddress =
-                                      MasterShipper.formatAddress(
-                                    phone: phoneController.text.trim(),
-                                    addressLine1: addr1Controller.text.trim(),
-                                    addressLine2: addr2Controller.text.trim(),
-                                    city: cityController.text.trim(),
-                                    state: stateController.text.trim(),
-                                    pincode: pincodeController.text.trim(),
-                                    landmark: landmarkController.text.trim(),
-                                  );
-
-                                  final shipperData = {
-                                    'name': nameController.text.trim(),
-                                    'address': formattedAddress,
-                                    'phone': phoneController.text.trim(),
-                                    'address_line1': addr1Controller.text.trim(),
-                                    'address_line2': addr2Controller.text.trim(),
-                                    'city': cityController.text.trim(),
-                                    'state': stateController.text.trim(),
-                                    'pincode': pincodeController.text.trim(),
-                                    'landmark': landmarkController.text.trim(),
-                                  };
-
-                                  await _dataService.saveMasterShipper(shipperData);
-                                  print(
-                                      '✅ MASTER_DATA_UI: New shipper saved: ${shipperData['name']}');
-
-                                  // Close dialog first
-                                  Navigator.pop(context, true);
-
-                                  // Force immediate refresh after successful save
-                                  await Future.delayed(
-                                      const Duration(milliseconds: 100));
-                                  await _loadShippers();
-
-                                  print(
-                                      '🔄 MASTER_DATA_UI: Shippers refreshed after save');
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error saving shipper: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text('Add'),
-                          ),
-                        ),
-                      ],
+                        child: const Text('Add'),
+                      ),
                     )
                   : Column(
                       children: [
                         Row(
                           children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  FocusScope.of(context).unfocus();
-                                  Navigator.pop(context, false);
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text('Cancel'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: () async {
@@ -452,11 +418,13 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
                                           'Are you sure you want to delete "${shipper.name}"? This action cannot be undone.'),
                                       actions: [
                                         TextButton(
-                                          onPressed: () => Navigator.pop(context, false),
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
                                           child: const Text('Cancel'),
                                         ),
                                         TextButton(
-                                          onPressed: () => Navigator.pop(context, true),
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
                                           style: TextButton.styleFrom(
                                             foregroundColor: Colors.red,
                                           ),
@@ -468,8 +436,10 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
 
                                   if (confirmed == true) {
                                     try {
-                                      await _dataService.deleteMasterShipper(shipper.id);
-                                      print('✅ MASTER_DATA_UI: Shipper deleted: ${shipper.name}');
+                                      await _dataService
+                                          .deleteMasterShipper(shipper.id);
+                                      print(
+                                          '✅ MASTER_DATA_UI: Shipper deleted: ${shipper.name}');
 
                                       // Close dialog first
                                       Navigator.pop(context, true);
@@ -479,12 +449,16 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
                                           const Duration(milliseconds: 100));
                                       await _loadShippers();
 
-                                      print('🔄 MASTER_DATA_UI: Shippers refreshed after delete');
+                                      print(
+                                          '🔄 MASTER_DATA_UI: Shippers refreshed after delete');
                                     } catch (e) {
-                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(
-                                          content: Text('Error deleting shipper: $e'),
+                                          content: Text(
+                                              'Error deleting shipper: $e'),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -492,7 +466,8 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                   backgroundColor: Colors.red,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
@@ -502,76 +477,88 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
                                 child: const Text('Delete'),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              if (formKey.currentState!.validate()) {
-                                try {
-                                  // Dismiss keyboard before saving
-                                  FocusScope.of(context).unfocus();
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  if (formKey.currentState!.validate()) {
+                                    try {
+                                      // Dismiss keyboard before saving
+                                      FocusScope.of(context).unfocus();
 
-                                  // Format address as single string
-                                  final formattedAddress =
-                                      MasterShipper.formatAddress(
-                                    phone: phoneController.text.trim(),
-                                    addressLine1: addr1Controller.text.trim(),
-                                    addressLine2: addr2Controller.text.trim(),
-                                    city: cityController.text.trim(),
-                                    state: stateController.text.trim(),
-                                    pincode: pincodeController.text.trim(),
-                                    landmark: landmarkController.text.trim(),
-                                  );
+                                      // Format address as single string
+                                      final formattedAddress =
+                                          MasterShipper.formatAddress(
+                                        phone: phoneController.text.trim(),
+                                        addressLine1:
+                                            addr1Controller.text.trim(),
+                                        addressLine2:
+                                            addr2Controller.text.trim(),
+                                        city: cityController.text.trim(),
+                                        state: stateController.text.trim(),
+                                        pincode: pincodeController.text.trim(),
+                                        landmark:
+                                            landmarkController.text.trim(),
+                                      );
 
-                                  final shipperData = {
-                                    'name': nameController.text.trim(),
-                                    'address': formattedAddress,
-                                    'phone': phoneController.text.trim(),
-                                    'address_line1': addr1Controller.text.trim(),
-                                    'address_line2': addr2Controller.text.trim(),
-                                    'city': cityController.text.trim(),
-                                    'state': stateController.text.trim(),
-                                    'pincode': pincodeController.text.trim(),
-                                    'landmark': landmarkController.text.trim(),
-                                  };
+                                      final shipperData = {
+                                        'name': nameController.text.trim(),
+                                        'address': formattedAddress,
+                                        'phone': phoneController.text.trim(),
+                                        'address_line1':
+                                            addr1Controller.text.trim(),
+                                        'address_line2':
+                                            addr2Controller.text.trim(),
+                                        'city': cityController.text.trim(),
+                                        'state': stateController.text.trim(),
+                                        'pincode':
+                                            pincodeController.text.trim(),
+                                        'landmark':
+                                            landmarkController.text.trim(),
+                                      };
 
-                                  await _dataService.updateMasterShipper(
-                                      shipper.id, shipperData);
-                                  print(
-                                      '✅ MASTER_DATA_UI: Shipper updated: ${shipperData['name']}');
+                                      await _dataService.updateMasterShipper(
+                                          shipper.id, shipperData);
+                                      print(
+                                          '✅ MASTER_DATA_UI: Shipper updated: ${shipperData['name']}');
 
-                                  // Close dialog first
-                                  Navigator.pop(context, true);
+                                      // Close dialog first
+                                      Navigator.pop(context, true);
 
-                                  // Force immediate refresh after successful save
-                                  await Future.delayed(
-                                      const Duration(milliseconds: 100));
-                                  await _loadShippers();
+                                      // Force immediate refresh after successful save
+                                      await Future.delayed(
+                                          const Duration(milliseconds: 100));
+                                      await _loadShippers();
 
-                                  print(
-                                      '🔄 MASTER_DATA_UI: Shippers refreshed after save');
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error saving shipper: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                      print(
+                                          '🔄 MASTER_DATA_UI: Shippers refreshed after save');
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context)
+                                          .hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text('Error saving shipper: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Update'),
                               ),
                             ),
-                            child: const Text('Update'),
-                          ),
+                          ],
                         ),
                       ],
                     ),

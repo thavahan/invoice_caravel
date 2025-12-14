@@ -122,6 +122,34 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Build Debug APK",
+			"type": "shell",
+			"command": "flutter build apk --debug",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build Release APK",
+			"type": "shell",
+			"command": "flutter build apk --release",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build Optimized APK",
+			"type": "shell",
+			"command": "flutter build apk --release --target-platform android-arm64",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build Split APKs",
+			"type": "shell",
+			"command": "flutter build apk --split-per-abi --release",
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }
