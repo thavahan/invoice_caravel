@@ -42,7 +42,8 @@ class DatabaseService {
 
       final db = await openDatabase(
         path,
-        version: 2, // Database version with updated flower_types table
+        version:
+            3, // Updated version for new fields (master_awb, house_awb, flight_date, gross_weight)
         onCreate: _createTables,
         onUpgrade: _upgradeDatabase,
       );
@@ -74,7 +75,10 @@ class DatabaseService {
           consignee_address TEXT,
           client_ref TEXT,
           awb TEXT NOT NULL,
+          master_awb TEXT,      -- New field: Master AWB (optional)
+          house_awb TEXT,       -- New field: House AWB (optional)
           flight_no TEXT,
+          flight_date INTEGER,  -- New field: FLIGHT Date (mandatory)
           discharge_airport TEXT,
           origin TEXT,
           destination TEXT,
@@ -85,7 +89,8 @@ class DatabaseService {
           sgst_no TEXT,
           iec_code TEXT,
           freight_terms TEXT,
-          total_amount REAL DEFAULT 0.0,
+          gross_weight REAL DEFAULT 0.0,  -- Changed from total_amount
+          total_amount REAL DEFAULT 0.0,  -- Keep for legacy support
           invoice_title TEXT,
           status TEXT DEFAULT 'pending',
           created_at INTEGER NOT NULL,
@@ -270,24 +275,38 @@ class DatabaseService {
     _logger.i('Upgrading database from version $oldVersion to $newVersion');
 
     try {
-      // Since all required fields already exist in schema,
-      // we can simply recreate tables if needed for any major changes
-      _logger.i('Recreating database with current schema');
+      if (oldVersion == 2 && newVersion == 3) {
+        // Add new columns to existing shipments table
+        _logger.i('Adding new fields to shipments table');
+        await db.execute(
+            'ALTER TABLE shipments ADD COLUMN master_awb TEXT DEFAULT ""');
+        await db.execute(
+            'ALTER TABLE shipments ADD COLUMN house_awb TEXT DEFAULT ""');
+        await db
+            .execute('ALTER TABLE shipments ADD COLUMN flight_date INTEGER');
+        await db.execute(
+            'ALTER TABLE shipments ADD COLUMN gross_weight REAL DEFAULT 0.0');
 
-      // Drop all existing tables
-      await db.execute('DROP TABLE IF EXISTS shipments');
-      await db.execute('DROP TABLE IF EXISTS boxes');
-      await db.execute('DROP TABLE IF EXISTS products');
-      await db.execute('DROP TABLE IF EXISTS drafts');
-      await db.execute('DROP TABLE IF EXISTS flower_types');
-      await db.execute('DROP TABLE IF EXISTS items');
-      await db.execute('DROP TABLE IF EXISTS resources');
-      await db.execute('DROP TABLE IF EXISTS master_shippers');
-      await db.execute('DROP TABLE IF EXISTS master_consignees');
-      await db.execute('DROP TABLE IF EXISTS master_product_types');
+        _logger.i('Database upgrade from v2 to v3 completed successfully');
+      } else {
+        // For other version upgrades, use the drop and recreate approach
+        _logger.i('Recreating database with current schema');
 
-      // Recreate all tables with current schema
-      await _createTables(db, newVersion);
+        // Drop all existing tables
+        await db.execute('DROP TABLE IF EXISTS shipments');
+        await db.execute('DROP TABLE IF EXISTS boxes');
+        await db.execute('DROP TABLE IF EXISTS products');
+        await db.execute('DROP TABLE IF EXISTS drafts');
+        await db.execute('DROP TABLE IF EXISTS flower_types');
+        await db.execute('DROP TABLE IF EXISTS items');
+        await db.execute('DROP TABLE IF EXISTS resources');
+        await db.execute('DROP TABLE IF EXISTS master_shippers');
+        await db.execute('DROP TABLE IF EXISTS master_consignees');
+        await db.execute('DROP TABLE IF EXISTS master_product_types');
+
+        // Recreate all tables with current schema
+        await _createTables(db, newVersion);
+      }
 
       _logger.i('Database upgrade completed successfully');
     } catch (e, s) {

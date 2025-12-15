@@ -394,10 +394,12 @@ class LocalDatabaseService {
         consignee: draftData['consignee'] ?? '',
         awb: draftData['awb'] ?? '',
         flightNo: draftData['flightNo'] ?? '',
+        flightDate: DateTime.tryParse(draftData['flightDate'] ?? '') ??
+            DateTime.now().add(Duration(days: 1)),
         dischargeAirport: draftData['dischargeAirport'] ?? '',
         eta: DateTime.tryParse(draftData['eta'] ?? '') ??
             DateTime.now().add(Duration(days: 1)),
-        totalAmount: double.tryParse(draftData['totalAmount'] ?? '0') ?? 0.0,
+        grossWeight: double.tryParse(draftData['grossWeight'] ?? '0') ?? 0.0,
         invoiceTitle: draftData['invoiceTitle'] ?? '',
         status: 'pending',
       );
@@ -450,9 +452,10 @@ class LocalDatabaseService {
         consignee: invoice.shipment.consignee,
         awb: invoice.invoiceNumber,
         flightNo: invoice.shipment.flightNo,
+        flightDate: DateTime.now(),
         dischargeAirport: invoice.shipment.dischargeAirport,
         eta: invoice.shipment.eta,
-        totalAmount: invoice.total,
+        grossWeight: invoice.total,
         invoiceTitle: 'Invoice ${invoice.invoiceNumber}',
       );
 
@@ -815,29 +818,29 @@ class LocalDatabaseService {
     }
   }
 
-  /// Get the next invoice number in KS format (KS0001, KS0002, etc.)
+  /// Get the next invoice number in CS format (CS0001, CS0002, etc.)
   Future<String> getNextInvoiceNumber() async {
     try {
       final db = await _db.database;
 
-      // Query all shipments to find existing KS invoice numbers
+      // Query all shipments to find existing CS invoice numbers
       final results = await db.rawQuery('''
         SELECT invoice_number FROM shipments
-        WHERE invoice_number LIKE 'KS%'
+        WHERE invoice_number LIKE 'CS%'
         ORDER BY invoice_number DESC
         LIMIT 1
       ''');
 
       if (results.isNotEmpty) {
         final lastInvoiceNumber = results.first['invoice_number'] as String;
-        // Extract the numeric part after "KS"
-        final numericPart = lastInvoiceNumber.substring(2); // Remove "KS"
+        // Extract the numeric part after "CS"
+        final numericPart = lastInvoiceNumber.substring(2); // Remove "CS"
         final lastNumber = int.tryParse(numericPart) ?? 0;
         final nextNumber = lastNumber + 1;
-        return 'KS${nextNumber.toString().padLeft(4, '0')}';
+        return 'CS${nextNumber.toString().padLeft(4, '0')}';
       } else {
-        // No existing KS invoices, start with KS0001
-        return 'KS0001';
+        // No existing CS invoices, start with CS0001
+        return 'CS0001';
       }
     } catch (e, s) {
       _logger.e('Failed to get next invoice number', e, s);

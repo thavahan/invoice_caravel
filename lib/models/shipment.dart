@@ -6,7 +6,10 @@ class Shipment {
   final String consigneeAddress;
   final String clientRef;
   final String awb;
+  final String masterAwb; // New field - Master AWB (optional)
+  final String houseAwb; // New field - House AWB (optional)
   final String flightNo;
+  final DateTime? flightDate; // New field - FLIGHT Date (mandatory)
   final String dischargeAirport;
   final String origin;
   final String destination;
@@ -17,7 +20,8 @@ class Shipment {
   final String sgstNo;
   final String iecCode;
   final String freightTerms;
-  final double totalAmount;
+  final double
+      grossWeight; // Changed from totalAmount to grossWeight (optional)
   final String invoiceTitle;
   final String status;
   final List<String> boxIds; // References to boxes in this shipment
@@ -30,7 +34,10 @@ class Shipment {
     this.consigneeAddress = '',
     this.clientRef = '',
     required this.awb,
+    this.masterAwb = '', // New field - Master AWB (optional)
+    this.houseAwb = '', // New field - House AWB (optional)
     required this.flightNo,
+    required this.flightDate, // New field - FLIGHT Date (mandatory)
     required this.dischargeAirport,
     this.origin = '',
     this.destination = '',
@@ -41,7 +48,8 @@ class Shipment {
     this.sgstNo = '',
     this.iecCode = '',
     this.freightTerms = '',
-    required this.totalAmount,
+    this.grossWeight =
+        0.0, // Changed from totalAmount to grossWeight (optional)
     required this.invoiceTitle,
     this.status = 'pending',
     this.boxIds = const [],
@@ -57,7 +65,12 @@ class Shipment {
       consigneeAddress: map['consignee_address'] ?? '',
       clientRef: map['client_ref'] ?? '',
       awb: map['awb'] ?? '',
+      masterAwb: map['master_awb'] ?? '', // New field
+      houseAwb: map['house_awb'] ?? '', // New field
       flightNo: map['flight_no'] ?? '',
+      flightDate: map['flight_date'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['flight_date'])
+          : null, // New field
       dischargeAirport: map['discharge_airport'] ?? '',
       origin: map['origin'] ?? '',
       destination: map['destination'] ?? '',
@@ -72,7 +85,8 @@ class Shipment {
       sgstNo: map['sgst_no'] ?? '',
       iecCode: map['iec_code'] ?? '',
       freightTerms: map['freight_terms'] ?? '',
-      totalAmount: (map['total_amount'] ?? 0.0).toDouble(),
+      grossWeight: (map['gross_weight'] ?? map['total_amount'] ?? 0.0)
+          .toDouble(), // Support legacy total_amount field
       invoiceTitle: map['invoice_title'] ?? '',
       status: (map['status'] ?? 'pending').toString(),
       boxIds: [], // Box IDs will be loaded separately via join queries
@@ -90,7 +104,12 @@ class Shipment {
           map['consignee_address'] ?? map['consigneeAddress'] ?? '',
       clientRef: map['client_ref'] ?? map['clientRef'] ?? '',
       awb: map['AWB'] ?? '',
+      masterAwb: map['masterAwb'] ?? map['master_awb'] ?? '', // New field
+      houseAwb: map['houseAwb'] ?? map['house_awb'] ?? '', // New field
       flightNo: map['flight_no'] ?? '',
+      flightDate: map['flight_date'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['flight_date'])
+          : null, // New field
       dischargeAirport: map['discharge_airport'] ?? '',
       origin: map['origin'] ?? '',
       destination: map['destination'] ?? '',
@@ -105,7 +124,8 @@ class Shipment {
       sgstNo: map['sgst_no'] ?? map['sgstNo'] ?? '',
       iecCode: map['iec_code'] ?? map['iecCode'] ?? '',
       freightTerms: map['freight_terms'] ?? map['freightTerms'] ?? '',
-      totalAmount: (map['total_amount'] ?? 0.0).toDouble(),
+      grossWeight: (map['gross_weight'] ?? map['total_amount'] ?? 0.0)
+          .toDouble(), // Support legacy total_amount
       invoiceTitle: map['invoice_title'] ?? '',
       status: (map['status'] ?? 'pending').toString(),
       boxIds: List<String>.from(map['box_ids'] ?? []),
@@ -122,7 +142,10 @@ class Shipment {
       'consignee_address': consigneeAddress,
       'client_ref': clientRef,
       'awb': awb,
+      'master_awb': masterAwb, // New field
+      'house_awb': houseAwb, // New field
       'flight_no': flightNo,
+      'flight_date': flightDate?.millisecondsSinceEpoch, // New field
       'discharge_airport': dischargeAirport,
       'origin': origin,
       'destination': destination,
@@ -133,7 +156,7 @@ class Shipment {
       'sgst_no': sgstNo,
       'iec_code': iecCode,
       'freight_terms': freightTerms,
-      'total_amount': totalAmount,
+      'gross_weight': grossWeight, // Changed from total_amount
       'invoice_title': invoiceTitle,
       'status': status,
     };
@@ -143,47 +166,30 @@ class Shipment {
   Map<String, dynamic> toFirebase() {
     return {
       'invoiceNumber': invoiceNumber,
-      'invoice_number': invoiceNumber, // Keep legacy field for compatibility
       'shipper': shipper,
-      'shipper_address': shipperAddress,
-      'shipperAddress': shipperAddress, // Keep legacy field for compatibility
+      'shipperAddress': shipperAddress,
       'consignee': consignee,
-      'consignee_address': consigneeAddress,
-      'consigneeAddress':
-          consigneeAddress, // Keep legacy field for compatibility
-      'client_ref': clientRef,
-      'clientRef': clientRef, // Keep legacy field for compatibility
-      'AWB': awb,
-      'awb': awb, // Keep legacy field for compatibility
-      'flight_no': flightNo,
-      'flightNo': flightNo, // Keep legacy field for compatibility
-      'discharge_airport': dischargeAirport,
-      'dischargeAirport':
-          dischargeAirport, // Keep legacy field for compatibility
+      'consigneeAddress': consigneeAddress,
+      'clientRef': clientRef,
+      'awb': awb,
+      'masterAwb': masterAwb,
+      'houseAwb': houseAwb,
+      'flightNo': flightNo,
+      'flightDate': flightDate?.millisecondsSinceEpoch,
+      'dischargeAirport': dischargeAirport,
       'origin': origin,
       'destination': destination,
       'eta': eta.millisecondsSinceEpoch,
-      'invoice_date': invoiceDate?.millisecondsSinceEpoch,
-      'invoiceDate': invoiceDate
-          ?.millisecondsSinceEpoch, // Keep legacy field for compatibility
-      'date_of_issue': dateOfIssue?.millisecondsSinceEpoch,
-      'dateOfIssue': dateOfIssue
-          ?.millisecondsSinceEpoch, // Keep legacy field for compatibility
-      'place_of_receipt': placeOfReceipt,
-      'placeOfReceipt': placeOfReceipt, // Keep legacy field for compatibility
-      'sgst_no': sgstNo,
-      'sgstNo': sgstNo, // Keep legacy field for compatibility
-      'iec_code': iecCode,
-      'iecCode': iecCode, // Keep legacy field for compatibility
-      'freight_terms': freightTerms,
-      'freightTerms': freightTerms, // Keep legacy field for compatibility
-      'total_amount': totalAmount,
-      'totalAmount': totalAmount, // Keep legacy field for compatibility
-      'invoice_title': invoiceTitle,
-      'invoiceTitle': invoiceTitle, // Keep legacy field for compatibility
+      'invoiceDate': invoiceDate?.millisecondsSinceEpoch,
+      'dateOfIssue': dateOfIssue?.millisecondsSinceEpoch,
+      'placeOfReceipt': placeOfReceipt,
+      'sgstNo': sgstNo,
+      'iecCode': iecCode,
+      'freightTerms': freightTerms,
+      'grossWeight': grossWeight,
+      'invoiceTitle': invoiceTitle,
       'status': status,
-      'box_ids': boxIds,
-      'boxIds': boxIds, // Keep legacy field for compatibility
+      'boxIds': boxIds,
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
       'createdAt': DateTime.now().millisecondsSinceEpoch,
     };
@@ -200,7 +206,14 @@ class Shipment {
           map['consigneeAddress'] ?? map['consignee_address'] ?? '',
       clientRef: map['clientRef'] ?? map['client_ref'] ?? '',
       awb: map['AWB'] ?? map['awb'] ?? '',
+      masterAwb: map['masterAwb'] ?? map['master_awb'] ?? '', // New field
+      houseAwb: map['houseAwb'] ?? map['house_awb'] ?? '', // New field
       flightNo: map['flightNo'] ?? map['flight_no'] ?? '',
+      flightDate: map['flightDate'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['flightDate'])
+          : (map['flight_date'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(map['flight_date'])
+              : null), // New field
       dischargeAirport:
           map['dischargeAirport'] ?? map['discharge_airport'] ?? '',
       origin: map['origin'] ?? '',
@@ -222,8 +235,12 @@ class Shipment {
       sgstNo: map['sgstNo'] ?? map['sgst_no'] ?? '',
       iecCode: map['iecCode'] ?? map['iec_code'] ?? '',
       freightTerms: map['freightTerms'] ?? map['freight_terms'] ?? '',
-      totalAmount:
-          (map['totalAmount'] ?? map['total_amount'] ?? 0.0).toDouble(),
+      grossWeight: (map['grossWeight'] ??
+              map['gross_weight'] ??
+              map['totalAmount'] ??
+              map['total_amount'] ??
+              0.0)
+          .toDouble(), // Support legacy fields
       invoiceTitle: map['invoiceTitle'] ?? map['invoice_title'] ?? '',
       status: map['status'] ?? 'pending',
       boxIds: List<String>.from(map['boxIds'] ?? map['box_ids'] ?? []),
@@ -234,26 +251,29 @@ class Shipment {
   Map<String, dynamic> toMap() {
     return {
       'shipper': shipper,
-      'shipper_address': shipperAddress,
+      'shipperAddress': shipperAddress,
       'consignee': consignee,
-      'consignee_address': consigneeAddress,
-      'client_ref': clientRef,
-      'AWB': awb,
-      'flight_no': flightNo,
-      'discharge_airport': dischargeAirport,
+      'consigneeAddress': consigneeAddress,
+      'clientRef': clientRef,
+      'awb': awb,
+      'masterAwb': masterAwb,
+      'houseAwb': houseAwb,
+      'flightNo': flightNo,
+      'flightDate': flightDate?.millisecondsSinceEpoch,
+      'dischargeAirport': dischargeAirport,
       'origin': origin,
       'destination': destination,
       'eta': eta.millisecondsSinceEpoch,
-      'invoice_date': invoiceDate?.millisecondsSinceEpoch,
-      'date_of_issue': dateOfIssue?.millisecondsSinceEpoch,
-      'place_of_receipt': placeOfReceipt,
-      'sgst_no': sgstNo,
-      'iec_code': iecCode,
-      'freight_terms': freightTerms,
-      'total_amount': totalAmount,
-      'invoice_title': invoiceTitle,
+      'invoiceDate': invoiceDate?.millisecondsSinceEpoch,
+      'dateOfIssue': dateOfIssue?.millisecondsSinceEpoch,
+      'placeOfReceipt': placeOfReceipt,
+      'sgstNo': sgstNo,
+      'iecCode': iecCode,
+      'freightTerms': freightTerms,
+      'grossWeight': grossWeight,
+      'invoiceTitle': invoiceTitle,
       'status': status,
-      'box_ids': boxIds,
+      'boxIds': boxIds,
     };
   }
 
@@ -266,7 +286,10 @@ class Shipment {
     String? consigneeAddress,
     String? clientRef,
     String? awb,
+    String? masterAwb, // New field
+    String? houseAwb, // New field
     String? flightNo,
+    DateTime? flightDate, // New field
     String? dischargeAirport,
     String? origin,
     String? destination,
@@ -277,7 +300,7 @@ class Shipment {
     String? sgstNo,
     String? iecCode,
     String? freightTerms,
-    double? totalAmount,
+    double? grossWeight, // Changed from totalAmount
     String? invoiceTitle,
     String? status,
     List<String>? boxIds,
@@ -290,7 +313,10 @@ class Shipment {
       consigneeAddress: consigneeAddress ?? this.consigneeAddress,
       clientRef: clientRef ?? this.clientRef,
       awb: awb ?? this.awb,
+      masterAwb: masterAwb ?? this.masterAwb, // New field
+      houseAwb: houseAwb ?? this.houseAwb, // New field
       flightNo: flightNo ?? this.flightNo,
+      flightDate: flightDate ?? this.flightDate, // New field
       dischargeAirport: dischargeAirport ?? this.dischargeAirport,
       origin: origin ?? this.origin,
       destination: destination ?? this.destination,
@@ -301,12 +327,15 @@ class Shipment {
       sgstNo: sgstNo ?? this.sgstNo,
       iecCode: iecCode ?? this.iecCode,
       freightTerms: freightTerms ?? this.freightTerms,
-      totalAmount: totalAmount ?? this.totalAmount,
+      grossWeight: grossWeight ?? this.grossWeight, // Changed from totalAmount
       invoiceTitle: invoiceTitle ?? this.invoiceTitle,
       status: status ?? this.status,
       boxIds: boxIds ?? this.boxIds,
     );
   }
+
+  // Backward compatibility getter for totalAmount
+  double get totalAmount => grossWeight;
 
   @override
   String toString() => '$invoiceTitle - $awb ($invoiceNumber)';

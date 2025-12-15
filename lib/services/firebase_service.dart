@@ -262,7 +262,7 @@ class FirebaseService {
         'userId': currentUserId,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'box_ids': [], // Initialize empty box_ids array
+        'boxIds': [], // Initialize empty boxIds array
       };
 
       print(
@@ -346,10 +346,10 @@ class FirebaseService {
         }
       }
 
-      // Update shipment with box_ids array
+      // Update shipment with boxIds array
       await updateShipment(shipmentId, {
-        'box_ids': createdBoxIds,
-        'total_boxes': createdBoxIds.length,
+        'boxIds': createdBoxIds,
+        'totalBoxes': createdBoxIds.length,
       });
 
       _logger.i(
@@ -379,9 +379,10 @@ class FirebaseService {
         clientRef: 'REF001',
         awb: 'AWB$invoiceNumber',
         flightNo: 'FL${DateTime.now().hour}${DateTime.now().minute}',
+        flightDate: DateTime.now().add(Duration(days: 1)),
         dischargeAirport: 'Sample Airport (SAM)',
         eta: DateTime.now().add(Duration(days: 2)),
-        totalAmount: 1200.50,
+        grossWeight: 1200.50,
         invoiceTitle: 'Sample Shipment Invoice',
         status: 'pending',
       );
@@ -502,39 +503,14 @@ class FirebaseService {
       // Normalize invoice number to UPPERCASE for Firestore document ID
       final normalizedInvoiceNumber = invoiceNumber.toUpperCase().trim();
 
-      // Map camelCase field names to snake_case to match Firestore storage format
-      final Map<String, String> fieldMapping = {
-        'invoiceTitle': 'invoice_title',
-        'shipper': 'shipper',
-        'consignee': 'consignee',
-        'awb': 'awb',
-        'flightNo': 'flight_no',
-        'dischargeAirport': 'discharge_airport',
-        'origin': 'origin',
-        'destination': 'destination',
-        'eta': 'eta',
-        'totalAmount': 'total_amount',
-        'shipperAddress': 'shipper_address',
-        'consigneeAddress': 'consignee_address',
-        'clientRef': 'client_ref',
-        'invoiceDate': 'invoice_date',
-        'dateOfIssue': 'date_of_issue',
-        'placeOfReceipt': 'place_of_receipt',
-        'sgstNo': 'sgst_no',
-        'iecCode': 'iec_code',
-        'freightTerms': 'freight_terms',
-        'status': 'status',
-      };
-
-      // Convert camelCase keys to snake_case field names
+      // Convert updates to data, keeping camelCase keys
       final data = <String, dynamic>{};
       updates.forEach((key, value) {
-        final fbField = fieldMapping[key] ?? key;
         // UPPERCASE normalize awb if present
-        if (fbField == 'awb') {
-          data[fbField] = value?.toString().toUpperCase().trim() ?? value;
+        if (key == 'awb') {
+          data[key] = value?.toString().toUpperCase().trim() ?? value;
         } else {
-          data[fbField] = value;
+          data[key] = value;
         }
       });
 
@@ -544,7 +520,7 @@ class FirebaseService {
       print(
           '🔥 DEBUG: FirebaseService.updateShipment - invoiceNumber: $normalizedInvoiceNumber (uppercase)');
       print('🔥 DEBUG: Original updates keys: ${updates.keys.toList()}');
-      print('🔥 DEBUG: Converted data keys: ${data.keys.toList()}');
+      print('🔥 DEBUG: Data keys: ${data.keys.toList()}');
       print('🔥 DEBUG: awb value: ${data['awb']} (uppercased if present)');
 
       await firestore
@@ -652,13 +628,13 @@ class FirebaseService {
 
       print('✅ DEBUG: Deleted all boxes and products for shipment $shipmentId');
 
-      // Update shipment to remove box_ids and total_boxes
+      // Update shipment to remove boxIds and totalBoxes
       await firestore
           .collection('${_userPath}/shipments')
           .doc(shipmentId)
           .update({
-        'box_ids': FieldValue.delete(),
-        'total_boxes': 0,
+        'boxIds': FieldValue.delete(),
+        'totalBoxes': 0,
       });
 
       print('✅ DEBUG: Updated shipment $shipmentId to clear box references');
@@ -933,10 +909,12 @@ class FirebaseService {
         consignee: draftData['consignee'] ?? '',
         awb: draftData['awb'] ?? '',
         flightNo: draftData['flightNo'] ?? '',
+        flightDate: DateTime.tryParse(draftData['flightDate'] ?? '') ??
+            DateTime.now().add(Duration(days: 1)),
         dischargeAirport: draftData['dischargeAirport'] ?? '',
         eta: DateTime.tryParse(draftData['eta'] ?? '') ??
             DateTime.now().add(Duration(days: 1)),
-        totalAmount: double.tryParse(draftData['totalAmount'] ?? '0') ?? 0.0,
+        grossWeight: double.tryParse(draftData['grossWeight'] ?? '0') ?? 0.0,
         invoiceTitle: draftData['invoiceTitle'] ?? '',
         status: 'pending',
       );

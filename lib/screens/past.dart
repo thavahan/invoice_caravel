@@ -186,9 +186,10 @@ class _OrdersState extends State<Orders> {
         consignee: customerData[0],
         awb: invoiceNumber,
         flightNo: 'TBD',
+        flightDate: invoiceDate,
         dischargeAirport: customerData.length > 1 ? customerData[1] : 'TBD',
         eta: invoiceDate.add(Duration(days: 1)),
-        totalAmount: invoiceP.fold(0.0, (sum, item) {
+        grossWeight: invoiceP.fold(0.0, (sum, item) {
           final price = double.tryParse(item['price'] ?? '0') ?? 0.0;
           final qty = int.tryParse(item['quantity'] ?? '0') ?? 0;
           return sum + (price * qty);

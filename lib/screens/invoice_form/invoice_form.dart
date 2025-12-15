@@ -39,11 +39,18 @@ class InvoiceFormState extends State<InvoiceForm>
   final TextEditingController _shipperController = TextEditingController();
   final TextEditingController _consigneeController = TextEditingController();
   final TextEditingController _awbController = TextEditingController();
+  final TextEditingController _masterAwbController =
+      TextEditingController(); // New field
+  final TextEditingController _houseAwbController =
+      TextEditingController(); // New field
   final TextEditingController _flightNoController = TextEditingController();
+  final TextEditingController _flightDateController =
+      TextEditingController(); // New field
   final TextEditingController _dischargeAirportController =
       TextEditingController();
   final TextEditingController _etaController = TextEditingController();
-  final TextEditingController _totalAmountController = TextEditingController();
+  final TextEditingController _grossWeightController =
+      TextEditingController(); // Changed from _totalAmountController
   final TextEditingController _originController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
 
@@ -85,7 +92,6 @@ class InvoiceFormState extends State<InvoiceForm>
   bool isBasicInfoExpanded = true;
   bool isFlightDetailsExpanded = false;
   bool isItemsExpanded = false;
-  bool isPricingExpanded = false;
 
   // Box and Item Management
   List<ShipmentBox> shipmentBoxes = [];
@@ -121,7 +127,7 @@ class InvoiceFormState extends State<InvoiceForm>
   final TextEditingController _approxQuantityController =
       TextEditingController();
 
-  // Scroll controller for the Items & Pricing step so we can programmatically scroll
+  // Scroll controller for the Items step so we can programmatically scroll
   // to top when showing the product form dialog.
   final ScrollController _itemsScrollController = ScrollController();
 
@@ -263,10 +269,13 @@ class InvoiceFormState extends State<InvoiceForm>
     _shipperController.dispose();
     _consigneeController.dispose();
     _awbController.dispose();
+    _masterAwbController.dispose();
+    _houseAwbController.dispose();
     _flightNoController.dispose();
+    _flightDateController.dispose();
     _dischargeAirportController.dispose();
     _etaController.dispose();
-    _totalAmountController.dispose();
+    _grossWeightController.dispose();
     _originController.dispose();
     _destinationController.dispose();
     _shipperAddressController.dispose();
@@ -284,7 +293,6 @@ class InvoiceFormState extends State<InvoiceForm>
     _boxHeightController.dispose();
     _productTypeController.dispose();
     _itemWeightController.dispose();
-    _itemRateController.dispose();
     _flowerTypeController.dispose();
     _approxQuantityController.dispose();
     _pageController.dispose();
@@ -705,7 +713,8 @@ class InvoiceFormState extends State<InvoiceForm>
               _dischargeAirportController.text.isNotEmpty;
           break;
         case 2:
-          stepValidation[2] = _totalAmountController.text.isNotEmpty;
+          stepValidation[2] =
+              _flightDateController.text.isNotEmpty; // Flight date is mandatory
           break;
       }
     });
@@ -892,7 +901,7 @@ class InvoiceFormState extends State<InvoiceForm>
                       children: [
                         _buildBasicInfoStep(invoiceProvider),
                         _buildFlightDetailsStep(invoiceProvider),
-                        _buildItemsAndPricingStep(invoiceProvider),
+                        _buildItemsStep(invoiceProvider),
                       ],
                     ),
                   ),
@@ -1302,6 +1311,24 @@ class InvoiceFormState extends State<InvoiceForm>
               textCapitalization: TextCapitalization.characters,
             ),
 
+            _buildEnhancedTextField(
+              controller: _masterAwbController,
+              label: 'Master AWB',
+              hint: 'Master Air Waybill (optional)',
+              icon: Icons.description,
+              isRequired: false,
+              textCapitalization: TextCapitalization.characters,
+            ),
+
+            _buildEnhancedTextField(
+              controller: _houseAwbController,
+              label: 'House AWB',
+              hint: 'House Air Waybill (optional)',
+              icon: Icons.description_outlined,
+              isRequired: false,
+              textCapitalization: TextCapitalization.characters,
+            ),
+
             _buildAutocompleteTextField(
               controller: _flightNoController,
               label: 'Flight Number',
@@ -1312,6 +1339,13 @@ class InvoiceFormState extends State<InvoiceForm>
                   value?.isEmpty == true ? 'Flight number is required' : null,
               isRequired: true,
               textCapitalization: TextCapitalization.characters,
+            ),
+
+            _buildDateOnlyField(
+              controller: _flightDateController,
+              label: 'Flight Date',
+              hint: 'Select flight date (required)',
+              icon: Icons.date_range,
             ),
 
             _buildAutocompleteTextField(
@@ -1341,7 +1375,7 @@ class InvoiceFormState extends State<InvoiceForm>
   }
 
   // Step 3: Boxes & Items Management
-  Widget _buildItemsAndPricingStep(InvoiceProvider invoiceProvider) {
+  Widget _buildItemsStep(InvoiceProvider invoiceProvider) {
     return SingleChildScrollView(
       controller: _itemsScrollController,
       padding: const EdgeInsets.all(16.0),
@@ -1467,68 +1501,24 @@ class InvoiceFormState extends State<InvoiceForm>
             ),
           ],
 
-          // Pricing Section
+          // Gross Weight Section (Optional)
           const SizedBox(height: 24),
           Container(
             margin: const EdgeInsets.only(bottom: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Pricing Information',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 12),
                 _buildEnhancedTextField(
-                  controller: _totalAmountController,
-                  label: 'Total Amount',
-                  hint: 'Enter total shipment amount',
-                  icon: Icons.attach_money,
+                  controller: _grossWeightController,
+                  label: 'Gross Weight (kg)',
+                  hint: 'Enter total shipment weight (optional)',
+                  icon: Icons.scale,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
                         RegExp(r'^\d+\.?\d{0,2}')),
                   ],
-                  validator: (value) => value?.isEmpty == true
-                      ? 'Total amount is required'
-                      : null,
-                  isRequired: true,
-                ),
-
-                // Conclusion statement for pricing information
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: Theme.of(context).colorScheme.outline),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Pricing Summary',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Total shipment value: \$${_totalAmountController.text.isEmpty ? '0.00' : _totalAmountController.text}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                  isRequired: false, // Optional field
                 ),
               ],
             ),
@@ -1931,7 +1921,7 @@ class InvoiceFormState extends State<InvoiceForm>
       _flightNoController.clear();
       _dischargeAirportController.clear();
       _etaController.clear();
-      _totalAmountController.clear();
+      _grossWeightController.clear();
       _originController.clear();
       _destinationController.clear();
       _shipperAddressController.clear();
@@ -1966,7 +1956,6 @@ class InvoiceFormState extends State<InvoiceForm>
       isBasicInfoExpanded = true;
       isFlightDetailsExpanded = false;
       isItemsExpanded = false;
-      isPricingExpanded = false;
 
       // Reset editing states
       selectedBoxIndex = null;
@@ -2015,6 +2004,10 @@ class InvoiceFormState extends State<InvoiceForm>
       // Flight & Logistics Details
       _awbController.text =
           'AWB${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
+      _masterAwbController.text =
+          'MAWB-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+      _houseAwbController.text =
+          'HAWB-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
       _flightNoController.text =
           'FL${(1000 + DateTime.now().second).toString()}';
       _originController.text = 'Mumbai (BOM)';
@@ -2024,8 +2017,11 @@ class InvoiceFormState extends State<InvoiceForm>
       // Dates
       final now = DateTime.now();
       final eta = now.add(const Duration(days: 3));
+      final flightDate = now.add(const Duration(days: 1));
       _etaController.text =
           '${eta.year}-${eta.month.toString().padLeft(2, '0')}-${eta.day.toString().padLeft(2, '0')}';
+      _flightDateController.text =
+          '${flightDate.year}-${flightDate.month.toString().padLeft(2, '0')}-${flightDate.day.toString().padLeft(2, '0')}';
       _invoiceDateController.text =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       _dateOfIssueController.text =
@@ -2039,7 +2035,7 @@ class InvoiceFormState extends State<InvoiceForm>
       _iecCodeController.text = 'IEC987654321';
 
       // Pricing
-      _totalAmountController.text = '25000.00';
+      _grossWeightController.text = '1500.5'; // kg
 
       // Clear existing boxes and add test boxes
       shipmentBoxes.clear();
@@ -2111,7 +2107,6 @@ class InvoiceFormState extends State<InvoiceForm>
       isBasicInfoExpanded = true;
       isFlightDetailsExpanded = true;
       isItemsExpanded = true;
-      isPricingExpanded = true;
     });
 
     // Trigger animation to show changes
@@ -2173,7 +2168,7 @@ class InvoiceFormState extends State<InvoiceForm>
       'flightNo': _flightNoController.text,
       'dischargeAirport': _dischargeAirportController.text,
       'eta': _etaController.text,
-      'totalAmount': _totalAmountController.text,
+      'grossWeight': _grossWeightController.text, // Changed from totalAmount
       'origin': _originController.text,
       'destination': _destinationController.text,
       'bonus': _bonus_controller.text,
@@ -2193,7 +2188,6 @@ class InvoiceFormState extends State<InvoiceForm>
       'isBasicInfoExpanded': isBasicInfoExpanded,
       'isFlightDetailsExpanded': isFlightDetailsExpanded,
       'isItemsExpanded': isItemsExpanded,
-      'isPricingExpanded': isPricingExpanded,
     };
   }
 
@@ -2255,7 +2249,12 @@ class InvoiceFormState extends State<InvoiceForm>
     _dischargeAirportController.text =
         actualDraftData['dischargeAirport'] ?? '';
     _etaController.text = actualDraftData['eta'] ?? '';
-    _totalAmountController.text = actualDraftData['totalAmount'] ?? '';
+    _masterAwbController.text = actualDraftData['masterAwb'] ?? '';
+    _houseAwbController.text = actualDraftData['houseAwb'] ?? '';
+    _flightDateController.text = actualDraftData['flightDate'] ?? '';
+    _grossWeightController.text = actualDraftData['grossWeight'] ??
+        actualDraftData['totalAmount'] ??
+        ''; // Support legacy
     _originController.text = actualDraftData['origin'] ?? '';
     _destinationController.text = actualDraftData['destination'] ?? '';
     _bonus_controller.text = actualDraftData['bonus'] ?? '';
@@ -2299,7 +2298,6 @@ class InvoiceFormState extends State<InvoiceForm>
     isFlightDetailsExpanded =
         actualDraftData['isFlightDetailsExpanded'] ?? false;
     isItemsExpanded = actualDraftData['isItemsExpanded'] ?? false;
-    isPricingExpanded = actualDraftData['isPricingExpanded'] ?? false;
 
     // Ensure PageView is on the correct page
     _pageController.jumpToPage(currentStep);
@@ -3176,7 +3174,7 @@ class InvoiceFormState extends State<InvoiceForm>
     });
 
     // After the frame rebuilds with the product form at the top,
-    // scroll the Items & Pricing step to the top so the dialog is visible.
+    // scroll the Items step to the top so the dialog is visible.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
         if (_itemsScrollController.hasClients) {
@@ -3335,7 +3333,12 @@ class InvoiceFormState extends State<InvoiceForm>
         consigneeAddress: _consigneeAddressController.text,
         clientRef: _clientRefController.text,
         awb: normalizedAwb,
+        masterAwb: _masterAwbController.text, // New field
+        houseAwb: _houseAwbController.text, // New field
         flightNo: _flightNoController.text,
+        flightDate: _flightDateController.text.isNotEmpty
+            ? DateTime.tryParse(_flightDateController.text)
+            : DateTime.now(), // Default to current date if not provided
         dischargeAirport: _dischargeAirportController.text,
         origin: _originController.text,
         destination: _destinationController.text,
@@ -3351,7 +3354,8 @@ class InvoiceFormState extends State<InvoiceForm>
         sgstNo: _sgstNoController.text,
         iecCode: _iecCodeController.text,
         freightTerms: selectedFreightTerms ?? 'Pre Paid',
-        totalAmount: double.tryParse(_totalAmountController.text) ?? 0.0,
+        grossWeight: double.tryParse(_grossWeightController.text) ??
+            0.0, // Changed from totalAmount
         invoiceTitle: _invoiceTitleController.text,
         status: 'pending',
       );
@@ -3434,10 +3438,13 @@ class InvoiceFormState extends State<InvoiceForm>
       'shipper': _shipperController.text,
       'consignee': _consigneeController.text,
       'awb': _awbController.text,
+      'masterAwb': _masterAwbController.text, // New field
+      'houseAwb': _houseAwbController.text, // New field
       'flightNo': _flightNoController.text,
+      'flightDate': _flightDateController.text, // New field
       'dischargeAirport': _dischargeAirportController.text,
       'eta': _etaController.text,
-      'totalAmount': _totalAmountController.text,
+      'grossWeight': _grossWeightController.text, // Changed from totalAmount
       'origin': _originController.text,
       'destination': _destinationController.text,
       'bonus': _bonus_controller.text,

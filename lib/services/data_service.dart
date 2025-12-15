@@ -548,7 +548,6 @@ class DataService {
                     'id': product.id, // Use original Firebase product ID
                     'description': product.description,
                     'weight': product.weight,
-                    'rate': product.rate,
                     'type': product.type,
                     'flowerType': product.flowerType,
                     'hasStems': product.hasStems,

@@ -496,7 +496,6 @@ class InvoiceProvider with ChangeNotifier {
       if (existingProduct.type != newProductData['type'] ||
           existingProduct.description != newProductData['description'] ||
           existingProduct.weight != newProductData['weight'] ||
-          existingProduct.rate != newProductData['rate'] ||
           existingProduct.flowerType != newProductData['flowerType'] ||
           existingProduct.hasStems != newProductData['hasStems'] ||
           existingProduct.approxQuantity != newProductData['approxQuantity']) {
@@ -504,7 +503,6 @@ class InvoiceProvider with ChangeNotifier {
           'type': newProductData['type'],
           'description': newProductData['description'],
           'weight': newProductData['weight'],
-          'rate': newProductData['rate'],
           'flower_type': newProductData['flowerType'],
           'has_stems': newProductData['hasStems'],
           'approx_quantity': newProductData['approxQuantity'],
@@ -553,9 +551,10 @@ class InvoiceProvider with ChangeNotifier {
       consignee: selectedFlowerType!.flowerName,
       awb: invoiceNumber,
       flightNo: 'TBD',
+      flightDate: DateTime.now(), // Add required flightDate
       dischargeAirport: 'TBD',
       eta: DateTime.now().add(Duration(days: 1)),
-      totalAmount: total,
+      grossWeight: total,
       invoiceTitle: 'Invoice $invoiceNumber',
       boxIds: [],
     );
@@ -605,16 +604,37 @@ class InvoiceProvider with ChangeNotifier {
       final shipment = Shipment(
         invoiceNumber: shipmentData['invoiceNumber'] ?? '',
         shipper: shipmentData['shipper'] ?? '',
+        shipperAddress: shipmentData['shipperAddress'] ?? '',
         consignee: shipmentData['consignee'] ?? '',
+        consigneeAddress: shipmentData['consigneeAddress'] ?? '',
+        clientRef: shipmentData['clientRef'] ?? '',
         awb: shipmentData['awb'] ?? '',
+        masterAwb: shipmentData['masterAwb'] ?? '',
+        houseAwb: shipmentData['houseAwb'] ?? '',
         flightNo: shipmentData['flightNo'] ?? '',
+        flightDate: shipmentData['flightDate'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(shipmentData['flightDate'])
+            : DateTime.now(),
         dischargeAirport: shipmentData['dischargeAirport'] ?? '',
+        origin: shipmentData['origin'] ?? '',
+        destination: shipmentData['destination'] ?? '',
         eta: shipmentData['eta'] != null
             ? DateTime.tryParse(shipmentData['eta']) ??
                 DateTime.now().add(Duration(days: 1))
             : DateTime.now().add(Duration(days: 1)),
-        totalAmount: double.tryParse(shipmentData['totalAmount'] ?? '0') ?? 0.0,
+        invoiceDate: shipmentData['invoiceDate'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(shipmentData['invoiceDate'])
+            : null,
+        dateOfIssue: shipmentData['dateOfIssue'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(shipmentData['dateOfIssue'])
+            : null,
+        placeOfReceipt: shipmentData['placeOfReceipt'] ?? '',
+        sgstNo: shipmentData['sgstNo'] ?? '',
+        iecCode: shipmentData['iecCode'] ?? '',
+        freightTerms: shipmentData['freightTerms'] ?? '',
+        grossWeight: double.tryParse(shipmentData['grossWeight'] ?? '0') ?? 0.0,
         invoiceTitle: shipmentData['invoiceTitle'] ?? '',
+        status: shipmentData['status'] ?? 'pending',
         boxIds: [], // Will be populated from boxes
       );
 
@@ -656,6 +676,7 @@ class InvoiceProvider with ChangeNotifier {
                   weightKg: product.weight,
                   form: product.type,
                   quantity: product.approxQuantity,
+                  rate: product.rate,
                 ),
                 quantity: 1,
               )))

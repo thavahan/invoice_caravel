@@ -5,6 +5,7 @@ class Item {
   final String form;
   final int quantity;
   final String notes;
+  final double rate;
 
   Item({
     this.id = '',
@@ -13,6 +14,7 @@ class Item {
     required this.form,
     required this.quantity,
     this.notes = '',
+    this.rate = 0.0,
   });
 
   factory Item.fromMap(String id, Map<String, dynamic> map) {
@@ -23,6 +25,7 @@ class Item {
       form: map['form'] ?? '',
       quantity: map['quantity'] ?? 0,
       notes: map['notes'] ?? '',
+      rate: (map['rate'] ?? 0.0).toDouble(),
     );
   }
 
@@ -31,7 +34,12 @@ class Item {
     return Item(
       id: shipment['id'] ?? '',
       flowerTypeId: shipment['awb'] ?? '',
-      weightKg: (shipment['total_amount'] ?? 0.0).toDouble(),
+      weightKg: (shipment['grossWeight'] ??
+              shipment['totalAmount'] ??
+              shipment['gross_weight'] ??
+              shipment['total_amount'] ??
+              0.0)
+          .toDouble(),
       form: 'shipment',
       quantity: 1,
       notes: shipment['invoice_title'] ?? '',
@@ -45,6 +53,7 @@ class Item {
       'form': form,
       'quantity': quantity,
       'notes': notes,
+      'rate': rate,
     };
   }
 }

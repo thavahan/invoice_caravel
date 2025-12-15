@@ -146,7 +146,7 @@ class ShipmentProduct {
     required this.type,
     required this.description,
     required this.weight,
-    required this.rate,
+    this.rate = 0.0, // Made optional with default value
     this.flowerType = 'LOOSE FLOWERS', // default value
     this.hasStems = false, // default to No
     this.approxQuantity = 0,

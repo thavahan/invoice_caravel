@@ -544,7 +544,6 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
                                                 fontWeight: FontWeight.bold),
                                           ),
                                           Text('Weight: ${product.weight} kg'),
-                                          Text('Rate: \$${product.rate}'),
                                           Text('Type: ${product.type}'),
                                           if (product.flowerType.isNotEmpty)
                                             Text(

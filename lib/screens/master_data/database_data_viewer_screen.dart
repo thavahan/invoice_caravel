@@ -542,7 +542,6 @@ class _DatabaseDataViewerScreenState extends State<DatabaseDataViewerScreen>
                                                 fontWeight: FontWeight.bold),
                                           ),
                                           Text('Weight: ${product.weight} kg'),
-                                          Text('Rate: \$${product.rate}'),
                                           Text('Type: ${product.type}'),
                                           if (product.flowerType.isNotEmpty)
                                             Text(

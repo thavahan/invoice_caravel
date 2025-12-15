@@ -3159,14 +3159,20 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             (detailedInvoiceData['consigneeAddress'] ?? '').toString(),
         awb: (detailedInvoiceData['awb'] ?? 'N/A').toString(),
         flightNo: (detailedInvoiceData['flightNo'] ?? 'N/A').toString(),
+        flightDate: detailedInvoiceData['flightDate'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['flightDate'])
+            : DateTime.tryParse(
+                    detailedInvoiceData['flightDate']?.toString() ?? '') ??
+                DateTime.now(),
         dischargeAirport:
             (detailedInvoiceData['dischargeAirport'] ?? 'N/A').toString(),
         eta: detailedInvoiceData['eta'] is int
             ? DateTime.fromMillisecondsSinceEpoch(detailedInvoiceData['eta'])
             : DateTime.tryParse(detailedInvoiceData['eta']?.toString() ?? '') ??
                 DateTime.now(),
-        totalAmount:
-            (detailedInvoiceData['totalAmount'] as num?)?.toDouble() ?? 0.0,
+        grossWeight:
+            (detailedInvoiceData['grossWeight'] as num?)?.toDouble() ?? 0.0,
         invoiceTitle: (invoice['invoiceTitle'] ?? 'Invoice').toString(),
         origin: (detailedInvoiceData['origin'] ?? 'N/A').toString(),
         destination: (detailedInvoiceData['destination'] ?? 'N/A').toString(),
@@ -3363,14 +3369,20 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             (detailedInvoiceData['consigneeAddress'] ?? '').toString(),
         awb: (detailedInvoiceData['awb'] ?? 'N/A').toString(),
         flightNo: (detailedInvoiceData['flightNo'] ?? 'N/A').toString(),
+        flightDate: detailedInvoiceData['flightDate'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['flightDate'])
+            : DateTime.tryParse(
+                    detailedInvoiceData['flightDate']?.toString() ?? '') ??
+                DateTime.now(),
         dischargeAirport:
             (detailedInvoiceData['dischargeAirport'] ?? 'N/A').toString(),
         eta: detailedInvoiceData['eta'] is int
             ? DateTime.fromMillisecondsSinceEpoch(detailedInvoiceData['eta'])
             : DateTime.tryParse(detailedInvoiceData['eta']?.toString() ?? '') ??
                 DateTime.now(),
-        totalAmount:
-            (detailedInvoiceData['totalAmount'] as num?)?.toDouble() ?? 0.0,
+        grossWeight:
+            (detailedInvoiceData['grossWeight'] as num?)?.toDouble() ?? 0.0,
         invoiceTitle: (invoice['invoiceTitle'] ?? 'Invoice').toString(),
         origin: (detailedInvoiceData['origin'] ?? 'N/A').toString(),
         destination: (detailedInvoiceData['destination'] ?? 'N/A').toString(),
@@ -3466,7 +3478,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               Text('Number: ${invoice['invoiceNumber'] ?? 'N/A'}'),
               Text('Boxes: $totalBoxes'),
               Text('Total Weight: ${totalWeight.toStringAsFixed(2)} kg'),
-              Text('Amount: \$${shipment.totalAmount.toStringAsFixed(2)}'),
+              Text(
+                  'Gross Weight: ${shipment.grossWeight.toStringAsFixed(2)} kg'),
               SizedBox(height: 16),
               Container(
                 padding: EdgeInsets.all(12),
@@ -3619,14 +3632,20 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             (detailedInvoiceData['consigneeAddress'] ?? '').toString(),
         awb: (detailedInvoiceData['awb'] ?? 'N/A').toString(),
         flightNo: (detailedInvoiceData['flightNo'] ?? 'N/A').toString(),
+        flightDate: detailedInvoiceData['flightDate'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(
+                detailedInvoiceData['flightDate'])
+            : DateTime.tryParse(
+                    detailedInvoiceData['flightDate']?.toString() ?? '') ??
+                DateTime.now(),
         dischargeAirport:
             (detailedInvoiceData['dischargeAirport'] ?? 'N/A').toString(),
         eta: detailedInvoiceData['eta'] is int
             ? DateTime.fromMillisecondsSinceEpoch(detailedInvoiceData['eta'])
             : DateTime.tryParse(detailedInvoiceData['eta']?.toString() ?? '') ??
                 DateTime.now(),
-        totalAmount:
-            (detailedInvoiceData['totalAmount'] as num?)?.toDouble() ?? 0.0,
+        grossWeight:
+            (detailedInvoiceData['grossWeight'] as num?)?.toDouble() ?? 0.0,
         invoiceTitle: (invoice['invoiceTitle'] ?? 'Invoice').toString(),
         origin: (detailedInvoiceData['origin'] ?? 'N/A').toString(),
         destination: (detailedInvoiceData['destination'] ?? 'N/A').toString(),
@@ -3721,7 +3740,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               Text('Number: ${invoice['invoiceNumber'] ?? 'N/A'}'),
               Text('Boxes: $totalBoxes'),
               Text('Total Weight: ${totalWeight.toStringAsFixed(2)} kg'),
-              Text('Amount: \$${shipment.totalAmount.toStringAsFixed(2)}'),
+              Text(
+                  'Gross Weight: ${shipment.grossWeight.toStringAsFixed(2)} kg'),
               SizedBox(height: 16),
               Text('Choose sharing format:',
                   style: TextStyle(fontWeight: FontWeight.w600)),
@@ -3872,7 +3892,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 📦 Shipment Summary
 • Total Boxes: $totalBoxes
 • Total Weight: ${totalWeight.toStringAsFixed(2)} kg
-• Total Amount: \$${shipment.totalAmount.toStringAsFixed(2)}
+• Gross Weight: ${shipment.grossWeight.toStringAsFixed(2)} kg
 
 Generated via Invoice Generator App
 ${DateTime.now()}
@@ -3926,7 +3946,7 @@ Consignee,${shipment.consignee}
 AWB,${shipment.awb}
 Flight,${shipment.flightNo}
 Airport,${shipment.dischargeAirport}
-Total Amount,${shipment.totalAmount}
+Gross Weight (kg),${shipment.grossWeight}
 Generated,${DateTime.now()}''';
 
       // Copy to clipboard and share
@@ -4233,7 +4253,7 @@ Invoice Details:
 • Title: ${invoice['invoiceTitle'] ?? 'N/A'}
 • AWB: ${detailedData['awb'] ?? 'N/A'}
 • Flight: ${detailedData['flightNo'] ?? 'N/A'}
-• Amount: \$${detailedData['totalAmount'] ?? '0.00'}
+• Gross Weight: ${detailedData['grossWeight'] ?? detailedData['totalAmount'] ?? '0.00'} kg
 
 If you have any questions regarding this invoice, please don't hesitate to contact us.
 
@@ -4282,7 +4302,7 @@ Invoice Generator Team''',
                           Text(
                               '${invoice['invoiceTitle'] ?? 'Untitled'} (${invoice['invoiceNumber'] ?? 'N/A'})'),
                           Text(
-                              'Amount: \$${detailedData['totalAmount'] ?? '0.00'}'),
+                              'Weight: ${detailedData['grossWeight'] ?? detailedData['totalAmount'] ?? '0.00'} kg'),
                         ],
                       ),
                     ),

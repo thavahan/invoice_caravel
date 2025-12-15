@@ -147,12 +147,12 @@ class MasterShipper {
     String? landmark,
   }) {
     final parts = <String>[];
-    if ((phone ?? '').isNotEmpty) parts.add('Ph: $phone');
     if ((addressLine1 ?? '').isNotEmpty) parts.add(addressLine1!);
     if ((addressLine2 ?? '').isNotEmpty) parts.add(addressLine2!);
     if ((city ?? '').isNotEmpty) parts.add(city!);
     if ((state ?? '').isNotEmpty) parts.add(state!);
     if ((pincode ?? '').isNotEmpty) parts.add(pincode!);
+    if ((phone ?? '').isNotEmpty) parts.add('Ph: $phone');
     if ((landmark ?? '').isNotEmpty) parts.add('($landmark)');
     return parts.join(', ');
   }
