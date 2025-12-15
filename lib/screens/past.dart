@@ -114,6 +114,7 @@ class _OrdersState extends State<Orders> {
   final DateTime date = DateTime.now();
   var datas;
   List<Map<String, String>> invoiceP = [];
+  double? _storedGrossWeight;
 
   void setErrorBuilder() {
     ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
@@ -142,6 +143,30 @@ class _OrdersState extends State<Orders> {
   Future<bool> dataLoader() async {
     print('Data loader running');
     datas = await db.collection(widget.paths[widget.i]).get();
+
+    // Check if gross weight is stored in document metadata
+    double storedGrossWeight = 0.0;
+    if (datas.docs.isNotEmpty) {
+      var firstDoc = datas.docs.first;
+      print('DEBUG: First document data: ${firstDoc.data()}');
+      storedGrossWeight =
+          double.tryParse(firstDoc['grossWeight']?.toString() ?? '0') ?? 0.0;
+      print('DEBUG: grossWeight from document: ${firstDoc['grossWeight']}');
+      if (storedGrossWeight == 0.0) {
+        // Try alternative field names
+        storedGrossWeight =
+            double.tryParse(firstDoc['gross_weight']?.toString() ?? '0') ?? 0.0;
+        print('DEBUG: gross_weight from document: ${firstDoc['gross_weight']}');
+      }
+      if (storedGrossWeight == 0.0) {
+        // Try total_amount as fallback
+        storedGrossWeight =
+            double.tryParse(firstDoc['total_amount']?.toString() ?? '0') ?? 0.0;
+        print('DEBUG: total_amount from document: ${firstDoc['total_amount']}');
+      }
+      print('DEBUG: Final storedGrossWeight: $storedGrossWeight');
+    }
+
     for (int i = 0; i < datas.docs.length; i++) {
       var d = datas.docs[i];
       final Map<String, String> e = {
@@ -154,6 +179,9 @@ class _OrdersState extends State<Orders> {
       };
       invoiceP.add(e);
     }
+
+    // Store the gross weight for later use
+    _storedGrossWeight = storedGrossWeight > 0 ? storedGrossWeight : null;
     return true;
   }
 
@@ -180,6 +208,19 @@ class _OrdersState extends State<Orders> {
       final invoiceDate = DateTime.parse(pathData[2]);
 
       // Create shipment object for the invoice
+      final calculatedTotal = invoiceP.fold(0.0, (sum, item) {
+        final price = double.tryParse(item['price'] ?? '0') ?? 0.0;
+        final qty = int.tryParse(item['quantity'] ?? '0') ?? 0;
+        final itemTotal = price * qty;
+        print('DEBUG: Item - price: $price, qty: $qty, itemTotal: $itemTotal');
+        return sum + itemTotal;
+      });
+
+      print('DEBUG: Calculated total from items: $calculatedTotal');
+      print('DEBUG: Stored gross weight: $_storedGrossWeight');
+      print(
+          'DEBUG: Final gross weight will be: ${_storedGrossWeight ?? calculatedTotal}');
+
       final shipment = Shipment(
         invoiceNumber: invoiceNumber,
         shipper: 'Legacy Shipper',
@@ -189,14 +230,13 @@ class _OrdersState extends State<Orders> {
         flightDate: invoiceDate,
         dischargeAirport: customerData.length > 1 ? customerData[1] : 'TBD',
         eta: invoiceDate.add(Duration(days: 1)),
-        grossWeight: invoiceP.fold(0.0, (sum, item) {
-          final price = double.tryParse(item['price'] ?? '0') ?? 0.0;
-          final qty = int.tryParse(item['quantity'] ?? '0') ?? 0;
-          return sum + (price * qty);
-        }),
+        grossWeight: _storedGrossWeight ?? calculatedTotal,
         invoiceTitle: 'Legacy Invoice $invoiceNumber',
         boxIds: [],
       );
+
+      print(
+          'DEBUG: Final gross weight used in shipment: ${shipment.grossWeight}');
 
       // Convert invoice items to new structure
       final items = invoiceP.map((item) {

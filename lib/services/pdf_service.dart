@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'dart:math' as Math;
+import 'package:intl/intl.dart';
 import '../models/shipment.dart';
 
 /// Advanced PDF Service with intelligent N-page generation
@@ -15,7 +16,8 @@ class PdfService {
 
   // Layout constants optimized for readability and professional appearance
   static const double _pageMargin = 20.0;
-  static const double _headerHeight = 100.0;
+  static const double _headerHeight =
+      100.0; // Reduced from 120.0 for more compact header
   static const double _footerHeight = 50.0;
   static const double _itemRowHeight = 12.0;
   static const double _summaryHeight = 120.0;
@@ -317,7 +319,7 @@ class PdfService {
             // Page header
             _buildAdvancedHeader(
                 shipment, pageNumber, totalPages, layout['type'], logoImage),
-            pw.SizedBox(height: 10),
+            pw.SizedBox(height: 8),
 
             // Add "continued from" indicator for continuation pages
             if (pageNumber > 1 && layout['showTable1'] == true) ...[
@@ -366,6 +368,15 @@ class PdfService {
     String pageTitle = _getPageTitle(pageType);
     bool isContinuation = pageNumber > 1;
 
+    // Debug: Check shipment data
+    print('📄 Building header for page $pageNumber');
+    print('📄 Invoice Number: "${shipment.invoiceNumber}"');
+    print('📄 Invoice Date: ${shipment.invoiceDate}');
+    if (shipment.invoiceDate != null) {
+      print(
+          '📄 Formatted Date: ${DateFormat('dd MMM yyyy').format(shipment.invoiceDate!)}');
+    }
+
     return pw.Container(
       width: double.infinity,
       height: _headerHeight,
@@ -374,83 +385,99 @@ class PdfService {
         border: pw.Border.all(width: 0.4, color: PdfColors.grey),
         borderRadius: pw.BorderRadius.circular(5),
       ),
-      child: pw.Row(
+      child: pw.Column(
         children: [
-          // Logo section
+          // INVOICE title at the top - more compact
           pw.Container(
-            width: 80,
-            padding: pw.EdgeInsets.all(10),
-            child: pw.Image(
-              logoImage,
-              fit: pw.BoxFit.contain,
+            width: double.infinity,
+            padding: pw.EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue800,
+              borderRadius: pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(2),
+                topRight: pw.Radius.circular(2),
+              ),
             ),
-          ),
-          // Left side - Title and description
-          pw.Expanded(
-            flex: 3,
-            child: pw.Padding(
-              padding: pw.EdgeInsets.all(15),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: [
-                  pw.Text('Caravel Solution Pvt ltd',
-                      style: pw.TextStyle(
-                          font: _boldFont!,
-                          fontSize: 16,
-                          color: PdfColors.blue800)),
-                  pw.SizedBox(height: 3),
-                  pw.Text(
-                      '741/19 Thiruvengadam Salai,Sankarankoil,\nTirunelveli,Tamilnadu,627556',
-                      style: pw.TextStyle(
-                          font: _regularFont!,
-                          fontSize: 10,
-                          color: PdfColors.blue600)),
-                ],
+            child: pw.Center(
+              child: pw.Text(
+                'INVOICE',
+                style: pw.TextStyle(
+                  font: _boldFont!,
+                  fontSize: 14,
+                  color: PdfColors.white,
+                ),
               ),
             ),
           ),
-          // Right side - Invoice details and page info
-          pw.Container(
-            padding: pw.EdgeInsets.all(15),
-            child: pw.Column(
-              mainAxisAlignment: pw.MainAxisAlignment.center,
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
+          // Main header content below
+          pw.Expanded(
+            child: pw.Row(
               children: [
+                // Logo section
                 pw.Container(
-                  padding: pw.EdgeInsets.all(10),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.blue100,
-                    borderRadius: pw.BorderRadius.circular(5),
+                  width: 80,
+                  padding: pw.EdgeInsets.all(5),
+                  child: pw.Image(
+                    logoImage,
+                    fit: pw.BoxFit.contain,
                   ),
+                ),
+                // Left side - Title and description
+                pw.Expanded(
+                  flex: 3,
+                  child: pw.Padding(
+                    padding: pw.EdgeInsets.all(15),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      mainAxisAlignment: pw.MainAxisAlignment.center,
+                      children: [
+                        pw.Text('Caravel Solution Pvt ltd',
+                            style: pw.TextStyle(
+                                font: _boldFont!,
+                                fontSize: 16,
+                                color: PdfColors.blue800)),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                            '741/19 Thiruvengadam Salai,Sankarankoil,\nTirunelveli,Tamilnadu,627556',
+                            style: pw.TextStyle(
+                                font: _regularFont!,
+                                fontSize: 10,
+                                color: PdfColors.blue600)),
+                      ],
+                    ),
+                  ),
+                ),
+                // Right side - Invoice details and page info
+                pw.Container(
+                  width: 180, // Fixed width to ensure visibility
+                  padding: pw.EdgeInsets.all(8),
                   child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    mainAxisAlignment: pw.MainAxisAlignment.center,
+                    crossAxisAlignment: pw
+                        .CrossAxisAlignment.start, // Changed from end to start
                     children: [
-                      pw.Text('Invoice: ${shipment.invoiceNumber}',
-                          style: pw.TextStyle(font: _boldFont!, fontSize: 10)),
-                      pw.SizedBox(height: 5),
-                      pw.Row(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        children: [
-                          pw.Text('AWB:',
-                              style: pw.TextStyle(
-                                  font: _regularFont!, fontSize: 9)),
-                          pw.SizedBox(width: 8),
-                          pw.Container(
-                            width: 80,
-                            height: 16,
-                            decoration: pw.BoxDecoration(
-                              border: pw.Border.all(
-                                  width: 1, color: PdfColors.black),
-                              borderRadius: pw.BorderRadius.circular(2),
+                      pw.Container(
+                        width: double.infinity, // Take full width of parent
+                        padding: pw.EdgeInsets.all(10),
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.blue100,
+                          borderRadius: pw.BorderRadius.circular(5),
+                        ),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                                'Invoice Number: ${shipment.invoiceNumber.isNotEmpty ? shipment.invoiceNumber : ''}',
+                                style: pw.TextStyle(
+                                    font: _boldFont!, fontSize: 10)),
+                            pw.SizedBox(height: 5),
+                            pw.Text(
+                              'Invoice Date: ${shipment.invoiceDate != null ? DateFormat('dd MMM yyyy').format(shipment.invoiceDate!) : 'Not set'}',
+                              style:
+                                  pw.TextStyle(font: _boldFont!, fontSize: 10),
                             ),
-                            child: pw.Center(
-                              child: pw.Text('',
-                                  style: pw.TextStyle(
-                                      font: _regularFont!, fontSize: 8)),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -514,7 +541,7 @@ class PdfService {
       print(
           '📄 Adding Table 1 to page $pageNumber: items ${startIdx + 1}-$endIdx');
       content.addAll(
-          _buildTable1(items, startIdx, endIdx, pageNumber, totalPages));
+          _buildTable1(shipment, items, startIdx, endIdx, pageNumber, totalPages));
     }
 
     // Add spacing between tables
@@ -526,7 +553,7 @@ class PdfService {
     if (layout['showTable2'] == true) {
       print('📄 Adding Table 2 (product summary) to page $pageNumber');
       try {
-        final table2Widgets = _buildTable2(items);
+        final table2Widgets = _buildTable2(shipment, items);
         if (table2Widgets.isNotEmpty) {
           content.addAll(table2Widgets);
           print(
@@ -665,112 +692,128 @@ class PdfService {
 
       // pw.SizedBox(height: 20),
 
-      // Shipment Information and Consignee Row
-      pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Expanded(
-            child: pw.Container(
-              height: 70, // Fixed height for equal sizing
-              child: _buildShipmentInfo(shipment, items),
+      // Shipment Information and Consignee Row - Merged into single container
+      pw.Container(
+        width: double.infinity,
+        height:
+            140, // Increased from 200 to accommodate all content including consignee details
+        padding: pw.EdgeInsets.all(8),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(width: 0.5, color: PdfColors.purple600),
+          borderRadius: pw.BorderRadius.circular(5),
+          color: PdfColors.purple50,
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // Shipment Information Section
+            pw.Text('SHIPMENT INFORMATION',
+                style: pw.TextStyle(
+                    font: _boldFont!,
+                    fontSize: 12,
+                    color: PdfColors.purple800)),
+            pw.SizedBox(height: 8),
+
+            // First row - Three columns layout
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // First column
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow('AWB No',
+                          shipment.awb.isNotEmpty ? shipment.awb : ''),
+                      _buildDetailRow(
+                          'Master AWB',
+                          shipment.masterAwb.isNotEmpty
+                              ? shipment.masterAwb
+                              : ''),
+                      _buildDetailRow(
+                          'House AWB',
+                          shipment.houseAwb.isNotEmpty
+                              ? shipment.houseAwb
+                              : ''),
+                      _buildDetailRow(
+                          'Place of Receipt',
+                          shipment.placeOfReceipt.isNotEmpty
+                              ? shipment.placeOfReceipt
+                              : ''),
+                      _buildDetailRow('Place of Delivery',
+                          '${shipment.destination.isNotEmpty ? shipment.destination : ''}'),
+                      _buildDetailRow(
+                          'Bill To',
+                          shipment.consignee.isNotEmpty
+                              ? shipment.consignee
+                              : ''),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(width: 15),
+                // Second column
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow(
+                          'Flight No & Date',
+                          shipment.flightDate != null
+                              ? '${shipment.flightNo} - ${_formatDate(shipment.flightDate!)}'
+                              : shipment.flightNo),
+                      _buildDetailRow('AirPort Of Departure',
+                          '${shipment.origin.isNotEmpty ? shipment.origin : ''}'),
+                      _buildDetailRow('AirPort of Discharge',
+                          '${shipment.destination.isNotEmpty ? shipment.destination : ''}'),
+                      _buildDetailRow(
+                          'ETA into "${shipment.destination.isNotEmpty ? shipment.destination : ''}"',
+                          _formatDate(shipment.eta)),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(width: 15),
+                // Third column
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow(
+                          'Date of Issue',
+                          shipment.dateOfIssue != null
+                              ? _formatDate(shipment.dateOfIssue!)
+                              : ''),
+                      _buildDetailRow('Issued At',
+                          shipment.origin.isNotEmpty ? shipment.origin : ''),
+                      _buildDetailRow('Freight Terms',
+                          '${shipment.freightTerms.isNotEmpty ? shipment.freightTerms : ''}'),
+                      _buildDetailRow(
+                          'Consignee',
+                          shipment.consignee.isNotEmpty
+                              ? shipment.consignee
+                              : ''),
+                      _buildDetailRow(
+                          'Address',
+                          shipment.consigneeAddress.isNotEmpty
+                              ? shipment.consigneeAddress
+                              : ''),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-          pw.SizedBox(width: 8),
-          pw.Expanded(
-            child: pw.Container(
-              height: 70, // Fixed height for equal sizing
-              padding: pw.EdgeInsets.all(8),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 0.5, color: PdfColors.orange600),
-                borderRadius: pw.BorderRadius.circular(5),
-                color: PdfColors.orange50,
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('CONSIGNEE DETAILS',
-                      style: pw.TextStyle(
-                          font: _boldFont!,
-                          fontSize: 9, // Reduced from 10
-                          color: PdfColors.orange800)),
-                  pw.SizedBox(height: 5),
-                  _buildDetailRow('Company', shipment.consignee),
-                  _buildDetailRow(
-                      'Address',
-                      shipment.consigneeAddress.isEmpty
-                          ? 'Not provided'
-                          : shipment.consigneeAddress),
-                ],
-              ),
-            ),
-          ),
-        ],
+
+            pw.SizedBox(height: 10),
+
+            // Second row - Client Reference spanning full width
+            _buildDetailRow('Client Reference',
+                shipment.clientRef.isNotEmpty ? shipment.clientRef : ''),
+          ],
+        ),
       ),
     ];
-  }
-
-  /// Build shipment information section (appears on every page)
-  pw.Widget _buildShipmentInfo(Shipment shipment, List<dynamic> items) {
-    return pw.Container(
-      padding: pw.EdgeInsets.all(5), // Reduced from 8
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(width: 0.5, color: PdfColors.purple600),
-        borderRadius: pw.BorderRadius.circular(5),
-        color: PdfColors.purple50,
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Row(
-            children: [
-              pw.Text('SHIPMENT INFORMATION',
-                  style: pw.TextStyle(
-                      font: _boldFont!,
-                      fontSize: 10,
-                      color: PdfColors.purple800)),
-              pw.Spacer(),
-              pw.Text(
-                  'Date of Issue: ${shipment.dateOfIssue != null ? _formatDate(shipment.dateOfIssue!) : 'N/A'}',
-                  style: pw.TextStyle(
-                      font: _boldFont!,
-                      fontSize: 8,
-                      color: PdfColors.purple800)),
-            ],
-          ),
-          pw.SizedBox(height: 2), // Reduced from 5
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    _buildDetailRow('Invoice No', shipment.invoiceNumber),
-                    _buildDetailRow(
-                        'Invoice Date',
-                        shipment.invoiceDate != null
-                            ? _formatDate(shipment.invoiceDate!)
-                            : 'N/A'),
-                    _buildDetailRow('Flight No', shipment.flightNo),
-                  ],
-                ),
-              ),
-              pw.SizedBox(width: 10),
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    _buildDetailRow('Origin',
-                        shipment.origin.isEmpty ? 'N/A' : shipment.origin),
-                    _buildDetailRow('Destination', shipment.dischargeAirport),
-                    _buildDetailRow('ETA', _formatDate(shipment.eta)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
   /// Helper to build detail rows
@@ -796,9 +839,19 @@ class PdfService {
   }
 
   /// Build Table 1 - Itemized Manifest with pagination support
-  List<pw.Widget> _buildTable1(List<dynamic> items, int startIndex,
+  List<pw.Widget> _buildTable1(Shipment shipment, List<dynamic> items, int startIndex,
       int endIndex, int currentPage, int totalPages) {
     final itemsToShow = items.sublist(startIndex, endIndex);
+
+    // Calculate total unique boxes
+    Set<String> uniqueBoxes = {};
+    for (var item in items) {
+      String boxNumber = _getItemValue(item, 'boxNumber', '');
+      if (boxNumber.isNotEmpty) {
+        uniqueBoxes.add(boxNumber);
+      }
+    }
+    int totalBoxes = uniqueBoxes.length;
 
     return [
       // Table header with pagination info
@@ -822,21 +875,73 @@ class PdfService {
                         font: _boldFont!,
                         fontSize: 10,
                         color: PdfColors.white)), // Reduced from 12
-                if (totalPages > 1)
-                  pw.Container(
-                    padding: pw.EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 1), // Reduced padding
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.white.shade(0.2),
-                      borderRadius: pw.BorderRadius.circular(3),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    if (totalPages > 1)
+                      pw.Container(
+                        padding:
+                            pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.white.shade(0.2),
+                          borderRadius: pw.BorderRadius.circular(3),
+                        ),
+                        child: pw.Text(
+                            'Items ${startIndex + 1}-$endIndex of ${items.length}',
+                            style: pw.TextStyle(
+                                font: _boldFont!,
+                                fontSize: 8,
+                                color: PdfColors.white)),
+                      ),
+                    pw.Row(
+                      mainAxisSize: pw.MainAxisSize.min,
+                      children: [
+                        pw.Text('Gross weight(kg): ',
+                            style: pw.TextStyle(
+                                font: _boldFont!, fontSize: 8, color: PdfColors.white)),
+                        pw.Container(
+                          width: 45, // Width to fit "0000.00"
+                          height: 14, // Height to fit the text
+                          alignment: pw.Alignment.center,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white,
+                            borderRadius: pw.BorderRadius.circular(3),
+                            border: pw.Border.all(width: 0.5, color: PdfColors.grey600),
+                          ),
+                          child: pw.Text(shipment.grossWeight.toStringAsFixed(2),
+                              style: pw.TextStyle(
+                                  font: _boldFont!,
+                                  fontSize: 8,
+                                  color: PdfColors.black),
+                              textAlign: pw.TextAlign.center),
+                        ),
+                        pw.SizedBox(width: 10),
+                        pw.Text('No. & Kind of Pkgs: ',
+                            style: pw.TextStyle(
+                                font: _boldFont!,
+                                fontSize: 8,
+                                color: PdfColors.white)),
+                        pw.Container(
+                          width: 30,
+                          height: 14,
+                          alignment: pw.Alignment.center,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white.shade(0.2),
+                            borderRadius: pw.BorderRadius.circular(3),
+                          ),
+                          child: pw.Text(
+                            '$totalBoxes',
+                            style: pw.TextStyle(
+                                font: _boldFont!,
+                                fontSize: 8,
+                                color: PdfColors.black),
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: pw.Text(
-                        'Items ${startIndex + 1}-$endIndex of ${items.length}',
-                        style: pw.TextStyle(
-                            font: _boldFont!,
-                            fontSize: 8,
-                            color: PdfColors.white)),
-                  ),
+                  ],
+                ),
               ],
             ),
             // Add continuation indicators
@@ -961,7 +1066,7 @@ class PdfService {
   /// Calculate product summary and grand total amount from items
   Map<String, dynamic> _calculateProductSummary(List<dynamic> items) {
     try {
-      Map<String, Map<String, double>> productSummary = {};
+      Map<String, Map<String, dynamic>> productSummary = {};
 
       print('📦 Calculating product summary for ${items.length} items');
       for (int i = 0; i < items.length && i < 3; i++) {
@@ -974,9 +1079,11 @@ class PdfService {
         double weight =
             double.tryParse(_getItemValue(item, 'weight', '0')) ?? 0.0;
         double rate = double.tryParse(_getItemValue(item, 'rate', '0')) ?? 0.0;
+        int approxQuantity =
+            int.tryParse(_getItemValue(item, 'approxQuantity', '0')) ?? 0;
 
         print(
-            '   Processing: productType="$productType", weight=$weight, rate=$rate');
+            '   Processing: productType="$productType", weight=$weight, rate=$rate, approxQty=$approxQuantity');
 
         if (productSummary.containsKey(productType)) {
           productSummary[productType]!['totalWeight'] =
@@ -984,11 +1091,15 @@ class PdfService {
           productSummary[productType]!['totalAmount'] =
               (productSummary[productType]!['totalAmount'] ?? 0.0) +
                   (weight * rate);
+          productSummary[productType]!['totalApproxQuantity'] =
+              (productSummary[productType]!['totalApproxQuantity'] ?? 0) +
+                  approxQuantity;
         } else {
           productSummary[productType] = {
             'rate': rate,
             'totalWeight': weight,
             'totalAmount': weight * rate,
+            'totalApproxQuantity': approxQuantity,
           };
         }
       }
@@ -1015,14 +1126,15 @@ class PdfService {
   }
 
   /// Build Table 2 - Product Type Summary
-  List<pw.Widget> _buildTable2(List<dynamic> items) {
+  List<pw.Widget> _buildTable2(Shipment shipment, List<dynamic> items) {
     final summaryData = _calculateProductSummary(items);
     final productSummary =
-        summaryData['summary'] as Map<String, Map<String, double>>;
+        summaryData['summary'] as Map<String, Map<String, dynamic>>;
     final grandTotalAmount = summaryData['total'] as double;
 
     var sortedTypes = productSummary.keys.toList()..sort();
     double grandTotalWeight = 0.0;
+    int grandTotalApproxQuantity = 0;
 
     print(
         '📦 Building product summary table with ${sortedTypes.length} product types');
@@ -1054,8 +1166,10 @@ class PdfService {
       double totalWeight = summary['totalWeight'] ?? 0.0;
       double rate = summary['rate'] ?? 0.0;
       double totalAmount = summary['totalAmount'] ?? 0.0;
+      int totalApproxQuantity = (summary['totalApproxQuantity'] ?? 0).toInt();
 
       grandTotalWeight += totalWeight;
+      grandTotalApproxQuantity += totalApproxQuantity;
 
       rows.add(
         pw.TableRow(
@@ -1067,6 +1181,12 @@ class PdfService {
                 padding: pw.EdgeInsets.all(3),
                 child: pw.Text(productType,
                     style: pw.TextStyle(font: _regularFont!, fontSize: 7)),
+              ),
+              pw.Padding(
+                padding: pw.EdgeInsets.all(3),
+                child: pw.Text('$totalApproxQuantity',
+                    style: pw.TextStyle(font: _regularFont!, fontSize: 7),
+                    textAlign: pw.TextAlign.center),
               ),
               pw.Padding(
                 padding: pw.EdgeInsets.all(3),
@@ -1099,6 +1219,12 @@ class PdfService {
               padding: pw.EdgeInsets.all(4),
               child: pw.Text('GRAND TOTAL',
                   style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
+            ),
+            pw.Padding(
+              padding: pw.EdgeInsets.all(4),
+              child: pw.Text('$grandTotalApproxQuantity',
+                  style: pw.TextStyle(font: _boldFont!, fontSize: 8),
+                  textAlign: pw.TextAlign.center),
             ),
             pw.Padding(
               padding: pw.EdgeInsets.all(4),
@@ -1140,17 +1266,6 @@ class PdfService {
                     font: _boldFont!,
                     fontSize: 10,
                     color: PdfColors.white)), // Reduced from 12
-            pw.Container(
-              padding: pw.EdgeInsets.symmetric(
-                  horizontal: 4, vertical: 1), // Reduced padding
-              decoration: pw.BoxDecoration(
-                color: PdfColors.white.shade(0.2),
-                borderRadius: pw.BorderRadius.circular(3),
-              ),
-              child: pw.Text('${sortedTypes.length} Types',
-                  style: pw.TextStyle(
-                      font: _boldFont!, fontSize: 8, color: PdfColors.white)),
-            ),
           ],
         ),
       ),
@@ -1162,10 +1277,11 @@ class PdfService {
         ),
         child: pw.Table(
           columnWidths: {
-            0: pw.FlexColumnWidth(3),
-            1: pw.FlexColumnWidth(2),
-            2: pw.FlexColumnWidth(2),
-            3: pw.FlexColumnWidth(3),
+            0: pw.FlexColumnWidth(2.5), // TYPE - reduced from 3
+            1: pw.FlexColumnWidth(1.5), // RATE - reduced from 2
+            2: pw.FlexColumnWidth(1.5), // WEIGHT - reduced from 2
+            3: pw.FlexColumnWidth(2), // APPROX.QTY - new column
+            4: pw.FlexColumnWidth(2.5), // AMOUNT - reduced from 3
           },
           border: pw.TableBorder.all(width: 0.3, color: PdfColors.grey400),
           children: [
@@ -1173,6 +1289,7 @@ class PdfService {
                 decoration: pw.BoxDecoration(color: PdfColors.grey300),
                 children: [
                   _buildTableHeader('TYPE'),
+                  _buildTableHeader('APPROX.QTY'),
                   _buildTableHeader('RATE'),
                   _buildTableHeader('WEIGHT'),
                   _buildTableHeader('AMOUNT'),
@@ -1192,10 +1309,11 @@ class PdfService {
         ),
         child: pw.Table(
           columnWidths: {
-            0: pw.FlexColumnWidth(3),
-            1: pw.FlexColumnWidth(2),
-            2: pw.FlexColumnWidth(2),
-            3: pw.FlexColumnWidth(3),
+            0: pw.FlexColumnWidth(2.5), // TYPE
+            1: pw.FlexColumnWidth(2), // APPROX.QTY
+            2: pw.FlexColumnWidth(1.5), // RATE
+            3: pw.FlexColumnWidth(1.5), // WEIGHT
+            4: pw.FlexColumnWidth(2.5), // AMOUNT
           },
           border: pw.TableBorder.all(width: 0.3, color: PdfColors.grey400),
           children: rows,

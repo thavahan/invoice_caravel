@@ -2212,6 +2212,17 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             matchingDraft['discharge_airport'] ??
             'N/A';
 
+        final grossWeightFromDraft = (draftData['grossWeight'] ??
+                draftData['gross_weight'] ??
+                draftData['totalAmount'] ??
+                draftData['total_amount'] ??
+                matchingDraft['grossWeight'] ??
+                matchingDraft['gross_weight'] ??
+                matchingDraft['totalAmount'] ??
+                matchingDraft['total_amount'] ??
+                0.0)
+            .toDouble();
+
         debugPrint(
             '📝 DEBUG: Returning draft data with flightNo: "$flightFromDraft"');
 
@@ -2220,6 +2231,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
           ...draftData,
           'flightNo': flightFromDraft,
           'dischargeAirport': dischargeFromDraft,
+          'grossWeight': grossWeightFromDraft,
           'boxes': boxes,
         };
       }
@@ -2350,7 +2362,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         'origin': matchingShipment.origin,
         'destination': matchingShipment.destination,
         'eta': matchingShipment.eta.millisecondsSinceEpoch,
-        'totalAmount': matchingShipment.totalAmount,
+        'grossWeight': matchingShipment.grossWeight,
         'status': matchingShipment.status,
         'createdAt': matchingShipment.invoiceDate?.millisecondsSinceEpoch ??
             matchingShipment.dateOfIssue?.millisecondsSinceEpoch ??
@@ -3157,6 +3169,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         consignee: (detailedInvoiceData['consignee'] ?? 'N/A').toString(),
         consigneeAddress:
             (detailedInvoiceData['consigneeAddress'] ?? '').toString(),
+        clientRef: (detailedInvoiceData['clientRef'] ?? '').toString(),
         awb: (detailedInvoiceData['awb'] ?? 'N/A').toString(),
         flightNo: (detailedInvoiceData['flightNo'] ?? 'N/A').toString(),
         flightDate: detailedInvoiceData['flightDate'] is int
@@ -3630,6 +3643,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         consignee: (detailedInvoiceData['consignee'] ?? 'N/A').toString(),
         consigneeAddress:
             (detailedInvoiceData['consigneeAddress'] ?? '').toString(),
+        clientRef: (detailedInvoiceData['clientRef'] ?? '').toString(),
         awb: (detailedInvoiceData['awb'] ?? 'N/A').toString(),
         flightNo: (detailedInvoiceData['flightNo'] ?? 'N/A').toString(),
         flightDate: detailedInvoiceData['flightDate'] is int

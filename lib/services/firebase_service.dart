@@ -474,6 +474,31 @@ class FirebaseService {
     }
   }
 
+  /// Get all shipments from global collection (fallback for when user collection is empty)
+  Future<List<Shipment>> getGlobalShipments(
+      {String? status, int limit = 50}) async {
+    try {
+      Query query = firestore.collection('shipments');
+
+      if (status != null) {
+        query = query.where('status', isEqualTo: status);
+      }
+
+      query = query.orderBy('createdAt', descending: true).limit(limit);
+
+      final snapshot = await query.get();
+      final shipments = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return Shipment.fromMap(doc.id, data);
+      }).toList();
+
+      return shipments;
+    } catch (e, s) {
+      _logger.e('Failed to get global shipments', e, s);
+      return [];
+    }
+  }
+
   /// Get shipment by ID
   Future<Shipment?> getShipment(String invoiceNumber) async {
     try {

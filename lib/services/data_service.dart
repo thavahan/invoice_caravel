@@ -25,6 +25,7 @@ class DataService {
   // Configuration
   bool _preferFirebase = true; // Default to Firebase when online
   bool _forceOffline = false; // Force offline mode
+  bool _syncInProgress = false; // Flag to prevent offline mode during sync
 
   // Save status tracking for performance optimization
   Map<String, dynamic> _lastSaveStatus = {
@@ -150,7 +151,12 @@ class DataService {
   Future<bool> _isFirebaseAvailable() async {
     try {
       // Simple Firebase availability check without circular dependency
-      return !_forceOffline && _firebaseService.isInitialized;
+      // Allow Firebase operations during sync even if force offline is set
+      final available =
+          (_syncInProgress || !_forceOffline) && _firebaseService.isInitialized;
+      _logger.i(
+          '🔍 FIREBASE_AVAIL: _syncInProgress: $_syncInProgress, _forceOffline: $_forceOffline, _firebaseService.isInitialized: ${_firebaseService.isInitialized}, available: $available');
+      return available;
     } catch (e) {
       _logger.w('Firebase availability check failed: $e');
       return false;
@@ -215,11 +221,17 @@ class DataService {
 
   /// Perform initial sync from Firebase to local database (new device scenario)
   Future<void> syncFromFirebaseToLocal({Function(String)? onProgress}) async {
+    _logger.i(
+        '🔄 SYNC: syncFromFirebaseToLocal called - checking Firebase availability');
     try {
       if (!(await _isFirebaseAvailable())) {
         _logger.w('Firebase not available for sync');
         return;
       }
+
+      // Set sync in progress to prevent offline mode interruptions
+      _syncInProgress = true;
+      _logger.i('🔄 SYNC: Sync in progress flag set to true');
 
       _logger.i('Starting initial sync from Firebase to local database...');
       onProgress?.call('Syncing master data...');
@@ -251,6 +263,10 @@ class DataService {
       _logger.e('Failed to sync from Firebase to local database', e, s);
       onProgress?.call('Sync failed: ${e.toString()}');
       throw Exception('Failed to sync data from cloud: ${e.toString()}');
+    } finally {
+      // Always reset sync in progress flag
+      _syncInProgress = false;
+      _logger.i('🔄 SYNC: Sync in progress flag reset to false');
     }
   }
 
@@ -386,8 +402,27 @@ class DataService {
 
   /// Sync shipments from Firebase to local with duplicate prevention
   Future<void> _syncShipmentsFromFirebase(Function(String)? onProgress) async {
+    _logger.i('🔄 SHIPMENT-SYNC: Starting shipment sync process...');
+
     try {
-      final firebaseShipments = await _firebaseService.getShipments(limit: 100);
+      // First try to get shipments from user-specific collection
+      var firebaseShipments = await _firebaseService.getShipments(limit: 100);
+
+      // Log what we found for debugging
+      _logger.i(
+          '🔍 DEBUG: Retrieved ${firebaseShipments.length} shipments from user collection');
+      for (final shipment in firebaseShipments) {
+        _logger.i(
+            '🔍 DEBUG: Shipment ${shipment.invoiceNumber} - AWB: "${shipment.awb}" - Status: ${shipment.status}');
+      }
+
+      _logger.i(
+          'Retrieved ${firebaseShipments.length} shipments from user Firebase collection');
+
+      if (firebaseShipments.isNotEmpty) {
+        _logger.i(
+            'Firebase shipment invoice numbers: ${firebaseShipments.map((s) => s.invoiceNumber).toList()}');
+      }
 
       // Get existing local shipments to prevent duplicates
       final localShipments = await _localService.getShipments();
@@ -406,13 +441,12 @@ class DataService {
             continue;
           }
 
-          // Skip invalid shipments (e.g., placeholders with empty required fields)
-          if (shipment.invoiceNumber.startsWith('_placeholder') ||
-              shipment.awb.isEmpty ||
-              shipment.invoiceNumber.isEmpty) {
+          // Skip invalid shipments - only skip true placeholders
+          // Allow shipments with empty AWB as long as they have a valid invoice number
+          if (shipment.invoiceNumber.startsWith('_placeholder')) {
             skipped++;
-            _logger.d(
-                'Skipping invalid/placeholder shipment: ${shipment.invoiceNumber}');
+            _logger
+                .d('Skipping placeholder shipment: ${shipment.invoiceNumber}');
             continue;
           }
 
@@ -429,7 +463,7 @@ class DataService {
       }
 
       _logger.i(
-          'Shipments sync completed: $synced new, $skipped duplicates skipped');
+          'Shipments sync completed: $synced new, $skipped skipped (duplicates/invalid)');
 
       _logger.i('Synced $synced shipments from Firebase');
     } catch (e) {

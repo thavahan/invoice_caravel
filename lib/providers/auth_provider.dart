@@ -100,8 +100,14 @@ class AuthProvider with ChangeNotifier {
   /// Trigger login-time auto-sync using InvoiceProvider with visible loading state
   Future<void> _checkAndSyncFirebaseData(User user) async {
     try {
+      _logger.i(
+          '🔄 LOGIN-SYNC: Starting login-time sync check for user: ${user.email}');
+
       // Check internet connectivity first
-      if (!await _isOnline()) {
+      final isOnline = await _isOnline();
+      _logger.i('🔄 LOGIN-SYNC: Connectivity check result: $isOnline');
+
+      if (!isOnline) {
         _logger.i('🔄 LOGIN-SYNC: Device offline, skipping auto-sync');
         return;
       }
@@ -111,7 +117,8 @@ class AuthProvider with ChangeNotifier {
 
       // Use InvoiceProvider's login-time sync if available
       if (_invoiceProvider != null) {
-        // performLoginTimeSync will trigger loading state via loadInitialData(isLoginTime: true)
+        _logger.i(
+            '🔄 LOGIN-SYNC: InvoiceProvider available, calling performLoginTimeSync()');
         await _invoiceProvider!.performLoginTimeSync();
         _logger.i('✅ LOGIN-SYNC: Completed using InvoiceProvider');
       } else {
@@ -174,7 +181,7 @@ class AuthProvider with ChangeNotifier {
   Future<bool> signIn(String email, String password) async {
     if (_auth == null || !_isFirebaseAvailable) {
       _error =
-          'Authentication not available. Please check your internet connection.';
+          'Authentication not available. Please check your internet connection and try again.';
       _logger.w('Sign in attempted but Firebase not available');
       return false;
     }
@@ -209,7 +216,7 @@ class AuthProvider with ChangeNotifier {
   Future<bool> register(String email, String password) async {
     if (_auth == null || !_isFirebaseAvailable) {
       _error =
-          'Registration not available. Please check your internet connection.';
+          'Registration not available. Please check your internet connection and try again.';
       _logger.w('Registration attempted but Firebase not available');
       return false;
     }
@@ -283,7 +290,7 @@ class AuthProvider with ChangeNotifier {
   Future<bool> resetPassword(String email) async {
     if (_auth == null || !_isFirebaseAvailable) {
       _error =
-          'Password reset not available. Please check your internet connection.';
+          'Password reset not available. Please check your internet connection and try again.';
       _logger.w('Password reset attempted but Firebase not available');
       return false;
     }

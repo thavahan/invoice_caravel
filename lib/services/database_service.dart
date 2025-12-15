@@ -43,7 +43,7 @@ class DatabaseService {
       final db = await openDatabase(
         path,
         version:
-            3, // Updated version for new fields (master_awb, house_awb, flight_date, gross_weight)
+            4, // Updated version for has_stems column in master_product_types
         onCreate: _createTables,
         onUpgrade: _upgradeDatabase,
       );
@@ -230,6 +230,7 @@ class DatabaseService {
           user_id TEXT NOT NULL,
           name TEXT NOT NULL,
           approx_quantity INTEGER NOT NULL DEFAULT 1,
+          has_stems INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL,
           updated_at INTEGER
         )
@@ -288,6 +289,13 @@ class DatabaseService {
             'ALTER TABLE shipments ADD COLUMN gross_weight REAL DEFAULT 0.0');
 
         _logger.i('Database upgrade from v2 to v3 completed successfully');
+      } else if (oldVersion == 3 && newVersion == 4) {
+        // Add has_stems column to master_product_types table
+        _logger.i('Adding has_stems column to master_product_types table');
+        await db.execute(
+            'ALTER TABLE master_product_types ADD COLUMN has_stems INTEGER DEFAULT 0');
+
+        _logger.i('Database upgrade from v3 to v4 completed successfully');
       } else {
         // For other version upgrades, use the drop and recreate approach
         _logger.i('Recreating database with current schema');
@@ -340,11 +348,9 @@ class DatabaseService {
         throw Exception('User not authenticated. Cannot save shipment.');
       }
 
-      // Validate and NORMALIZE AWB to UPPERCASE
+      // Validate and NORMALIZE AWB to UPPERCASE (allow empty for now)
       var awb = shipmentData['awb']?.toString().trim() ?? '';
-      if (awb.isEmpty) {
-        throw Exception('AWB is required and cannot be empty');
-      }
+      // Allow empty AWB - it can be updated later
       awb = awb.toUpperCase(); // Convert to uppercase
 
       // Generate invoice number if not provided or empty, then NORMALIZE to UPPERCASE
@@ -370,6 +376,7 @@ class DatabaseService {
         'invoiceTitle': 'invoice_title',
         'flightNo': 'flight_no',
         'dischargeAirport': 'discharge_airport',
+        'grossWeight': 'gross_weight', // Added missing mapping
         'invoiceDate': 'invoice_date',
         'dateOfIssue': 'date_of_issue',
         'shipperAddress': 'shipper_address',
@@ -479,6 +486,7 @@ class DatabaseService {
         'origin': 'origin',
         'destination': 'destination',
         'eta': 'eta',
+        'grossWeight': 'gross_weight', // Added missing mapping
         'totalAmount': 'total_amount',
         'shipperAddress': 'shipper_address',
         'consigneeAddress': 'consignee_address',
@@ -510,6 +518,7 @@ class DatabaseService {
         'invoiceTitle': 'invoice_title',
         'flightNo': 'flight_no',
         'dischargeAirport': 'discharge_airport',
+        'grossWeight': 'gross_weight', // Added missing mapping
         'invoiceDate': 'invoice_date',
         'dateOfIssue': 'date_of_issue',
         'shipperAddress': 'shipper_address',

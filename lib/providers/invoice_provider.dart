@@ -779,56 +779,62 @@ class InvoiceProvider with ChangeNotifier {
 
       // Auto-sync from Firebase ONLY at login time or if explicitly requested
       if (isLoginTime || !_hasPerformedLoginSync) {
+        _logger.i(
+            '🔄 LOAD-DATA: Login-time sync condition met (isLoginTime: $isLoginTime, _hasPerformedLoginSync: $_hasPerformedLoginSync)');
         try {
           final localShipments = await _dataService.getShipments();
           _logger.i(
-              '📄 Current local database has ${localShipments.length} shipments');
+              '📄 LOAD-DATA: Current local database has ${localShipments.length} shipments');
 
           // Check if Firebase is available and sync from Firebase to local
           final dataSourceInfo = await _dataService.getDataSourceInfo();
           final isOnline = dataSourceInfo['isOnline'] ?? false;
           final currentUserId = dataSourceInfo['currentUserId'];
 
+          _logger.i(
+              '🔄 LOAD-DATA: Data source info - isOnline: $isOnline, currentUserId: $currentUserId');
+
           if (isOnline && currentUserId != null) {
             _logger.i(
-                '📥 Login-time auto-sync - syncing latest data from Firebase...');
+                '📥 LOAD-DATA: Login-time auto-sync - syncing latest data from Firebase...');
 
             try {
               await _dataService.syncFromFirebaseToLocal(
                 onProgress: (progress) {
-                  _logger.i('📥 Login sync progress: $progress');
+                  _logger.i('📥 LOAD-DATA: Login sync progress: $progress');
                 },
               );
 
-              _logger
-                  .i('✅ Login-time sync from Firebase completed successfully');
+              _logger.i(
+                  '✅ LOAD-DATA: Login-time sync from Firebase completed successfully');
               _hasPerformedLoginSync = true;
 
               // Verify sync worked and show updated count
               final updatedShipments = await _dataService.getShipments();
               _logger.i(
-                  '📊 After login sync: Found ${updatedShipments.length} shipments in local database');
+                  '📊 LOAD-DATA: After login sync: Found ${updatedShipments.length} shipments in local database');
             } catch (syncError) {
               _logger.e(
-                  '❌ Login-time sync from Firebase failed, using existing local data',
+                  '❌ LOAD-DATA: Login-time sync from Firebase failed, using existing local data',
                   syncError);
               // Don't block app startup if sync fails, continue with local data
             }
           } else {
             if (currentUserId == null) {
-              _logger.i('📶 Not authenticated - using local data only');
+              _logger
+                  .i('📶 LOAD-DATA: Not authenticated - using local data only');
             } else {
-              _logger.i('📶 Offline - using local data only');
+              _logger.i('📶 LOAD-DATA: Offline - using local data only');
             }
           }
         } catch (e) {
           _logger.e(
-              '❌ Failed to perform login-time sync check, continuing with local data',
+              '❌ LOAD-DATA: Failed to perform login-time sync check, continuing with local data',
               e);
         }
       } else {
         _logger.i(
-            '🔄 Normal app startup - skipping auto-sync (already performed at login)');
+            '🔄 LOAD-DATA: Normal app startup - skipping auto-sync (already performed at login)');
       }
 
       // Load shipments (after potential sync) - FORCE LOCAL ONLY
@@ -1129,9 +1135,14 @@ class InvoiceProvider with ChangeNotifier {
   /// Trigger login-time auto-sync
   /// This should be called when user successfully logs in
   Future<void> performLoginTimeSync() async {
-    _logger.i('🔐 Performing login-time auto-sync...');
+    _logger.i('🔐 LOGIN-SYNC: Performing login-time auto-sync...');
+    _logger.i(
+        '🔐 LOGIN-SYNC: Current _hasPerformedLoginSync flag: $_hasPerformedLoginSync');
     _hasPerformedLoginSync = false; // Reset flag to allow sync
+    _logger.i(
+        '🔐 LOGIN-SYNC: Reset _hasPerformedLoginSync to false, calling loadInitialData(isLoginTime: true)');
     await loadInitialData(isLoginTime: true);
+    _logger.i('🔐 LOGIN-SYNC: loadInitialData completed');
   }
 
   /// Reset login sync flag
