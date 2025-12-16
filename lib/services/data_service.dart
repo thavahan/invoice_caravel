@@ -436,17 +436,61 @@ class DataService {
         try {
           // Check for duplicate before saving
           if (existingInvoiceNumbers.contains(shipment.invoiceNumber)) {
-            skipped++;
-            _logger.d('Skipping duplicate shipment: ${shipment.invoiceNumber}');
+            // Check if we need to update existing shipment with missing AWB fields
+            final existingShipment = localShipments.firstWhere(
+              (s) => s.invoiceNumber == shipment.invoiceNumber,
+            );
+
+            // Update if local shipment has empty AWB fields but Firebase has them
+            if ((existingShipment.masterAwb.isEmpty &&
+                    shipment.masterAwb.isNotEmpty) ||
+                (existingShipment.houseAwb.isEmpty &&
+                    shipment.houseAwb.isNotEmpty) ||
+                (existingShipment.flightDate == null &&
+                    shipment.flightDate != null)) {
+              _logger.i(
+                  '🔄 Updating existing shipment ${shipment.invoiceNumber} with AWB fields from Firebase');
+
+              // Create update map with the new fields
+              final updates = <String, dynamic>{};
+              if (existingShipment.masterAwb.isEmpty &&
+                  shipment.masterAwb.isNotEmpty) {
+                updates['master_awb'] = shipment.masterAwb;
+              }
+              if (existingShipment.houseAwb.isEmpty &&
+                  shipment.houseAwb.isNotEmpty) {
+                updates['house_awb'] = shipment.houseAwb;
+              }
+              if (existingShipment.flightDate == null &&
+                  shipment.flightDate != null) {
+                updates['flight_date'] =
+                    shipment.flightDate?.millisecondsSinceEpoch;
+              }
+
+              if (updates.isNotEmpty) {
+                await _localService.updateShipment(
+                    shipment.invoiceNumber, updates);
+                synced++;
+                _logger.i(
+                    '✅ Updated shipment ${shipment.invoiceNumber} with ${updates.length} AWB fields');
+              } else {
+                skipped++;
+              }
+            } else {
+              skipped++;
+              _logger
+                  .d('Skipping duplicate shipment: ${shipment.invoiceNumber}');
+            }
             continue;
           }
 
-          // Skip invalid shipments - only skip true placeholders
+          // Skip invalid shipments - only skip true placeholders or shipments without invoice numbers
           // Allow shipments with empty AWB as long as they have a valid invoice number
-          if (shipment.invoiceNumber.startsWith('_placeholder')) {
+          if (shipment.invoiceNumber.startsWith('_placeholder') ||
+              shipment.invoiceNumber.trim().isEmpty) {
             skipped++;
-            _logger
-                .d('Skipping placeholder shipment: ${shipment.invoiceNumber}');
+            _logger.d(
+                'Skipping invalid shipment (no invoice number): ${shipment.invoiceNumber}');
             continue;
           }
 
@@ -582,6 +626,7 @@ class DataService {
                     'id': product.id, // Use original Firebase product ID
                     'description': product.description,
                     'weight': product.weight,
+                    'rate': product.rate, // Add missing rate field
                     'type': product.type,
                     'flowerType': product.flowerType,
                     'hasStems': product.hasStems,

@@ -467,12 +467,12 @@ class PdfService {
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             pw.Text(
-                                'Invoice Number: ${shipment.invoiceNumber.isNotEmpty ? shipment.invoiceNumber : ''}',
+                                'Invoice No     : ${shipment.invoiceNumber.isNotEmpty ? shipment.invoiceNumber : ''}',
                                 style: pw.TextStyle(
                                     font: _boldFont!, fontSize: 10)),
                             pw.SizedBox(height: 5),
                             pw.Text(
-                              'Invoice Date: ${shipment.invoiceDate != null ? DateFormat('dd MMM yyyy').format(shipment.invoiceDate!) : 'Not set'}',
+                              'Invoice Date : ${shipment.invoiceDate != null ? DateFormat('dd MMM yyyy').format(shipment.invoiceDate!) : 'Not set'}',
                               style:
                                   pw.TextStyle(font: _boldFont!, fontSize: 10),
                             ),
@@ -540,8 +540,8 @@ class PdfService {
       final int endIdx = layout['table1End'] ?? items.length;
       print(
           '📄 Adding Table 1 to page $pageNumber: items ${startIdx + 1}-$endIdx');
-      content.addAll(
-          _buildTable1(shipment, items, startIdx, endIdx, pageNumber, totalPages));
+      content.addAll(_buildTable1(
+          shipment, items, startIdx, endIdx, pageNumber, totalPages));
     }
 
     // Add spacing between tables
@@ -831,7 +831,9 @@ class PdfService {
           pw.Text(': ', style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
           pw.Expanded(
             child: pw.Text(value,
-                style: pw.TextStyle(font: _regularFont!, fontSize: 8)),
+                style: pw.TextStyle(
+                    font: label == 'Consignee' ? _boldFont! : _regularFont!,
+                    fontSize: 8)),
           ),
         ],
       ),
@@ -839,8 +841,8 @@ class PdfService {
   }
 
   /// Build Table 1 - Itemized Manifest with pagination support
-  List<pw.Widget> _buildTable1(Shipment shipment, List<dynamic> items, int startIndex,
-      int endIndex, int currentPage, int totalPages) {
+  List<pw.Widget> _buildTable1(Shipment shipment, List<dynamic> items,
+      int startIndex, int endIndex, int currentPage, int totalPages) {
     final itemsToShow = items.sublist(startIndex, endIndex);
 
     // Calculate total unique boxes
@@ -859,7 +861,7 @@ class PdfService {
       pw.Container(
         padding: pw.EdgeInsets.all(5), // Reduced from 8
         decoration: pw.BoxDecoration(
-          color: PdfColors.grey800,
+          color: PdfColors.blue800,
           borderRadius: pw.BorderRadius.only(
             topLeft: pw.Radius.circular(5),
             topRight: pw.Radius.circular(5),
@@ -896,27 +898,7 @@ class PdfService {
                     pw.Row(
                       mainAxisSize: pw.MainAxisSize.min,
                       children: [
-                        pw.Text('Gross weight(kg): ',
-                            style: pw.TextStyle(
-                                font: _boldFont!, fontSize: 8, color: PdfColors.white)),
-                        pw.Container(
-                          width: 45, // Width to fit "0000.00"
-                          height: 14, // Height to fit the text
-                          alignment: pw.Alignment.center,
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.white,
-                            borderRadius: pw.BorderRadius.circular(3),
-                            border: pw.Border.all(width: 0.5, color: PdfColors.grey600),
-                          ),
-                          child: pw.Text(shipment.grossWeight.toStringAsFixed(2),
-                              style: pw.TextStyle(
-                                  font: _boldFont!,
-                                  fontSize: 8,
-                                  color: PdfColors.black),
-                              textAlign: pw.TextAlign.center),
-                        ),
-                        pw.SizedBox(width: 10),
-                        pw.Text('No. & Kind of Pkgs: ',
+                        pw.Text('No. & Kind of Pkgs ',
                             style: pw.TextStyle(
                                 font: _boldFont!,
                                 fontSize: 8,
@@ -937,6 +919,30 @@ class PdfService {
                                 color: PdfColors.black),
                             textAlign: pw.TextAlign.center,
                           ),
+                        ),
+                        pw.SizedBox(width: 10),
+                        pw.Text('Gross weight(kg) ',
+                            style: pw.TextStyle(
+                                font: _boldFont!,
+                                fontSize: 8,
+                                color: PdfColors.white)),
+                        pw.Container(
+                          width: 45, // Width to fit "0000.00"
+                          height: 14, // Height to fit the text
+                          alignment: pw.Alignment.center,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white,
+                            borderRadius: pw.BorderRadius.circular(3),
+                            border: pw.Border.all(
+                                width: 0.5, color: PdfColors.grey600),
+                          ),
+                          child: pw.Text(
+                              shipment.grossWeight.toStringAsFixed(2),
+                              style: pw.TextStyle(
+                                  font: _boldFont!,
+                                  fontSize: 8,
+                                  color: PdfColors.black),
+                              textAlign: pw.TextAlign.center),
                         ),
                       ],
                     ),
@@ -1252,7 +1258,7 @@ class PdfService {
       pw.Container(
         padding: pw.EdgeInsets.all(5), // Reduced from 8
         decoration: pw.BoxDecoration(
-          color: PdfColors.grey800,
+          color: PdfColors.blue800,
           borderRadius: pw.BorderRadius.only(
             topLeft: pw.Radius.circular(5),
             topRight: pw.Radius.circular(5),
@@ -1309,11 +1315,11 @@ class PdfService {
         ),
         child: pw.Table(
           columnWidths: {
-            0: pw.FlexColumnWidth(2.5), // TYPE
-            1: pw.FlexColumnWidth(2), // APPROX.QTY
-            2: pw.FlexColumnWidth(1.5), // RATE
-            3: pw.FlexColumnWidth(1.5), // WEIGHT
-            4: pw.FlexColumnWidth(2.5), // AMOUNT
+            0: pw.FlexColumnWidth(2.5), // TYPE - reduced from 3
+            1: pw.FlexColumnWidth(1.5), // RATE - reduced from 2
+            2: pw.FlexColumnWidth(1.5), // WEIGHT - reduced from 2
+            3: pw.FlexColumnWidth(2), // APPROX.QTY - new column
+            4: pw.FlexColumnWidth(2.5), // AMOUNT - reduced from 3
           },
           border: pw.TableBorder.all(width: 0.3, color: PdfColors.grey400),
           children: rows,

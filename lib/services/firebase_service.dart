@@ -464,7 +464,7 @@ class FirebaseService {
       final snapshot = await query.get();
       final shipments = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
-        return Shipment.fromMap(doc.id, data);
+        return Shipment.fromFirebase(data);
       }).toList();
 
       return shipments;
@@ -489,7 +489,7 @@ class FirebaseService {
       final snapshot = await query.get();
       final shipments = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
-        return Shipment.fromMap(doc.id, data);
+        return Shipment.fromFirebase(data);
       }).toList();
 
       return shipments;
@@ -512,7 +512,7 @@ class FirebaseService {
       if (!doc.exists) return null;
 
       final data = doc.data()!;
-      return Shipment.fromMap(doc.id, data);
+      return Shipment.fromFirebase(data);
     } catch (e, s) {
       _logger.e('Failed to get shipment $invoiceNumber', e, s);
       return null;
@@ -1462,7 +1462,7 @@ class FirebaseService {
 
       final shipments = snapshot.docs.map((doc) {
         final data = doc.data();
-        return Shipment.fromMap(doc.id, data);
+        return Shipment.fromFirebase(data);
       }).where((shipment) {
         return shipment.shipper.toLowerCase().contains(queryLower) ||
             shipment.consignee.toLowerCase().contains(queryLower) ||

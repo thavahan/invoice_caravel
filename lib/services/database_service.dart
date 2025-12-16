@@ -383,6 +383,8 @@ class DatabaseService {
         'consigneeAddress': 'consignee_address',
         'totalAmount': 'total_amount',
         'placeOfReceipt': 'place_of_receipt',
+        'masterAwb': 'master_awb', // Added missing mapping
+        'houseAwb': 'house_awb', // Added missing mapping
       };
 
       for (final entry in normalizeMap.entries) {
@@ -481,6 +483,8 @@ class DatabaseService {
         'shipper': 'shipper',
         'consignee': 'consignee',
         'awb': 'awb',
+        'masterAwb': 'master_awb', // Added missing mapping
+        'houseAwb': 'house_awb', // Added missing mapping
         'flightNo': 'flight_no',
         'dischargeAirport': 'discharge_airport',
         'origin': 'origin',

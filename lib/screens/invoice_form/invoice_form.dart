@@ -2168,7 +2168,10 @@ class InvoiceFormState extends State<InvoiceForm>
       'flightNo': _flightNoController.text,
       'dischargeAirport': _dischargeAirportController.text,
       'eta': _etaController.text,
-      'grossWeight': _grossWeightController.text, // Changed from totalAmount
+      'grossWeight': _grossWeightController.text,
+      'masterAwb': _masterAwbController.text, // New field
+      'houseAwb': _houseAwbController.text, // New field
+      'flightDate': _flightDateController.text, // New field
       'origin': _originController.text,
       'destination': _destinationController.text,
       'bonus': _bonus_controller.text,
@@ -2217,6 +2220,11 @@ class InvoiceFormState extends State<InvoiceForm>
         '🏢 Place of receipt in draft data: "${actualDraftData['placeOfReceipt']}"');
     debugPrint('🆔 GST number in draft data: "${actualDraftData['sgstNo']}"');
     debugPrint('🆔 IEC code in draft data: "${actualDraftData['iecCode']}"');
+    debugPrint(
+        '📦 Master AWB in draft data: "${actualDraftData['masterAwb']}"');
+    debugPrint('📦 House AWB in draft data: "${actualDraftData['houseAwb']}"');
+    debugPrint(
+        '📅 Flight Date in draft data: "${actualDraftData['flightDate']}"');
 
     // Store the original invoice number for updates (before user can modify it)
     // Normalize to uppercase for consistency
@@ -2252,9 +2260,25 @@ class InvoiceFormState extends State<InvoiceForm>
     _masterAwbController.text = actualDraftData['masterAwb'] ?? '';
     _houseAwbController.text = actualDraftData['houseAwb'] ?? '';
     _flightDateController.text = actualDraftData['flightDate'] ?? '';
-    _grossWeightController.text = actualDraftData['grossWeight'] ??
-        actualDraftData['totalAmount'] ??
-        ''; // Support legacy
+
+    // Pre-populate flight date with invoice date if empty for existing shipments
+    if (_flightDateController.text.isEmpty &&
+        actualDraftData['invoiceDate'] != null) {
+      final timestamp = actualDraftData['invoiceDate'];
+      DateTime date;
+      if (timestamp is int) {
+        date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+      } else if (timestamp is String) {
+        date = DateTime.tryParse(timestamp) ?? DateTime.now();
+      } else {
+        date = DateTime.now();
+      }
+      _flightDateController.text =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      debugPrint(
+          '📅 Pre-populated Flight Date with invoice date: "${_flightDateController.text}"');
+    }
+    _grossWeightController.text = actualDraftData['grossWeight'] ?? '';
     _originController.text = actualDraftData['origin'] ?? '';
     _destinationController.text = actualDraftData['destination'] ?? '';
     _bonus_controller.text = actualDraftData['bonus'] ?? '';

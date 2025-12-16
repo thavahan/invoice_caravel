@@ -239,16 +239,38 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDetailRow('ID', shipment.invoiceNumber),
-                      _buildDetailRow('AWB Number', shipment.awb),
-                      _buildDetailRow('Flight Number', shipment.flightNo),
+                      _buildDetailRow('Invoice Number', shipment.invoiceNumber),
+                      _buildDetailRow('Invoice Title', shipment.invoiceTitle),
                       _buildDetailRow('Shipper', shipment.shipper),
+                      _buildDetailRow(
+                          'Shipper Address', shipment.shipperAddress),
                       _buildDetailRow('Consignee', shipment.consignee),
+                      _buildDetailRow(
+                          'Consignee Address', shipment.consigneeAddress),
+                      _buildDetailRow('Client Reference', shipment.clientRef),
+                      _buildDetailRow('AWB', shipment.awb),
+                      _buildDetailRow('Master AWB', shipment.masterAwb),
+                      _buildDetailRow('House AWB', shipment.houseAwb),
+                      _buildDetailRow('Flight Number', shipment.flightNo),
+                      _buildDetailRow('Flight Date',
+                          shipment.flightDate?.toString() ?? 'Not set'),
+                      _buildDetailRow(
+                          'Discharge Airport', shipment.dischargeAirport),
                       _buildDetailRow('Origin', shipment.origin),
                       _buildDetailRow('Destination', shipment.destination),
+                      _buildDetailRow('ETA', shipment.eta.toString()),
+                      _buildDetailRow('Invoice Date',
+                          shipment.invoiceDate?.toString() ?? 'Not set'),
+                      _buildDetailRow('Date of Issue',
+                          shipment.dateOfIssue?.toString() ?? 'Not set'),
                       _buildDetailRow(
-                          'Total Amount', '\$${shipment.totalAmount}'),
-                      _buildDetailRow('Invoice Title', shipment.invoiceTitle),
+                          'Place of Receipt', shipment.placeOfReceipt),
+                      _buildDetailRow('SGST Number', shipment.sgstNo),
+                      _buildDetailRow('IEC Code', shipment.iecCode),
+                      _buildDetailRow('Freight Terms', shipment.freightTerms),
+                      _buildDetailRow(
+                          'Gross Weight', shipment.grossWeight.toString()),
+                      _buildDetailRow('Status', shipment.status),
                       const SizedBox(height: 12),
                       const Text(
                         'Boxes:',

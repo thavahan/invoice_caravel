@@ -209,7 +209,11 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                 'shipper': shipment.shipper,
                 'consignee': shipment.consignee,
                 'awb': shipment.awb,
+                'masterAwb': shipment.masterAwb,
+                'houseAwb': shipment.houseAwb,
+                'grossWeight': shipment.grossWeight,
                 'flightNo': shipment.flightNo,
+                'flightDate': shipment.flightDate?.millisecondsSinceEpoch,
                 'dischargeAirport': shipment.dischargeAirport,
                 'eta': shipment.eta.millisecondsSinceEpoch,
                 'total_amount': shipment.totalAmount,
@@ -2357,7 +2361,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         'shipper': matchingShipment.shipper,
         'consignee': matchingShipment.consignee,
         'awb': matchingShipment.awb,
+        'masterAwb': matchingShipment.masterAwb,
+        'houseAwb': matchingShipment.houseAwb,
         'flightNo': matchingShipment.flightNo,
+        'flightDate': matchingShipment.flightDate?.millisecondsSinceEpoch,
         'dischargeAirport': matchingShipment.dischargeAirport,
         'origin': matchingShipment.origin,
         'destination': matchingShipment.destination,
@@ -2812,6 +2819,21 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         'shipper': invoice['shipper'] ?? '',
         'consignee': invoice['consignee'] ?? '',
         'awb': invoice['awb'] ?? invoice['AWB'] ?? '',
+        'masterAwb': invoice['masterAwb'] ?? invoice['master_awb'] ?? '',
+        'houseAwb': invoice['houseAwb'] ?? invoice['house_awb'] ?? '',
+        'grossWeight':
+            (invoice['grossWeight'] ?? invoice['gross_weight'] ?? 0.0)
+                .toString(),
+        'flightDate': invoice['flightDate'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(invoice['flightDate'] as int)
+                .toString()
+                .split(' ')[0] // Just the date part
+            : (invoice['flight_date'] != null
+                ? DateTime.fromMillisecondsSinceEpoch(
+                        invoice['flight_date'] as int)
+                    .toString()
+                    .split(' ')[0] // Just the date part
+                : ''),
         'flightNo': invoice['flight_no'] ?? invoice['flightNo'] ?? '',
         'dischargeAirport':
             invoice['discharge_airport'] ?? invoice['dischargeAirport'] ?? '',
@@ -3204,6 +3226,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         sgstNo: (detailedInvoiceData['sgstNo'] ?? '').toString(),
         iecCode: (detailedInvoiceData['iecCode'] ?? '').toString(),
         freightTerms: (detailedInvoiceData['freightTerms'] ?? '').toString(),
+        masterAwb: (detailedInvoiceData['masterAwb'] ?? '').toString(),
+        houseAwb: (detailedInvoiceData['houseAwb'] ?? '').toString(),
       );
 
       // Get items from boxes
@@ -3414,6 +3438,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         sgstNo: (detailedInvoiceData['sgstNo'] ?? '').toString(),
         iecCode: (detailedInvoiceData['iecCode'] ?? '').toString(),
         freightTerms: (detailedInvoiceData['freightTerms'] ?? '').toString(),
+        masterAwb: (detailedInvoiceData['masterAwb'] ?? '').toString(),
+        houseAwb: (detailedInvoiceData['houseAwb'] ?? '').toString(),
       );
 
       // Get items from boxes
@@ -3678,6 +3704,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         sgstNo: (detailedInvoiceData['sgstNo'] ?? '').toString(),
         iecCode: (detailedInvoiceData['iecCode'] ?? '').toString(),
         freightTerms: (detailedInvoiceData['freightTerms'] ?? '').toString(),
+        masterAwb: (detailedInvoiceData['masterAwb'] ?? '').toString(),
+        houseAwb: (detailedInvoiceData['houseAwb'] ?? '').toString(),
       );
 
       // Get items from boxes
