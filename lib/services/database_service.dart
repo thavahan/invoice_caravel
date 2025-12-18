@@ -42,8 +42,7 @@ class DatabaseService {
 
       final db = await openDatabase(
         path,
-        version:
-            4, // Updated version for has_stems column in master_product_types
+        version: 1, // Reset to version 1 for brand new database
         onCreate: _createTables,
         onUpgrade: _upgradeDatabase,
       );
@@ -267,58 +266,38 @@ class DatabaseService {
     }
   }
 
-  /// Handle database upgrades
+  /// Handle database upgrades - Always recreate as brand new database
   Future<void> _upgradeDatabase(
     Database db,
     int oldVersion,
     int newVersion,
   ) async {
-    _logger.i('Upgrading database from version $oldVersion to $newVersion');
+    _logger.i(
+        'Upgrading database from version $oldVersion to $newVersion - Recreating as brand new database');
 
     try {
-      if (oldVersion == 2 && newVersion == 3) {
-        // Add new columns to existing shipments table
-        _logger.i('Adding new fields to shipments table');
-        await db.execute(
-            'ALTER TABLE shipments ADD COLUMN master_awb TEXT DEFAULT ""');
-        await db.execute(
-            'ALTER TABLE shipments ADD COLUMN house_awb TEXT DEFAULT ""');
-        await db
-            .execute('ALTER TABLE shipments ADD COLUMN flight_date INTEGER');
-        await db.execute(
-            'ALTER TABLE shipments ADD COLUMN gross_weight REAL DEFAULT 0.0');
+      // Always drop all existing tables and recreate with current schema
+      // This ensures a clean, brand new database regardless of version changes
 
-        _logger.i('Database upgrade from v2 to v3 completed successfully');
-      } else if (oldVersion == 3 && newVersion == 4) {
-        // Add has_stems column to master_product_types table
-        _logger.i('Adding has_stems column to master_product_types table');
-        await db.execute(
-            'ALTER TABLE master_product_types ADD COLUMN has_stems INTEGER DEFAULT 0');
+      // Drop all existing tables in reverse dependency order
+      await db.execute('DROP TABLE IF EXISTS shipments');
+      await db.execute('DROP TABLE IF EXISTS boxes');
+      await db.execute('DROP TABLE IF EXISTS products');
+      await db.execute('DROP TABLE IF EXISTS drafts');
+      await db.execute('DROP TABLE IF EXISTS flower_types');
+      await db.execute('DROP TABLE IF EXISTS items');
+      await db.execute('DROP TABLE IF EXISTS resources');
+      await db.execute('DROP TABLE IF EXISTS master_shippers');
+      await db.execute('DROP TABLE IF EXISTS master_consignees');
+      await db.execute('DROP TABLE IF EXISTS master_product_types');
 
-        _logger.i('Database upgrade from v3 to v4 completed successfully');
-      } else {
-        // For other version upgrades, use the drop and recreate approach
-        _logger.i('Recreating database with current schema');
+      // Recreate all tables with current schema
+      await _createTables(db, newVersion);
 
-        // Drop all existing tables
-        await db.execute('DROP TABLE IF EXISTS shipments');
-        await db.execute('DROP TABLE IF EXISTS boxes');
-        await db.execute('DROP TABLE IF EXISTS products');
-        await db.execute('DROP TABLE IF EXISTS drafts');
-        await db.execute('DROP TABLE IF EXISTS flower_types');
-        await db.execute('DROP TABLE IF EXISTS items');
-        await db.execute('DROP TABLE IF EXISTS resources');
-        await db.execute('DROP TABLE IF EXISTS master_shippers');
-        await db.execute('DROP TABLE IF EXISTS master_consignees');
-        await db.execute('DROP TABLE IF EXISTS master_product_types');
-
-        // Recreate all tables with current schema
-        await _createTables(db, newVersion);
-      }
-
-      _logger.i('Database upgrade completed successfully');
+      _logger.i(
+          'Database recreated successfully as brand new version $newVersion');
     } catch (e, s) {
-      _logger.e('Failed to upgrade database', e, s);
+      _logger.e('Failed to recreate database', e, s);
       rethrow;
     }
   }
