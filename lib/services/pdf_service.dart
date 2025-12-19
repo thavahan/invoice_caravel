@@ -914,6 +914,7 @@ class PdfService {
 
     return [
       // Table header with pagination info
+      pw.SizedBox(height: 8),
       pw.Container(
         padding: pw.EdgeInsets.all(5), // Reduced from 8
         decoration: pw.BoxDecoration(
@@ -1010,7 +1011,7 @@ class PdfService {
             if (totalPages > 1) ...[
               pw.SizedBox(height: 2),
               pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
                   if (startIndex > 0)
                     pw.Text('← Continued from previous page',
@@ -1018,6 +1019,8 @@ class PdfService {
                             font: _regularFont!,
                             fontSize: 6,
                             color: PdfColors.white)),
+                  if (startIndex > 0 && endIndex < items.length)
+                    pw.SizedBox(width: 20), // Spacer between texts
                   if (endIndex < items.length)
                     pw.Text('Continued on next page →',
                         style: pw.TextStyle(
@@ -1290,9 +1293,8 @@ class PdfService {
             ),
             pw.Padding(
               padding: pw.EdgeInsets.all(4),
-              child: pw.Text('-',
-                  style: pw.TextStyle(font: _boldFont!, fontSize: 8),
-                  textAlign: pw.TextAlign.center),
+              child: pw.Text('',
+                  style: pw.TextStyle(font: _boldFont!, fontSize: 8)),
             ),
             pw.Padding(
               padding: pw.EdgeInsets.all(4),
