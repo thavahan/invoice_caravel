@@ -42,7 +42,7 @@ class DatabaseService {
 
       final db = await openDatabase(
         path,
-        version: 1, // Reset to version 1 for brand new database
+        version: 2, // Phase 2: Order Module
         onCreate: _createTables,
         onUpgrade: _upgradeDatabase,
       );
@@ -235,6 +235,49 @@ class DatabaseService {
         )
       ''');
 
+      // Order Header table (Phase 2: Order Module)
+      await db.execute('''
+        CREATE TABLE order_header (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
+          order_code TEXT NOT NULL,
+          customer_name TEXT NOT NULL,
+          event_name TEXT,
+          delivery_date TEXT,
+          delivery_batch TEXT,
+          location TEXT,
+          notes TEXT,
+          status TEXT DEFAULT 'pending',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER
+        )
+      ''');
+
+      // Order Item table (Phase 2: Order Module)
+      await db.execute('''
+        CREATE TABLE order_item (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          section TEXT,
+          feet_value REAL,
+          feet_unit TEXT,
+          flower_1 TEXT,
+          flower_2 TEXT,
+          flower_3 TEXT,
+          flower_4 TEXT,
+          flower_5 TEXT,
+          qty REAL,
+          qty_unit TEXT,
+          item_type TEXT,
+          usage_for TEXT,
+          rate_per_unit REAL,
+          amount REAL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER,
+          FOREIGN KEY (order_id) REFERENCES order_header (id) ON DELETE CASCADE
+        )
+      ''');
+
       // Create indexes for better performance
       await db.execute('CREATE INDEX idx_shipments_awb ON shipments (awb)');
       await db.execute(
@@ -258,6 +301,12 @@ class DatabaseService {
           'CREATE INDEX idx_master_product_types_user_id ON master_product_types (user_id)');
       await db.execute(
           'CREATE INDEX idx_flower_types_user_id ON flower_types (user_id)');
+      await db.execute(
+          'CREATE INDEX idx_order_header_user_id ON order_header (user_id)');
+      await db.execute(
+          'CREATE INDEX idx_order_header_status ON order_header (status)');
+      await db.execute(
+          'CREATE INDEX idx_order_item_order_id ON order_item (order_id)');
 
       _logger.i('Database tables created successfully');
     } catch (e, s) {
@@ -280,6 +329,8 @@ class DatabaseService {
       // This ensures a clean, brand new database regardless of version changes
 
       // Drop all existing tables in reverse dependency order
+      await db.execute('DROP TABLE IF EXISTS order_item');
+      await db.execute('DROP TABLE IF EXISTS order_header');
       await db.execute('DROP TABLE IF EXISTS shipments');
       await db.execute('DROP TABLE IF EXISTS boxes');
       await db.execute('DROP TABLE IF EXISTS products');
@@ -1439,5 +1490,271 @@ class DatabaseService {
       _logger.e('Failed to delete product', e, s);
       rethrow;
     }
+  }
+
+  // ---------- ORDERS (PHASE 2) ----------
+
+  /// Save an order header
+  Future<int> saveOrderHeader(Map<String, dynamic> orderData) async {
+    print('🛒 DATABASE: saveOrderHeader called with data: $orderData');
+    try {
+      final db = await database;
+      final userId = getCurrentUserId();
+
+      print('🛒 DATABASE: Current user ID: $userId');
+
+      if (userId == null) {
+        print('🛒 DATABASE: ERROR - User not authenticated');
+        throw Exception('User not authenticated. Cannot save order.');
+      }
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final data = {
+        ...orderData,
+        'user_id': userId,
+        'created_at': orderData['created_at'] ?? now,
+        'updated_at': now,
+      };
+
+      print('🛒 DATABASE: Final data to insert: $data');
+
+      print('🛒 DATABASE: Inserting into order_header table...');
+
+      final id = await db.insert(
+        'order_header',
+        data,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      print('🛒 DATABASE: Order header inserted with ID: $id');
+      _logger.i('Order header saved: $id');
+      return id;
+    } catch (e, s) {
+      print('🛒 DATABASE: ERROR - Failed to save order header: $e');
+      _logger.e('Failed to save order header', e, s);
+      rethrow;
+    }
+  }
+
+  /// Get all order headers for current user
+  Future<List<Map<String, dynamic>>> getOrderHeaders() async {
+    try {
+      final db = await database;
+      final userId = getCurrentUserId();
+
+      if (userId == null) {
+        _logger.w('User not authenticated. Returning empty orders list.');
+        return [];
+      }
+
+      final result = await db.query(
+        'order_header',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+        orderBy: 'created_at DESC',
+      );
+
+      _logger.i('Retrieved ${result.length} orders for user: $userId');
+      return result;
+    } catch (e, s) {
+      _logger.e('Failed to get order headers', e, s);
+      return [];
+    }
+  }
+
+  /// Get order header by ID
+  Future<Map<String, dynamic>?> getOrderHeaderById(int id) async {
+    try {
+      final db = await database;
+      final userId = getCurrentUserId();
+
+      if (userId == null) {
+        throw Exception('User not authenticated.');
+      }
+
+      final result = await db.query(
+        'order_header',
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+        limit: 1,
+      );
+
+      return result.isNotEmpty ? result.first : null;
+    } catch (e, s) {
+      _logger.e('Failed to get order header by ID: $id', e, s);
+      return null;
+    }
+  }
+
+  /// Update order header
+  Future<void> updateOrderHeader(int id, Map<String, dynamic> updates) async {
+    try {
+      final db = await database;
+      final userId = getCurrentUserId();
+
+      if (userId == null) {
+        throw Exception('User not authenticated.');
+      }
+
+      final data = {
+        ...updates,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      final rowsUpdated = await db.update(
+        'order_header',
+        data,
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+      );
+
+      if (rowsUpdated == 0) {
+        throw Exception('Order header not found: $id');
+      }
+
+      _logger.i('Order header updated: $id');
+    } catch (e, s) {
+      _logger.e('Failed to update order header', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete order header and all its items
+  Future<void> deleteOrderHeader(int id) async {
+    try {
+      final db = await database;
+      final userId = getCurrentUserId();
+
+      if (userId == null) {
+        throw Exception('User not authenticated.');
+      }
+
+      // Delete order items first (foreign key constraint)
+      await db.delete(
+        'order_item',
+        where: 'order_id = ?',
+        whereArgs: [id],
+      );
+
+      // Delete order header
+      final rowsDeleted = await db.delete(
+        'order_header',
+        where: 'id = ? AND user_id = ?',
+        whereArgs: [id, userId],
+      );
+
+      if (rowsDeleted == 0) {
+        throw Exception('Order header not found: $id');
+      }
+
+      _logger.i('Order header deleted: $id');
+    } catch (e, s) {
+      _logger.e('Failed to delete order header', e, s);
+      rethrow;
+    }
+  }
+
+  /// Save an order item
+  Future<int> saveOrderItem(Map<String, dynamic> itemData) async {
+    try {
+      final db = await database;
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      final data = {
+        ...itemData,
+        'created_at': itemData['created_at'] ?? now,
+        'updated_at': now,
+      };
+
+      final id = await db.insert(
+        'order_item',
+        data,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      _logger.i('Order item saved: $id');
+      return id;
+    } catch (e, s) {
+      _logger.e('Failed to save order item', e, s);
+      rethrow;
+    }
+  }
+
+  /// Get all items for an order
+  Future<List<Map<String, dynamic>>> getOrderItems(int orderId) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        'order_item',
+        where: 'order_id = ?',
+        whereArgs: [orderId],
+        orderBy: 'created_at ASC',
+      );
+
+      _logger.i('Retrieved ${result.length} items for order: $orderId');
+      return result;
+    } catch (e, s) {
+      _logger.e('Failed to get order items for order: $orderId', e, s);
+      return [];
+    }
+  }
+
+  /// Update order item
+  Future<void> updateOrderItem(int id, Map<String, dynamic> updates) async {
+    try {
+      final db = await database;
+      final data = {
+        ...updates,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      final rowsUpdated = await db.update(
+        'order_item',
+        data,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      if (rowsUpdated == 0) {
+        throw Exception('Order item not found: $id');
+      }
+
+      _logger.i('Order item updated: $id');
+    } catch (e, s) {
+      _logger.e('Failed to update order item', e, s);
+      rethrow;
+    }
+  }
+
+  /// Delete order item
+  Future<void> deleteOrderItem(int id) async {
+    try {
+      final db = await database;
+      final rowsDeleted = await db.delete(
+        'order_item',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      if (rowsDeleted == 0) {
+        throw Exception('Order item not found: $id');
+      }
+
+      _logger.i('Order item deleted: $id');
+    } catch (e, s) {
+      _logger.e('Failed to delete order item', e, s);
+      rethrow;
+    }
+  }
+
+  /// Generate unique order code
+  String generateOrderCode() {
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    final timestamp = now.millisecondsSinceEpoch.toString().substring(8);
+
+    return 'ORD-$year-$month$day-$timestamp';
   }
 }

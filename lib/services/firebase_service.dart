@@ -146,6 +146,10 @@ class FirebaseService {
           'initialized': true,
           'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true)),
+        firestore.collection('${_userPath}/orders').doc('_metadata').set({
+          'initialized': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)),
       ]).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
@@ -1814,6 +1818,229 @@ class FirebaseService {
       print('❌ FIREBASE: Failed to delete product $productId: $e');
       _logger.e('Failed to delete product from Firebase', e, s);
       rethrow;
+    }
+  }
+
+  // ========================================
+  // ORDER MANAGEMENT METHODS
+  // ========================================
+
+  /// Save an order to Firebase
+  Future<bool> saveOrder(
+      String orderCode, Map<String, dynamic> orderData) async {
+    if (!_isInitialized || currentUserId == null) {
+      _logger.w(
+          'Cannot save order: Firebase not initialized or user not authenticated');
+      return false;
+    }
+
+    try {
+      if (!(await _checkConnectivity())) {
+        throw Exception('No network connectivity');
+      }
+
+      final docPath = '${_userPath}/orders';
+      _logger.d('Saving order to $docPath/$orderCode');
+
+      // Add metadata to order data
+      final orderWithMetadata = {
+        ...orderData,
+        'savedAt': FieldValue.serverTimestamp(),
+        'userId': currentUserId,
+      };
+
+      await firestore
+          .collection(docPath)
+          .doc(orderCode)
+          .set(orderWithMetadata)
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception('Order save timeout'),
+          );
+
+      _logger.i('Order saved successfully: $docPath/$orderCode');
+      return true;
+    } catch (e) {
+      _logger.e('Failed to save order $orderCode: $e');
+      return false;
+    }
+  }
+
+  /// Get an order from Firebase
+  Future<Map<String, dynamic>?> getOrder(String orderCode) async {
+    if (!_isInitialized || currentUserId == null) {
+      _logger.w(
+          'Cannot get order: Firebase not initialized or user not authenticated');
+      return null;
+    }
+
+    try {
+      if (!(await _checkConnectivity())) {
+        throw Exception('No network connectivity');
+      }
+
+      final docPath = '${_userPath}/orders';
+      final doc =
+          await firestore.collection(docPath).doc(orderCode).get().timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => throw Exception('Get order timeout'),
+              );
+
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (e) {
+      _logger.e('Failed to get order $orderCode: $e');
+      return null;
+    }
+  }
+
+  /// Get all orders for the current user
+  Future<List<Map<String, dynamic>>> getUserOrders() async {
+    if (!_isInitialized || currentUserId == null) {
+      _logger.w(
+          'Cannot get orders: Firebase not initialized or user not authenticated');
+      return [];
+    }
+
+    try {
+      if (!(await _checkConnectivity())) {
+        throw Exception('No network connectivity');
+      }
+
+      final docPath = '${_userPath}/orders';
+      final querySnapshot = await firestore
+          .collection(docPath)
+          .where('header.userId', isEqualTo: currentUserId)
+          .orderBy('header.createdAt', descending: true)
+          .get()
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception('Get orders timeout'),
+          );
+
+      return querySnapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                ...doc.data(),
+              })
+          .toList();
+    } catch (e) {
+      _logger.e('Failed to get user orders: $e');
+      return [];
+    }
+  }
+
+  /// Delete an order from Firebase
+  Future<bool> deleteOrder(String orderCode) async {
+    if (!_isInitialized || currentUserId == null) {
+      _logger.w(
+          'Cannot delete order: Firebase not initialized or user not authenticated');
+      return false;
+    }
+
+    try {
+      if (!(await _checkConnectivity())) {
+        throw Exception('No network connectivity');
+      }
+
+      final docPath = '${_userPath}/orders';
+      await firestore.collection(docPath).doc(orderCode).delete().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw Exception('Delete order timeout'),
+          );
+
+      _logger.i('Order deleted successfully: $orderCode');
+      return true;
+    } catch (e) {
+      _logger.e('Failed to delete order $orderCode: $e');
+      return false;
+    }
+  }
+
+  /// Share order with another user
+  Future<bool> shareOrder(String orderCode, String targetUserEmail,
+      Map<String, dynamic> orderData) async {
+    if (!_isInitialized || currentUserId == null) {
+      _logger.w(
+          'Cannot share order: Firebase not initialized or user not authenticated');
+      return false;
+    }
+
+    try {
+      if (!(await _checkConnectivity())) {
+        throw Exception('No network connectivity');
+      }
+
+      // Create a shared order document
+      final sharedOrderData = {
+        ...orderData,
+        'sharedBy': currentUserId,
+        'sharedWith': targetUserEmail,
+        'sharedAt': FieldValue.serverTimestamp(),
+        'originalOrderCode': orderCode,
+      };
+
+      final sharedDocPath = 'shared_orders';
+      final sharedOrderId =
+          '${orderCode}_shared_${DateTime.now().millisecondsSinceEpoch}';
+
+      await firestore
+          .collection(sharedDocPath)
+          .doc(sharedOrderId)
+          .set(sharedOrderData)
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception('Share order timeout'),
+          );
+
+      _logger.i('Order shared successfully: $sharedOrderId');
+      return true;
+    } catch (e) {
+      _logger.e('Failed to share order $orderCode with $targetUserEmail: $e');
+      return false;
+    }
+  }
+
+  /// Get orders shared with the current user
+  Future<List<Map<String, dynamic>>> getSharedOrders() async {
+    if (!_isInitialized || currentUserId == null) {
+      _logger.w(
+          'Cannot get shared orders: Firebase not initialized or user not authenticated');
+      return [];
+    }
+
+    try {
+      if (!(await _checkConnectivity())) {
+        throw Exception('No network connectivity');
+      }
+
+      // Get user's email from auth
+      final userEmail = FirebaseAuth.instance.currentUser?.email;
+      if (userEmail == null) {
+        throw Exception('User email not available');
+      }
+
+      final querySnapshot = await firestore
+          .collection('shared_orders')
+          .where('sharedWith', isEqualTo: userEmail)
+          .orderBy('sharedAt', descending: true)
+          .get()
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception('Get shared orders timeout'),
+          );
+
+      return querySnapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                ...doc.data(),
+              })
+          .toList();
+    } catch (e) {
+      _logger.e('Failed to get shared orders: $e');
+      return [];
     }
   }
 }

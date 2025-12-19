@@ -69,6 +69,11 @@ class AuthProvider with ChangeNotifier {
         _isFirebaseAvailable = false;
         _isLoading = false;
         _user = null;
+
+        // Set default user ID for offline mode to enable database operations
+        DatabaseService().setCurrentUserId('offline_user');
+        print('🔥 AUTH_PROVIDER: Set offline user ID for database operations');
+
         notifyListeners();
         return;
       }
@@ -93,6 +98,11 @@ class AuthProvider with ChangeNotifier {
       _isFirebaseAvailable = false;
       _isLoading = false;
       _user = null;
+
+      // Set default user ID for offline mode to enable database operations
+      DatabaseService().setCurrentUserId('offline_user');
+      print('🔥 AUTH_PROVIDER: Set offline user ID due to Firebase failure');
+
       notifyListeners();
     }
   }

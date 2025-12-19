@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:invoice_generator/providers/auth_provider.dart';
 import 'package:invoice_generator/screens/auth/login_screen.dart';
 import 'package:invoice_generator/screens/splash/splash_screen.dart';
-import 'package:invoice_generator/screens/invoice_list_screen.dart';
+import 'package:invoice_generator/screens/home_screen.dart';
 import 'package:invoice_generator/widgets/error_boundary.dart';
 import 'package:invoice_generator/widgets/sync_progress_indicator.dart';
 import 'package:invoice_generator/services/database_service.dart';
@@ -31,12 +31,12 @@ class AuthWrapper extends StatelessWidget {
 
         // If user is authenticated, show the main app
         if (authProvider.isAuthenticated) {
-          print('✅ AUTH_WRAPPER: Showing InvoiceListScreen (authenticated)');
-          // Return the main app content (InvoiceListScreen) with sync overlay
+          print('✅ AUTH_WRAPPER: Showing HomeScreen (authenticated)');
+          // Return the main app content (HomeScreen) with sync overlay
           return ErrorBoundary(
             child: Stack(
               children: [
-                const InvoiceListScreen(),
+                const HomeScreen(),
                 SyncProgressOverlay(),
               ],
             ),

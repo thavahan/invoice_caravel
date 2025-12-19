@@ -927,13 +927,13 @@ class PdfService {
         child: pw.Column(
           children: [
             pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('ITEMIZED MANIFEST',
                     style: pw.TextStyle(
                         font: _boldFont!,
                         fontSize: 10,
                         color: PdfColors.white)), // Reduced from 12
+                pw.Spacer(),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [

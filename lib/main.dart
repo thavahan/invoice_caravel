@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/providers/theme_provider.dart';
 import 'package:invoice_generator/providers/auth_provider.dart';
+import 'package:invoice_generator/modules/orders/providers/order_provider.dart';
 import 'package:invoice_generator/widgets/auth_wrapper.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
 import 'package:provider/provider.dart';
@@ -91,6 +92,7 @@ void main() async {
   // Create providers
   final authProvider = AuthProvider();
   final invoiceProvider = InvoiceProvider();
+  final orderProvider = OrderProvider();
 
   // Set up provider references for login-time sync
   authProvider.setInvoiceProvider(invoiceProvider);
@@ -101,6 +103,7 @@ void main() async {
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: invoiceProvider),
         ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: orderProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
