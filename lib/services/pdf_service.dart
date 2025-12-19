@@ -28,7 +28,7 @@ class PdfService {
 
   // Multi-page trigger thresholds - ADJUST THESE TO CONTROL PAGINATION
   static const int FORCE_MULTIPAGE_ITEM_COUNT =
-      15; // Force multi-page when more than this many items
+      8; // Force multi-page when more than this many items (reduced from 15)
   static const int ITEMS_PER_TABLE_PAGE =
       25; // Items per page for optimal layout
 
@@ -103,6 +103,15 @@ class PdfService {
         _headerHeight -
         _footerHeight;
 
+    print('📏 Page dimensions:');
+    print('   A4 height: ${PdfPageFormat.a4.height}');
+    print('   Margins (top+bottom): ${_pageMargin * 2}');
+    print('   Header height: $_headerHeight');
+    print('   Footer height: $_footerHeight');
+    print('   Available per page: $availablePerPage');
+    print('   Item row height: $_itemRowHeight');
+    print('   Max items per page (rough): ${(availablePerPage / _itemRowHeight).floor()}');
+
     // Calculate unique product types for table 2
     final Set<String> productTypes = {};
     for (final item in items) {
@@ -142,10 +151,23 @@ class PdfService {
     print(
         '   Content fits in one page: ${totalContentNeeded <= availablePerPage}');
 
+    // Force multi-page if we have too many items, regardless of space calculation
+    bool forceMultiPage = items.length > FORCE_MULTIPAGE_ITEM_COUNT;
+
+    // Additional check: if we have more than 12 items, force multi-page regardless
+    // This is a safety net in case space calculations are wrong
+    if (items.length > 12) {
+      forceMultiPage = true;
+      print('🚨 Safety override: Forcing multi-page for ${items.length} items (> 12)');
+    }
+
+    print('   Force multi-page threshold: $FORCE_MULTIPAGE_ITEM_COUNT items');
+    print('   Force multi-page due to item count: $forceMultiPage (${items.length} > $FORCE_MULTIPAGE_ITEM_COUNT)');
+
     List<Map<String, dynamic>> layouts = [];
     String strategy = '';
 
-    if (totalContentNeeded <= availablePerPage) {
+    if (totalContentNeeded <= availablePerPage && !forceMultiPage) {
       // Everything fits on one page - show all content together
       print('✅ All content fits on single page - using single page layout');
       strategy = 'single_page_all_content';
