@@ -75,10 +75,12 @@ class PdfService {
       // Generate each page dynamically
       for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
         final layout = pageLayouts[pageIndex];
-        print('📄 Building page ${pageIndex + 1}: ${layout['type']}');
+        print('📄 Building page ${pageIndex + 1}/${totalPages}: ${layout['type']}');
 
         pdf.addPage(_buildDynamicPage(
             shipment, items, layout, pageIndex + 1, totalPages, _logoImage!));
+
+        print('✅ Page ${pageIndex + 1} added successfully');
       }
 
       print('📄 Successfully generated $totalPages pages');
@@ -217,11 +219,8 @@ class PdfService {
         print('   Space for items on last page: ${spaceForItemsOnLastPage}px');
         print('   Max items on last page: $maxItemsOnLastPage');
 
-        // Decision logic: Can we fit remaining items + Table 2 on this page?
-        bool canFitAllRemainingWithTable2 =
-            remainingItems <= maxItemsOnLastPage && maxItemsOnLastPage > 0;
-
-        if (canFitAllRemainingWithTable2) {
+        // If this is definitely the last page (remaining items can fit with Table 2)
+        if (remainingItems <= maxItemsOnLastPage && maxItemsOnLastPage > 0) {
           // This is the last page - include remaining items + Table 2 + Gross Total
           print(
               '✅ Final page: ${remainingItems} items (${table1StartIndex + 1}-${items.length}) + PRODUCT SUMMARY');
@@ -236,14 +235,14 @@ class PdfService {
             'table1End': items.length,
           });
 
-          break; // Exit loop
+          break; // Exit loop - all items distributed
         } else {
-          // Fill this page with as many items as possible and continue
-          int itemsOnThisPage =
-              (pageSpace / _itemRowHeight).floor().clamp(1, remainingItems);
+          // This is NOT the last page - fill with as many items as possible
+          int itemsOnThisPage;
 
-          // But if this would leave too few items for the last page, adjust
-          int itemsAfterThisPage = remainingItems - itemsOnThisPage;
+          // If remaining items after this page would be too few for the last page,
+          // adjust to leave more for the final page
+          int itemsAfterThisPage = remainingItems - (pageSpace / _itemRowHeight).floor();
           if (itemsAfterThisPage > 0 &&
               itemsAfterThisPage <= 2 &&
               maxItemsOnLastPage >= itemsAfterThisPage) {
@@ -251,6 +250,9 @@ class PdfService {
             itemsOnThisPage = Math.max(1, remainingItems - maxItemsOnLastPage);
             print(
                 '📄 Adjusted page ${currentPage}: ${itemsOnThisPage} items to optimize last page');
+          } else {
+            // Fill this page completely
+            itemsOnThisPage = (pageSpace / _itemRowHeight).floor().clamp(1, remainingItems);
           }
 
           print(
@@ -268,6 +270,22 @@ class PdfService {
 
           table1StartIndex += itemsOnThisPage;
           currentPage++;
+
+          // Safety check: If we've processed all items but haven't added Table 2 yet,
+          // ensure we don't exit the loop without adding the final page
+          if (table1StartIndex >= items.length && !layouts.any((layout) => layout['showTable2'] == true)) {
+            print('🚨 Safety: All items processed but Table 2 not added - adding final page');
+            layouts.add({
+              'type': 'table2_only',
+              'pageNumber': currentPage,
+              'showSummary': false,
+              'showTable1': false,
+              'showTable2': true,
+              'table1Start': 0,
+              'table1End': 0,
+            });
+            break;
+          }
         }
       }
 
@@ -286,8 +304,15 @@ class PdfService {
         });
       }
 
-      print(
-          '📊 Final pagination: ${layouts.length} pages, all ${items.length} items distributed');
+      print('📊 Final pagination: ${layouts.length} pages, all ${items.length} items distributed');
+      print('   Page breakdown:');
+      for (int i = 0; i < layouts.length; i++) {
+        final layout = layouts[i];
+        final start = layout['table1Start'] ?? 0;
+        final end = layout['table1End'] ?? 0;
+        final itemCount = end - start;
+        print('   Page ${i + 1}: ${layout['type']} (${itemCount} items, ${start + 1}-${end})');
+      }
       strategy = 'content_driven_multi_page';
     }
 
@@ -521,7 +546,7 @@ class PdfService {
       Map<String, dynamic> layout, int pageNumber, int totalPages) {
     List<pw.Widget> content = [];
 
-    print('📄 Building page $pageNumber with layout: $layout');
+    print('📄 Building page $pageNumber/${totalPages} with layout: $layout');
 
     // Add invoice summary if required
     if (layout['showSummary'] == true) {
