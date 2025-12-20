@@ -6,6 +6,12 @@ class MasterProductType {
   final String name;
   final int approxQuantity;
   final bool hasStems;
+  final double rate;
+  final String category;
+  final String genusSpeciesName;
+  final String plantFamilyName;
+  final String? specials;
+  final String countryOfOrigin;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -14,6 +20,12 @@ class MasterProductType {
     required this.name,
     required this.approxQuantity,
     required this.hasStems,
+    required this.rate,
+    required this.category,
+    required this.genusSpeciesName,
+    required this.plantFamilyName,
+    this.specials,
+    required this.countryOfOrigin,
     required this.createdAt,
     this.updatedAt,
   });
@@ -25,6 +37,12 @@ class MasterProductType {
       name: map['name'] ?? '',
       approxQuantity: (map['approx_quantity'] ?? 1).toInt(),
       hasStems: (map['has_stems'] ?? 0) == 1,
+      rate: (map['rate'] ?? 0.0).toDouble(),
+      category: map['category'] ?? '',
+      genusSpeciesName: map['genus_species_name'] ?? '',
+      plantFamilyName: map['plant_family_name'] ?? '',
+      specials: map['specials'],
+      countryOfOrigin: map['country_of_origin'] ?? '',
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] ?? 0),
       updatedAt: map['updated_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['updated_at'])
@@ -39,6 +57,12 @@ class MasterProductType {
       'name': name,
       'approx_quantity': approxQuantity,
       'has_stems': hasStems ? 1 : 0,
+      'rate': rate,
+      'category': category,
+      'genus_species_name': genusSpeciesName,
+      'plant_family_name': plantFamilyName,
+      'specials': specials,
+      'country_of_origin': countryOfOrigin,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt?.millisecondsSinceEpoch,
     };
@@ -58,6 +82,12 @@ class MasterProductType {
     String? name,
     int? approxQuantity,
     bool? hasStems,
+    double? rate,
+    String? category,
+    String? genusSpeciesName,
+    String? plantFamilyName,
+    String? specials,
+    String? countryOfOrigin,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -66,6 +96,12 @@ class MasterProductType {
       name: name ?? this.name,
       approxQuantity: approxQuantity ?? this.approxQuantity,
       hasStems: hasStems ?? this.hasStems,
+      rate: rate ?? this.rate,
+      category: category ?? this.category,
+      genusSpeciesName: genusSpeciesName ?? this.genusSpeciesName,
+      plantFamilyName: plantFamilyName ?? this.plantFamilyName,
+      specials: specials ?? this.specials,
+      countryOfOrigin: countryOfOrigin ?? this.countryOfOrigin,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

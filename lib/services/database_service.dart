@@ -42,7 +42,7 @@ class DatabaseService {
 
       final db = await openDatabase(
         path,
-        version: 2, // Phase 2: Order Module
+        version: 3, // Added new fields to master_product_types
         onCreate: _createTables,
         onUpgrade: _upgradeDatabase,
       );
@@ -230,6 +230,12 @@ class DatabaseService {
           name TEXT NOT NULL,
           approx_quantity INTEGER NOT NULL DEFAULT 1,
           has_stems INTEGER NOT NULL DEFAULT 0,
+          rate REAL NOT NULL,
+          category TEXT NOT NULL,
+          genus_species_name TEXT NOT NULL,
+          plant_family_name TEXT NOT NULL,
+          specials TEXT,
+          country_of_origin TEXT NOT NULL,
           created_at INTEGER NOT NULL,
           updated_at INTEGER
         )
@@ -1264,6 +1270,13 @@ class DatabaseService {
         'user_id': userId, // Add user ID
         'name': productTypeData['name'],
         'approx_quantity': productTypeData['approx_quantity'] ?? 1,
+        'has_stems': productTypeData['has_stems'] ?? 0,
+        'rate': productTypeData['rate'] ?? 0.0,
+        'category': productTypeData['category'],
+        'genus_species_name': productTypeData['genus_species_name'],
+        'plant_family_name': productTypeData['plant_family_name'],
+        'specials': productTypeData['specials'],
+        'country_of_origin': productTypeData['country_of_origin'],
         'created_at': productTypeData['created_at'] ?? now,
         'updated_at': now,
       };

@@ -568,17 +568,15 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
       ),
     );
 
-    // Dispose controllers after the current frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      nameController.dispose();
-      phoneController.dispose();
-      addr1Controller.dispose();
-      addr2Controller.dispose();
-      cityController.dispose();
-      stateController.dispose();
-      pincodeController.dispose();
-      landmarkController.dispose();
-    });
+    // Dispose controllers immediately after the dialog closes
+    nameController.dispose();
+    phoneController.dispose();
+    addr1Controller.dispose();
+    addr2Controller.dispose();
+    cityController.dispose();
+    stateController.dispose();
+    pincodeController.dispose();
+    landmarkController.dispose();
   }
 
   Future<void> _deleteShipper(MasterShipper shipper) async {

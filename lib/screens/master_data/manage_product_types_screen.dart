@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/models/master_product_type.dart';
 import 'package:invoice_generator/screens/invoice_form/invoice_form.dart';
@@ -88,10 +89,22 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
     final nameController = TextEditingController(text: productType?.name ?? '');
     final approxQuantityController = TextEditingController(
         text: productType?.approxQuantity.toString() ?? '1');
+    final rateController =
+        TextEditingController(text: productType?.rate.toString() ?? '0.0');
+    final categoryController =
+        TextEditingController(text: productType?.category ?? '');
+    final genusSpeciesNameController =
+        TextEditingController(text: productType?.genusSpeciesName ?? '');
+    final plantFamilyNameController =
+        TextEditingController(text: productType?.plantFamilyName ?? '');
+    final countryOfOriginController =
+        TextEditingController(text: productType?.countryOfOrigin ?? '');
+    final specialsController =
+        TextEditingController(text: productType?.specials ?? '');
     final formKey = GlobalKey<FormState>();
     bool hasStems = productType?.hasStems ?? false; // Default to No stems
 
-    await showModalBottomSheet<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -198,7 +211,113 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: rateController,
+                        decoration: InputDecoration(
+                          labelText: 'Rate (per kg) *',
+                          hintText: 'Enter rate per kilogram',
+                          prefixIcon: const Icon(Icons.attach_money),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        keyboardType:
+                            TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (value?.trim().isEmpty == true) {
+                            return 'Rate is required';
+                          }
+                          final rate = double.tryParse(value!);
+                          if (rate == null || rate < 0) {
+                            return 'Please enter a valid non-negative number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: categoryController,
+                        decoration: InputDecoration(
+                          labelText: 'Category *',
+                          hintText: 'Enter product category',
+                          prefixIcon: const Icon(Icons.category),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (value) => value?.trim().isEmpty == true
+                            ? 'Category is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: genusSpeciesNameController,
+                        decoration: InputDecoration(
+                          labelText: 'Genus/Species Name *',
+                          hintText: 'Enter genus or species name',
+                          prefixIcon: const Icon(Icons.science),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (value) => value?.trim().isEmpty == true
+                            ? 'Genus/Species Name is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: plantFamilyNameController,
+                        decoration: InputDecoration(
+                          labelText: 'Plant/Family Name *',
+                          hintText: 'Enter plant or family name',
+                          prefixIcon: const Icon(Icons.nature),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (value) => value?.trim().isEmpty == true
+                            ? 'Plant/Family Name is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: countryOfOriginController,
+                        decoration: InputDecoration(
+                          labelText: 'Country of Origin *',
+                          hintText: 'Enter country of origin',
+                          prefixIcon: const Icon(Icons.flag),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (value) => value?.trim().isEmpty == true
+                            ? 'Country of Origin is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: specialsController,
+                        decoration: InputDecoration(
+                          labelText: 'Specials',
+                          hintText:
+                              'Enter any special notes, requirements, or additional information (optional)',
+                          prefixIcon: const Icon(Icons.star_border),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withOpacity(0.1),
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
                     ],
                   ),
                 ),
@@ -223,6 +342,19 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
                                         approxQuantityController.text) ??
                                     1,
                                 'has_stems': hasStems ? 1 : 0,
+                                'rate':
+                                    double.tryParse(rateController.text) ?? 0.0,
+                                'category': categoryController.text.trim(),
+                                'genus_species_name':
+                                    genusSpeciesNameController.text.trim(),
+                                'plant_family_name':
+                                    plantFamilyNameController.text.trim(),
+                                'country_of_origin':
+                                    countryOfOriginController.text.trim(),
+                                'specials':
+                                    specialsController.text.trim().isEmpty
+                                        ? null
+                                        : specialsController.text.trim(),
                               };
 
                               await _dataService
@@ -342,6 +474,20 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
                                             approxQuantityController.text) ??
                                         1,
                                     'has_stems': hasStems ? 1 : 0,
+                                    'rate':
+                                        double.tryParse(rateController.text) ??
+                                            0.0,
+                                    'category': categoryController.text.trim(),
+                                    'genus_species_name':
+                                        genusSpeciesNameController.text.trim(),
+                                    'plant_family_name':
+                                        plantFamilyNameController.text.trim(),
+                                    'country_of_origin':
+                                        countryOfOriginController.text.trim(),
+                                    'specials':
+                                        specialsController.text.trim().isEmpty
+                                            ? null
+                                            : specialsController.text.trim(),
                                   };
 
                                   await _dataService.updateMasterProductType(
@@ -389,10 +535,20 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
       ),
     );
 
-    // Dispose controllers after the current frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      nameController.dispose();
-      approxQuantityController.dispose();
+    // Dispose controllers after the modal animation completes
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          nameController.dispose();
+          approxQuantityController.dispose();
+          rateController.dispose();
+          categoryController.dispose();
+          genusSpeciesNameController.dispose();
+          plantFamilyNameController.dispose();
+          countryOfOriginController.dispose();
+          specialsController.dispose();
+        });
+      });
     });
   }
 
@@ -633,6 +789,26 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
                                   children: [
                                     Text(
                                       'Approx. Quantity: ${productType.approxQuantity}',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Rate: \$${productType.rate.toStringAsFixed(2)}/kg',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Category: ${productType.category}',
                                       style: TextStyle(
                                         color: Theme.of(context)
                                             .colorScheme

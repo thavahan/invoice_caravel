@@ -420,7 +420,21 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
                 productType.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              subtitle: Text('Approx Quantity: ${productType.approxQuantity}'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Approx Quantity: ${productType.approxQuantity}'),
+                  Text('Rate: \$${productType.rate.toStringAsFixed(2)}/kg'),
+                  Text('Category: ${productType.category}'),
+                  Text('Genus/Species: ${productType.genusSpeciesName}'),
+                  Text('Plant/Family: ${productType.plantFamilyName}'),
+                  if (productType.specials != null &&
+                      productType.specials!.isNotEmpty)
+                    Text('Specials: ${productType.specials}'),
+                  Text('Country of Origin: ${productType.countryOfOrigin}'),
+                  Text('Has Stems: ${productType.hasStems ? 'Yes' : 'No'}'),
+                ],
+              ),
             ),
           );
         },

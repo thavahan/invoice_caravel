@@ -159,14 +159,7 @@ class FirebaseService {
 
       // Create a placeholder document in each main collection to ensure they exist
       // This helps with queries that might fail on empty collections
-      final collections = [
-        'shipments',
-        'drafts',
-        'master_shippers',
-        'master_consignees',
-        'master_product_types',
-        'flower_types'
-      ];
+      final collections = ['shipments', 'drafts'];
 
       for (final collection in collections) {
         final placeholderId = '_placeholder_${collection}';
@@ -986,15 +979,13 @@ class FirebaseService {
 
   // ---------- MASTER SHIPPERS ----------
 
-  /// Get all master shippers
+  /// Get all master shippers (global collection)
   Future<List<MasterShipper>> getMasterShippers() async {
     try {
       if (currentUserId == null) return [];
 
-      final snapshot = await firestore
-          .collection('${_userPath}/master_shippers')
-          .orderBy('name')
-          .get();
+      final snapshot =
+          await firestore.collection('master_shippers').orderBy('name').get();
 
       return snapshot.docs.map((doc) {
         final data = doc.data();
@@ -1006,7 +997,7 @@ class FirebaseService {
     }
   }
 
-  /// Save a master shipper
+  /// Save a master shipper (global collection)
   Future<String> saveMasterShipper(MasterShipper shipper) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
@@ -1014,10 +1005,12 @@ class FirebaseService {
       final data = {
         ...shipper.toFirebase(),
         'userId': currentUserId,
+        'createdBy': currentUserId,
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
       await firestore
-          .collection('${_userPath}/master_shippers')
+          .collection('master_shippers')
           .doc(shipper.id)
           .set(data, SetOptions(merge: true));
 
@@ -1029,7 +1022,7 @@ class FirebaseService {
     }
   }
 
-  /// Update a master shipper
+  /// Update a master shipper (global collection)
   Future<void> updateMasterShipper(
       String id, Map<String, dynamic> updates) async {
     try {
@@ -1038,12 +1031,10 @@ class FirebaseService {
       final data = {
         ...updates,
         'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': currentUserId,
       };
 
-      await firestore
-          .collection('${_userPath}/master_shippers')
-          .doc(id)
-          .update(data);
+      await firestore.collection('master_shippers').doc(id).update(data);
 
       _logger.i('Master shipper updated: $id');
     } catch (e, s) {
@@ -1052,15 +1043,12 @@ class FirebaseService {
     }
   }
 
-  /// Delete a master shipper
+  /// Delete a master shipper (global collection)
   Future<void> deleteMasterShipper(String id) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      await firestore
-          .collection('${_userPath}/master_shippers')
-          .doc(id)
-          .delete();
+      await firestore.collection('master_shippers').doc(id).delete();
 
       _logger.i('Master shipper deleted: $id');
     } catch (e, s) {
@@ -1071,15 +1059,13 @@ class FirebaseService {
 
   // ---------- MASTER CONSIGNEES ----------
 
-  /// Get all master consignees
+  /// Get all master consignees (global collection)
   Future<List<MasterConsignee>> getMasterConsignees() async {
     try {
       if (currentUserId == null) return [];
 
-      final snapshot = await firestore
-          .collection('${_userPath}/master_consignees')
-          .orderBy('name')
-          .get();
+      final snapshot =
+          await firestore.collection('master_consignees').orderBy('name').get();
 
       return snapshot.docs.map((doc) {
         final data = doc.data();
@@ -1091,7 +1077,7 @@ class FirebaseService {
     }
   }
 
-  /// Save a master consignee
+  /// Save a master consignee (global collection)
   Future<String> saveMasterConsignee(MasterConsignee consignee) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
@@ -1099,10 +1085,12 @@ class FirebaseService {
       final data = {
         ...consignee.toFirebase(),
         'userId': currentUserId,
+        'createdBy': currentUserId,
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
       await firestore
-          .collection('${_userPath}/master_consignees')
+          .collection('master_consignees')
           .doc(consignee.id)
           .set(data, SetOptions(merge: true));
 
@@ -1114,7 +1102,7 @@ class FirebaseService {
     }
   }
 
-  /// Update a master consignee
+  /// Update a master consignee (global collection)
   Future<void> updateMasterConsignee(
       String id, Map<String, dynamic> updates) async {
     try {
@@ -1123,12 +1111,10 @@ class FirebaseService {
       final data = {
         ...updates,
         'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': currentUserId,
       };
 
-      await firestore
-          .collection('${_userPath}/master_consignees')
-          .doc(id)
-          .update(data);
+      await firestore.collection('master_consignees').doc(id).update(data);
 
       _logger.i('Master consignee updated: $id');
     } catch (e, s) {
@@ -1137,15 +1123,12 @@ class FirebaseService {
     }
   }
 
-  /// Delete a master consignee
+  /// Delete a master consignee (global collection)
   Future<void> deleteMasterConsignee(String id) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      await firestore
-          .collection('${_userPath}/master_consignees')
-          .doc(id)
-          .delete();
+      await firestore.collection('master_consignees').doc(id).delete();
 
       _logger.i('Master consignee deleted: $id');
     } catch (e, s) {
@@ -1156,13 +1139,13 @@ class FirebaseService {
 
   // ---------- MASTER PRODUCT TYPES ----------
 
-  /// Get all master product types
+  /// Get all master product types (global collection)
   Future<List<MasterProductType>> getMasterProductTypes() async {
     try {
       if (currentUserId == null) return [];
 
       final snapshot = await firestore
-          .collection('${_userPath}/master_product_types')
+          .collection('master_product_types')
           .orderBy('name')
           .get();
 
@@ -1176,7 +1159,7 @@ class FirebaseService {
     }
   }
 
-  /// Save a master product type
+  /// Save a master product type (global collection)
   Future<String> saveMasterProductType(MasterProductType productType) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
@@ -1184,10 +1167,12 @@ class FirebaseService {
       final data = {
         ...productType.toFirebase(),
         'userId': currentUserId,
+        'createdBy': currentUserId,
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
       await firestore
-          .collection('${_userPath}/master_product_types')
+          .collection('master_product_types')
           .doc(productType.id)
           .set(data, SetOptions(merge: true));
 
@@ -1199,7 +1184,7 @@ class FirebaseService {
     }
   }
 
-  /// Update a master product type
+  /// Update a master product type (global collection)
   Future<void> updateMasterProductType(
       String id, Map<String, dynamic> updates) async {
     try {
@@ -1208,12 +1193,10 @@ class FirebaseService {
       final data = {
         ...updates,
         'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': currentUserId,
       };
 
-      await firestore
-          .collection('${_userPath}/master_product_types')
-          .doc(id)
-          .update(data);
+      await firestore.collection('master_product_types').doc(id).update(data);
 
       _logger.i('Master product type updated: $id');
     } catch (e, s) {
@@ -1222,15 +1205,12 @@ class FirebaseService {
     }
   }
 
-  /// Delete a master product type
+  /// Delete a master product type (global collection)
   Future<void> deleteMasterProductType(String id) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      await firestore
-          .collection('${_userPath}/master_product_types')
-          .doc(id)
-          .delete();
+      await firestore.collection('master_product_types').doc(id).delete();
 
       _logger.i('Master product type deleted: $id');
     } catch (e, s) {
@@ -1241,13 +1221,13 @@ class FirebaseService {
 
   // ========== FLOWER TYPES ==========
 
-  /// Get all flower types
+  /// Get all flower types (global collection)
   Future<List<FlowerType>> getFlowerTypes() async {
     try {
       if (currentUserId == null) return [];
 
       final snapshot = await firestore
-          .collection('${_userPath}/flower_types')
+          .collection('flower_types')
           .orderBy('flowerName')
           .get();
 
@@ -1265,7 +1245,7 @@ class FirebaseService {
     }
   }
 
-  /// Save a flower type to Firebase
+  /// Save a flower type to Firebase (global collection)
   Future<String> saveFlowerType(FlowerType flowerType) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
@@ -1274,11 +1254,12 @@ class FirebaseService {
         'flowerName': flowerType.flowerName,
         'description': flowerType.description,
         'userId': currentUserId,
+        'createdBy': currentUserId,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
       await firestore
-          .collection('${_userPath}/flower_types')
+          .collection('flower_types')
           .doc(flowerType.id)
           .set(data, SetOptions(merge: true));
 
@@ -1290,7 +1271,7 @@ class FirebaseService {
     }
   }
 
-  /// Update a flower type in Firebase
+  /// Update a flower type in Firebase (global collection)
   Future<void> updateFlowerType(String id, Map<String, dynamic> updates) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
@@ -1302,11 +1283,9 @@ class FirebaseService {
       }
 
       data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedBy'] = currentUserId;
 
-      await firestore
-          .collection('${_userPath}/flower_types')
-          .doc(id)
-          .update(data);
+      await firestore.collection('flower_types').doc(id).update(data);
 
       _logger.i('Flower type updated: $id');
     } catch (e, s) {
@@ -1315,12 +1294,12 @@ class FirebaseService {
     }
   }
 
-  /// Delete a flower type from Firebase
+  /// Delete a flower type from Firebase (global collection)
   Future<void> deleteFlowerType(String id) async {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      await firestore.collection('${_userPath}/flower_types').doc(id).delete();
+      await firestore.collection('flower_types').doc(id).delete();
 
       _logger.i('Flower type deleted: $id');
     } catch (e, s) {

@@ -32,12 +32,15 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
 
   void _handleError(String error) {
     print('🚨 ERROR BOUNDARY: Caught error: $error');
-    if (mounted) {
-      setState(() {
-        _hasError = true;
-        _errorMessage = error;
-      });
-    }
+    // Defer state update to avoid calling setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = error;
+        });
+      }
+    });
   }
 
   @override

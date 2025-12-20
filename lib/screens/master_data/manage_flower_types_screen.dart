@@ -242,9 +242,8 @@ class _ManageFlowerTypesScreenState extends State<ManageFlowerTypesScreen> {
       ),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      nameController.dispose();
-    });
+    // Dispose controller immediately after the dialog closes
+    nameController.dispose();
   }
 
   @override

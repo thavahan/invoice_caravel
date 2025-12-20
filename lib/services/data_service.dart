@@ -1584,7 +1584,13 @@ class DataService {
             'id': item.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
             'name': item.name ?? '',
             'approx_quantity': item.approxQuantity ?? 1,
-            'has_stems': item.hasStems ? 1 : 0, // Include has_stems field
+            'has_stems': item.hasStems ? 1 : 0,
+            'rate': item.rate ?? 0.0,
+            'category': item.category ?? '',
+            'genus_species_name': item.genusSpeciesName ?? '',
+            'plant_family_name': item.plantFamilyName ?? '',
+            'specials': item.specials,
+            'country_of_origin': item.countryOfOrigin ?? '',
             'created_at': item.createdAt.millisecondsSinceEpoch,
             'updated_at': item.updatedAt?.millisecondsSinceEpoch,
           };
@@ -1611,6 +1617,12 @@ class DataService {
         name: productTypeData['name'] ?? '',
         approxQuantity: productTypeData['approx_quantity'] as int? ?? 1,
         hasStems: (productTypeData['has_stems'] ?? 0) == 1,
+        rate: productTypeData['rate'] as double? ?? 0.0,
+        category: productTypeData['category'] ?? '',
+        genusSpeciesName: productTypeData['genus_species_name'] ?? '',
+        plantFamilyName: productTypeData['plant_family_name'] ?? '',
+        specials: productTypeData['specials'],
+        countryOfOrigin: productTypeData['country_of_origin'] ?? '',
         createdAt: productTypeData['createdAt'] != null
             ? DateTime.fromMillisecondsSinceEpoch(
                 productTypeData['createdAt'] as int)
@@ -1632,6 +1644,12 @@ class DataService {
           name: productTypeData['name'] ?? '',
           approxQuantity: productTypeData['approx_quantity'] as int? ?? 1,
           hasStems: (productTypeData['has_stems'] ?? 0) == 1,
+          rate: productTypeData['rate'] as double? ?? 0.0,
+          category: productTypeData['category'] ?? '',
+          genusSpeciesName: productTypeData['genus_species_name'] ?? '',
+          plantFamilyName: productTypeData['plant_family_name'] ?? '',
+          specials: productTypeData['specials'],
+          countryOfOrigin: productTypeData['country_of_origin'] ?? '',
           createdAt: productTypeData['createdAt'] != null
               ? DateTime.fromMillisecondsSinceEpoch(
                   productTypeData['createdAt'] as int)

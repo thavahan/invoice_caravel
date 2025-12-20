@@ -545,6 +545,7 @@ class InvoiceFormState extends State<InvoiceForm>
                         item.approxQuantity ?? 1, // Use database field name
                     'has_stems':
                         item.hasStems ?? false, // Include has_stems field
+                    'rate': item.rate ?? 0.0, // Include rate from master data
                   };
                 }
               })
@@ -658,6 +659,7 @@ class InvoiceFormState extends State<InvoiceForm>
                         productType.approxQuantity, // Use database field name
                     'has_stems':
                         productType.hasStems, // Include has_stems field
+                    'rate': productType.rate, // Include rate from local DB
                   })
               .toList();
 
@@ -741,178 +743,210 @@ class InvoiceFormState extends State<InvoiceForm>
               '${invoiceProvider.selectedItem!.form} - ${invoiceProvider.selectedItem!.weightKg}kg    |    Qty: ${invoiceProvider.selectedItem!.quantity}';
         }
 
-        return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: SafeArea(
-            child: Column(
-              children: [
-                // Modern Header with Progress
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.surface,
-                        Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withOpacity(0.3),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+        return WillPopScope(
+          onWillPop: () async {
+            if (isFormModified) {
+              final shouldPop = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Discard Changes?'),
+                  content: Text(
+                      'Are you sure you want to cancel ${widget.draftData != null ? 'editing' : 'creating'} this shipment? All changes will be lost.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: Text('Cancel'),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).shadowColor.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: Text('Discard'),
+                    ),
+                  ],
+                ),
+              );
+              return shouldPop ?? false;
+            }
+            return true;
+          },
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  // Modern Header with Progress
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.surface,
+                          Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withOpacity(0.3),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      // Header Row
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.arrow_back,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface),
-                                onPressed: () => Navigator.pop(context, true),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    widget.draftData != null
-                                        ? 'Update Shipment'
-                                        : 'New Shipment',
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Step ${currentStep + 1} of 3',
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.save_outlined,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface),
-                                onPressed: _saveDraft,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Fill Test Data button - Only for thavahan@gmail.com
-                            if (Provider.of<AuthProvider>(context,
-                                        listen: false)
-                                    .user
-                                    ?.email ==
-                                'thavahan@gmail.com')
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).shadowColor.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Header Row
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
                               Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withOpacity(0.5),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: IconButton(
-                                  icon: Icon(Icons.flash_auto,
-                                      color: Colors.blue),
-                                  tooltip: 'Fill Test Data',
-                                  onPressed: () {
-                                    debugPrint(
-                                        '🔵 BUTTON_PRESSED: Fill Test Data button clicked');
-                                    _fillTestData();
+                                  icon: Icon(Icons.arrow_back,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
+                                  onPressed: () async {
+                                    final shouldPop =
+                                        await _confirmDiscardChanges();
+                                    if (shouldPop)
+                                      Navigator.of(context).pop(true);
                                   },
                                 ),
                               ),
-                            if (Provider.of<AuthProvider>(context,
-                                        listen: false)
-                                    .user
-                                    ?.email ==
-                                'thavahan@gmail.com')
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.draftData != null
+                                          ? 'Update Shipment'
+                                          : 'New Shipment',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Step ${currentStep + 1} of 3',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.save_outlined,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
+                                  onPressed: _saveDraft,
+                                ),
+                              ),
                               const SizedBox(width: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
+                              // Fill Test Data button - Only for thavahan@gmail.com
+                              if (Provider.of<AuthProvider>(context,
+                                          listen: false)
+                                      .user
+                                      ?.email ==
+                                  'thavahan@gmail.com')
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(Icons.flash_auto,
+                                        color: Colors.blue),
+                                    tooltip: 'Fill Test Data',
+                                    onPressed: () {
+                                      debugPrint(
+                                          '🔵 BUTTON_PRESSED: Fill Test Data button clicked');
+                                      _fillTestData();
+                                    },
+                                  ),
+                                ),
+                              if (Provider.of<AuthProvider>(context,
+                                          listen: false)
+                                      .user
+                                      ?.email ==
+                                  'thavahan@gmail.com')
+                                const SizedBox(width: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  icon:
+                                      Icon(Icons.clear_all, color: Colors.red),
+                                  tooltip: 'Clear Form',
+                                  onPressed: _clearForm,
+                                ),
                               ),
-                              child: IconButton(
-                                icon: Icon(Icons.clear_all, color: Colors.red),
-                                tooltip: 'Clear Form',
-                                onPressed: _clearForm,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      // Progress Indicator
-                      _buildProgressIndicator(),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-
-                // Content Area with PageView wrapped in a Form so validators run
-                Expanded(
-                  child: Form(
-                    key: _formKey,
-                    child: PageView(
-                      controller: _pageController,
-                      onPageChanged: (index) {
-                        setState(() {
-                          currentStep = index;
-                        });
-                      },
-                      children: [
-                        _buildBasicInfoStep(invoiceProvider),
-                        _buildFlightDetailsStep(invoiceProvider),
-                        _buildItemsStep(invoiceProvider),
+                        // Progress Indicator
+                        _buildProgressIndicator(),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
-                ),
-              ],
+
+                  // Content Area with PageView wrapped in a Form so validators run
+                  Expanded(
+                    child: Form(
+                      key: _formKey,
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: (index) {
+                          setState(() {
+                            currentStep = index;
+                          });
+                        },
+                        children: [
+                          _buildBasicInfoStep(invoiceProvider),
+                          _buildFlightDetailsStep(invoiceProvider),
+                          _buildItemsStep(invoiceProvider),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            // Navigation Footer - Move to bottomNavigationBar to prevent overflow
+            bottomNavigationBar: !isAddingNewProduct
+                ? _buildNavigationFooter(invoiceProvider)
+                : null,
           ),
-          // Navigation Footer - Move to bottomNavigationBar to prevent overflow
-          bottomNavigationBar: !isAddingNewProduct
-              ? _buildNavigationFooter(invoiceProvider)
-              : null,
         );
       },
     );
@@ -1623,6 +1657,7 @@ class InvoiceFormState extends State<InvoiceForm>
     bool isRequired = false,
     Function(String)? onChanged,
     TextCapitalization textCapitalization = TextCapitalization.words,
+    bool readOnly = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1633,6 +1668,7 @@ class InvoiceFormState extends State<InvoiceForm>
         validator: validator,
         onChanged: onChanged,
         textCapitalization: textCapitalization,
+        readOnly: readOnly,
         decoration: InputDecoration(
           labelText: isRequired ? '$label *' : label,
           hintText: hint,
@@ -1651,7 +1687,9 @@ class InvoiceFormState extends State<InvoiceForm>
                 BorderSide(color: Theme.of(context).primaryColor, width: 2),
           ),
           filled: true,
-          fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+          fillColor: readOnly
+              ? Theme.of(context).disabledColor.withOpacity(0.1)
+              : Theme.of(context).inputDecorationTheme.fillColor,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
@@ -1974,6 +2012,32 @@ class InvoiceFormState extends State<InvoiceForm>
         ),
       );
     });
+  }
+
+  /// Confirm with user before discarding unsaved changes
+  Future<bool> _confirmDiscardChanges() async {
+    if (!isFormModified) return true;
+
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard Changes?'),
+        content: Text(
+            'Are you sure you want to ${widget.draftData != null ? 'cancel editing' : 'cancel creating'} this shipment? All unsaved changes will be lost.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Continue Editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    return shouldDiscard ?? false;
   }
 
   /// Fill form with test data for quick testing
@@ -2560,7 +2624,8 @@ class InvoiceFormState extends State<InvoiceForm>
       // Populate form with existing product data
       _productTypeController.text = product.type;
       _itemWeightController.text = product.weight.toString();
-      _itemRateController.text = product.rate.toString();
+      _itemRateController.text =
+          product.rate != null ? product.rate.toStringAsFixed(2) : '';
       selectedFlowerType = product.flowerType.isNotEmpty &&
               masterFlowerTypes
                   .any((ft) => ft['flower_name'] == product.flowerType)
@@ -2644,7 +2709,7 @@ class InvoiceFormState extends State<InvoiceForm>
 
     // Get hasStems from selected product type
     bool productHasStems = false;
-    if (selectedProductTypeId != null && selectedProductTypeId != 'custom') {
+    if (selectedProductTypeId != null) {
       try {
         final Map<String, dynamic> productType = masterProductTypes
             .firstWhere((pt) => pt['id'] == selectedProductTypeId);
@@ -2671,7 +2736,7 @@ class InvoiceFormState extends State<InvoiceForm>
         boxId: shipmentBoxes[selectedBoxIndex!].id,
         type: _productTypeController.text,
         description: '', // No longer used
-        flowerType: selectedFlowerType ?? 'LOOSE FLOWERS',
+        flowerType: selectedFlowerType ?? '',
         hasStems: productHasStems,
         weight: weight,
         rate: rate,
@@ -2771,7 +2836,13 @@ class InvoiceFormState extends State<InvoiceForm>
               onChanged: (productTypeId) {
                 setState(() {
                   selectedProductTypeId = productTypeId;
-                  if (productTypeId != null && productTypeId != 'custom') {
+                  if (productTypeId == null) {
+                    // Clear dependent fields when no product type is selected
+                    _productTypeController.clear();
+                    baseApproxQuantity = null;
+                    _approxQuantityController.text = '0';
+                    _itemRateController.clear();
+                  } else {
                     try {
                       final Map<String, dynamic> productType =
                           masterProductTypes
@@ -2784,13 +2855,18 @@ class InvoiceFormState extends State<InvoiceForm>
                         // Set the approx quantity field to the base value
                         _approxQuantityController.text =
                             baseApproxQuantity.toString();
+                        // Auto-populate and format the rate from master product type
+                        final dynamic rateVal = productType['rate'];
+                        final double? rateDouble = rateVal != null
+                            ? double.tryParse(rateVal.toString())
+                            : null;
+                        _itemRateController.text = rateDouble != null
+                            ? rateDouble.toStringAsFixed(2)
+                            : '';
                       }
                     } catch (e) {
                       debugPrint('Error selecting product type: $e');
                     }
-                  } else {
-                    // Reset base quantity when custom is selected
-                    baseApproxQuantity = null;
                   }
                 });
               },
@@ -2806,8 +2882,8 @@ class InvoiceFormState extends State<InvoiceForm>
                 value: selectedFlowerType,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: 'Flower Type',
-                  hintText: 'Select flower type',
+                  labelText: 'Flower Type (Optional)',
+                  hintText: 'Select flower type (optional)',
                   prefixIcon: Icon(Icons.local_florist,
                       color: Theme.of(context).primaryColor),
                   border: OutlineInputBorder(
@@ -2833,7 +2909,7 @@ class InvoiceFormState extends State<InvoiceForm>
                 items: [
                   const DropdownMenuItem<String>(
                     value: null,
-                    child: Text('Select Flower Type'),
+                    child: Text('select flower Type (optional)'),
                   ),
                   ...masterFlowerTypes
                       .map((flowerType) => DropdownMenuItem<String>(
@@ -2902,6 +2978,7 @@ class InvoiceFormState extends State<InvoiceForm>
                       return null;
                     },
                     isRequired: true,
+                    readOnly: selectedProductTypeId != null,
                   ),
                 ),
               ],
@@ -3042,22 +3119,22 @@ class InvoiceFormState extends State<InvoiceForm>
                         isExpanded ? Icons.expand_less : Icons.expand_more,
                         color: Theme.of(context).primaryColor,
                       ),
+                      // Explicit Add Product button moved out from the three-dot menu
+                      IconButton(
+                        icon: Icon(Icons.add,
+                            color: Theme.of(context).primaryColor),
+                        tooltip: 'Add Product',
+                        onPressed: () => _startAddingProductToBox(index),
+                      ),
                       PopupMenuButton<String>(
                         onSelected: (value) {
                           switch (value) {
                             case 'delete':
                               _deleteBox(index);
                               break;
-                            case 'add_product':
-                              _startAddingProductToBox(index);
-                              break;
                           }
                         },
                         itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'add_product',
-                            child: Text('Add Product'),
-                          ),
                           const PopupMenuItem(
                             value: 'delete',
                             child: Text('Delete Box'),
