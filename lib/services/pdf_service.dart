@@ -937,21 +937,21 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    if (totalPages > 1)
-                      pw.Container(
-                        padding:
-                            pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.white.shade(0.2),
-                          borderRadius: pw.BorderRadius.circular(3),
-                        ),
-                        child: pw.Text(
-                            'Items ${startIndex + 1}-$endIndex of ${items.length}',
-                            style: pw.TextStyle(
-                                font: _boldFont!,
-                                fontSize: 8,
-                                color: PdfColors.white)),
-                      ),
+                    // if (totalPages > 1)
+                    //   pw.Container(
+                    //     padding:
+                    //         pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    //     decoration: pw.BoxDecoration(
+                    //       color: PdfColors.white.shade(0.2),
+                    //       borderRadius: pw.BorderRadius.circular(3),
+                    //     ),
+                    //     child: pw.Text(
+                    //         'Items ${startIndex + 1}-$endIndex of ${items.length}',
+                    //         style: pw.TextStyle(
+                    //             font: _boldFont!,
+                    //             fontSize: 8,
+                    //             color: PdfColors.white)),
+                    //   ),
                     pw.Row(
                       mainAxisSize: pw.MainAxisSize.min,
                       children: [

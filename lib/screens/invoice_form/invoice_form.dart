@@ -3269,7 +3269,7 @@ class InvoiceFormState extends State<InvoiceForm>
                   Expanded(
                     child: _buildSummaryItem(
                       'Total Weight',
-                      '${shipmentBoxes.fold(0.0, (sum, box) => sum + box.products.fold(0.0, (productSum, product) => productSum + product.weight))}kg',
+                      '${(shipmentBoxes.fold(0.0, (sum, box) => sum + box.products.fold(0.0, (productSum, product) => productSum + product.weight))).toStringAsFixed(2)}kg',
                       Icons.scale,
                     ),
                   ),
