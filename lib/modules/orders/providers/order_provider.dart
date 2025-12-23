@@ -348,6 +348,13 @@ class OrderProvider with ChangeNotifier {
     super.dispose();
   }
 
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
   /// Refresh orders
   Future<void> refreshOrders() async {
     await loadOrders();

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import '../services/pdf_service.dart';
+import '../services/data_service.dart';
 import '../models/product.dart';
 import '../models/shipment.dart';
 
@@ -24,6 +25,14 @@ class PastOrders extends StatefulWidget {
 class _PastOrdersState extends State<PastOrders> {
   final db = FirebaseFirestore.instance;
   final DateTime date = DateTime.now();
+  final DataService _dataService = DataService();
+
+  @override
+  void dispose() {
+    // DataService doesn't require explicit disposal
+    // It manages its own lifecycle and database connections
+    super.dispose();
+  }
 
   void setErrorBuilder() {
     ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
@@ -61,7 +70,12 @@ class _PastOrdersState extends State<PastOrders> {
   void initState() {
     setErrorBuilder();
     myF = getData();
+    _initializeDataService();
     super.initState();
+  }
+
+  Future<void> _initializeDataService() async {
+    await _dataService.initialize();
   }
 
   String decodeText(String x) {
@@ -91,6 +105,7 @@ class _PastOrdersState extends State<PastOrders> {
                               signURL: widget.signURL,
                               paths: paths,
                               i: i,
+                              dataService: _dataService,
                             )
                           ],
                         ]),
@@ -101,10 +116,15 @@ class _PastOrdersState extends State<PastOrders> {
 }
 
 class Orders extends StatefulWidget {
-  Orders({required this.signURL, required this.paths, required this.i});
+  Orders(
+      {required this.signURL,
+      required this.paths,
+      required this.i,
+      required this.dataService});
   final List<String> paths;
   final int i;
   final signURL;
+  final DataService dataService;
   @override
   State<Orders> createState() => _OrdersState();
 }
@@ -115,6 +135,19 @@ class _OrdersState extends State<Orders> {
   var datas;
   List<Map<String, String>> invoiceP = [];
   double? _storedGrossWeight;
+
+  @override
+  void dispose() {
+    // Clear any pending operations safely
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Clear data references
+        invoiceP.clear();
+        datas = null;
+      }
+    });
+    super.dispose();
+  }
 
   void setErrorBuilder() {
     ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
@@ -252,7 +285,11 @@ class _OrdersState extends State<Orders> {
 
       // Generate PDF
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(shipment, items);
+
+      // Get master product types for Table 3
+      final masterProductTypes =
+          await widget.dataService.getMasterProductTypes();
+      await pdfService.generateShipmentPDF(shipment, items, masterProductTypes);
     } catch (e) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(

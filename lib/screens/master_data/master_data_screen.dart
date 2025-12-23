@@ -391,7 +391,11 @@ class _MasterDataScreenState extends State<MasterDataScreen> {
       MaterialPageRoute(builder: (context) => screen),
     );
 
-    // Always refresh counts when returning from a management screen
-    _loadCounts();
+    // Always refresh counts when returning from a management screen, but only if still mounted
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadCounts();
+      });
+    }
   }
 }

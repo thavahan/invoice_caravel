@@ -12,6 +12,7 @@ class AuthProvider with ChangeNotifier {
   FirebaseAuth? _auth;
   final Logger _logger = Logger();
   InvoiceProvider? _invoiceProvider; // Reference for login-time sync
+  bool _isDisposed = false;
 
   User? _user;
   bool _isLoading =
@@ -27,6 +28,21 @@ class AuthProvider with ChangeNotifier {
   String _syncStatus = '';
   bool _showSyncProgress = false;
   bool _syncJustCompleted = false;
+
+  /// Override notifyListeners to prevent notifications after disposal
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  /// Dispose method to mark the provider as disposed
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   /// Current authenticated user
   User? get user => _user;

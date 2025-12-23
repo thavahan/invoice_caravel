@@ -2014,7 +2014,8 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(Icons.category,
-                color: Theme.of(context).colorScheme.primary, size: 16),
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2696,7 +2697,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
       // Generate PDF using PdfService
       print('📄 Calling PDF Service...');
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(shipment, items);
+
+      // Get master product types for Table 3
+      print('📄 Fetching master product types...');
+      final masterProductTypes = await _dataService.getMasterProductTypes();
+      print('📄 Found ${masterProductTypes.length} master product types');
+
+      await pdfService.generateShipmentPDF(shipment, items, masterProductTypes);
       print('✅ PDF Generation Completed');
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -2971,7 +2978,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       // Generate PDF for printing
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(shipment, items);
+
+      // Get master product types for Table 3
+      final masterProductTypes = await _dataService.getMasterProductTypes();
+      await pdfService.generateShipmentPDF(shipment, items, masterProductTypes);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3248,7 +3258,10 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       // Generate and share PDF
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(shipment, items);
+
+      // Get master product types for Table 3
+      final masterProductTypes = await _dataService.getMasterProductTypes();
+      await pdfService.generateShipmentPDF(shipment, items, masterProductTypes);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(

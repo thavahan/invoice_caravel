@@ -29,7 +29,10 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
+    // Dispose controller safely after current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchController.dispose();
+    });
     super.dispose();
   }
 
@@ -535,10 +538,26 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
       ),
     );
 
-    // Dispose controllers after the modal animation completes
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        SchedulerBinding.instance.addPostFrameCallback((_) {
+    // Dispose controllers safely after the widget tree updates
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Add extra delay to ensure all widget dependencies are cleared
+      await Future.delayed(Duration(milliseconds: 100));
+      
+      // Check if the widget is still mounted and context is still valid
+      if (!mounted) {
+        try {
+          // Avoid any context or ancestor lookups during disposal
+          // Clear any listeners before disposal
+          nameController.clearComposing();
+          approxQuantityController.clearComposing();
+          rateController.clearComposing();
+          categoryController.clearComposing();
+          genusSpeciesNameController.clearComposing();
+          plantFamilyNameController.clearComposing();
+          countryOfOriginController.clearComposing();
+          specialsController.clearComposing();
+          
+          // Dispose safely without any context access
           nameController.dispose();
           approxQuantityController.dispose();
           rateController.dispose();
@@ -547,8 +566,11 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
           plantFamilyNameController.dispose();
           countryOfOriginController.dispose();
           specialsController.dispose();
-        });
-      });
+        } catch (e) {
+          // Ignore any disposal errors completely
+          // Do not use context or any ancestor widgets here
+        }
+      }
     });
   }
 

@@ -17,8 +17,19 @@ class InvoiceForm extends StatefulWidget {
 
   // Static method to refresh master data in all open invoice forms
   static void refreshMasterData() {
-    // This will be implemented to notify all open forms to refresh
-    _refreshCallbacks.forEach((callback) => callback());
+    // Schedule refresh after current frame to avoid lifecycle issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        for (final callback in List<VoidCallback>.from(_refreshCallbacks)) {
+          try {
+            callback();
+          } catch (e, stackTrace) {
+            debugPrint(
+                '⚠️ INVOICE_FORM: Error in refresh callback: $e\n$stackTrace');
+          }
+        }
+      });
+    });
   }
 
   @override
@@ -70,6 +81,10 @@ class InvoiceFormState extends State<InvoiceForm>
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
+  // Rotation animation for add product buttons (per box)
+  Map<int, AnimationController> _rotationControllers = {};
+  Map<int, Animation<double>> _rotationAnimations = {};
 
   // Local database service and draft management
   final LocalDatabaseService _localDbService = LocalDatabaseService();
@@ -190,8 +205,12 @@ class InvoiceFormState extends State<InvoiceForm>
     );
     _animationController.forward();
 
-    // Register this form for refresh callbacks
-    _refreshCallbacks.add(_refreshMasterData);
+    // Rotation animations will be created per box when needed
+
+    // Register this form for refresh callbacks (idempotent)
+    if (!_refreshCallbacks.contains(_refreshMasterData)) {
+      _refreshCallbacks.add(_refreshMasterData);
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Only load initial data if this is a NEW form (not editing existing data)
@@ -256,47 +275,68 @@ class InvoiceFormState extends State<InvoiceForm>
     _consigneeController.addListener(_updateSelectedIdsFromNames);
   }
 
+  // Get or create rotation animation for a specific box
+  Animation<double> _getRotationAnimation(int boxIndex) {
+    if (!_rotationControllers.containsKey(boxIndex)) {
+      _rotationControllers[boxIndex] = AnimationController(
+        duration: const Duration(milliseconds: 800), // Faster for 10 rotations
+        vsync: this,
+      );
+      _rotationAnimations[boxIndex] =
+          Tween<double>(begin: 0.0, end: 5.0).animate(
+        // 5 full rotations
+        CurvedAnimation(
+            parent: _rotationControllers[boxIndex]!, curve: Curves.easeInOut),
+      );
+    }
+    return _rotationAnimations[boxIndex]!;
+  }
+
   @override
   void dispose() {
-    // Dispose controllers to avoid memory leaks
+    // Dispose controllers to avoid memory leaks (delayed to prevent lifecycle issues)
     try {
       _itemsScrollController.dispose();
     } catch (_) {}
-    _bonus_controller.dispose();
-    _typeController.dispose();
-    _invoiceNumberController.dispose();
-    _invoiceTitleController.dispose();
-    _shipperController.dispose();
-    _consigneeController.dispose();
-    _awbController.dispose();
-    _masterAwbController.dispose();
-    _houseAwbController.dispose();
-    _flightNoController.dispose();
-    _flightDateController.dispose();
-    _dischargeAirportController.dispose();
-    _etaController.dispose();
-    _grossWeightController.dispose();
-    _originController.dispose();
-    _destinationController.dispose();
-    _shipperAddressController.dispose();
-    _consigneeAddressController.dispose();
-    _clientRefController.dispose();
-    _invoiceDateController.dispose();
-    _dateOfIssueController.dispose();
-    _placeOfReceiptController.dispose();
-    _sgstNoController.dispose();
-    _iecCodeController.dispose();
-    _boxNumberController.dispose();
-    _boxDescriptionController.dispose();
-    _boxLengthController.dispose();
-    _boxWidthController.dispose();
-    _boxHeightController.dispose();
-    _productTypeController.dispose();
-    _itemWeightController.dispose();
-    _flowerTypeController.dispose();
-    _approxQuantityController.dispose();
+    Future.microtask(() => _bonus_controller.dispose());
+    Future.microtask(() => _typeController.dispose());
+    Future.microtask(() => _invoiceNumberController.dispose());
+    Future.microtask(() => _invoiceTitleController.dispose());
+    Future.microtask(() => _shipperController.dispose());
+    Future.microtask(() => _consigneeController.dispose());
+    Future.microtask(() => _awbController.dispose());
+    Future.microtask(() => _masterAwbController.dispose());
+    Future.microtask(() => _houseAwbController.dispose());
+    Future.microtask(() => _flightNoController.dispose());
+    Future.microtask(() => _flightDateController.dispose());
+    Future.microtask(() => _dischargeAirportController.dispose());
+    Future.microtask(() => _etaController.dispose());
+    Future.microtask(() => _grossWeightController.dispose());
+    Future.microtask(() => _originController.dispose());
+    Future.microtask(() => _destinationController.dispose());
+    Future.microtask(() => _shipperAddressController.dispose());
+    Future.microtask(() => _consigneeAddressController.dispose());
+    Future.microtask(() => _clientRefController.dispose());
+    Future.microtask(() => _invoiceDateController.dispose());
+    Future.microtask(() => _dateOfIssueController.dispose());
+    Future.microtask(() => _placeOfReceiptController.dispose());
+    Future.microtask(() => _sgstNoController.dispose());
+    Future.microtask(() => _iecCodeController.dispose());
+    Future.microtask(() => _boxNumberController.dispose());
+    Future.microtask(() => _boxDescriptionController.dispose());
+    Future.microtask(() => _boxLengthController.dispose());
+    Future.microtask(() => _boxWidthController.dispose());
+    Future.microtask(() => _boxHeightController.dispose());
+    Future.microtask(() => _productTypeController.dispose());
+    Future.microtask(() => _itemWeightController.dispose());
+    Future.microtask(() => _flowerTypeController.dispose());
+    Future.microtask(() => _approxQuantityController.dispose());
     _pageController.dispose();
     _animationController.dispose();
+    // Dispose all rotation controllers
+    for (var controller in _rotationControllers.values) {
+      controller.dispose();
+    }
 
     // Remove this form from refresh callbacks
     _refreshCallbacks.remove(_refreshMasterData);
@@ -870,46 +910,8 @@ class InvoiceFormState extends State<InvoiceForm>
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              // Fill Test Data button - Only for thavahan@gmail.com
-                              if (Provider.of<AuthProvider>(context,
-                                          listen: false)
-                                      .user
-                                      ?.email ==
-                                  'thavahan@gmail.com')
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(Icons.flash_auto,
-                                        color: Colors.blue),
-                                    tooltip: 'Fill Test Data',
-                                    onPressed: () {
-                                      debugPrint(
-                                          '🔵 BUTTON_PRESSED: Fill Test Data button clicked');
-                                      _fillTestData();
-                                    },
-                                  ),
-                                ),
-                              if (Provider.of<AuthProvider>(context,
-                                          listen: false)
-                                      .user
-                                      ?.email ==
-                                  'thavahan@gmail.com')
-                                const SizedBox(width: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: IconButton(
-                                  icon:
-                                      Icon(Icons.clear_all, color: Colors.red),
-                                  tooltip: 'Clear Form',
-                                  onPressed: _clearForm,
-                                ),
-                              ),
+                              // Fill Test Data button removed
+                              // Clear form button removed
                             ],
                           ),
                         ),
@@ -1046,12 +1048,16 @@ class InvoiceFormState extends State<InvoiceForm>
             _buildEnhancedTextField(
               controller: _invoiceNumberController,
               label: 'Invoice Number',
-              hint: 'Auto-generated (KS format)',
+              hint: widget.draftData != null
+                  ? 'Cannot edit invoice number'
+                  : 'Auto-generated',
               icon: Icons.receipt,
               textCapitalization: TextCapitalization.characters,
               validator: (value) =>
                   value?.isEmpty == true ? 'Invoice number is required' : null,
               isRequired: true,
+              readOnly:
+                  widget.draftData != null, // Disable editing when updating
             ),
 
             _buildEnhancedTextField(
@@ -1416,9 +1422,6 @@ class InvoiceFormState extends State<InvoiceForm>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product Form Dialog
-          if (isAddingNewProduct) _buildProductFormDialog(),
-
           // Step Title Card
           Card(
             elevation: 4,
@@ -1503,11 +1506,19 @@ class InvoiceFormState extends State<InvoiceForm>
             ),
             const SizedBox(height: 12),
             ...(() {
-              return shipmentBoxes.asMap().entries.map((entry) {
-                int index = entry.key;
-                ShipmentBox box = entry.value;
-                return _buildBoxCard(box, index);
-              }).toList();
+              List<Widget> boxWidgets = [];
+              for (int index = 0; index < shipmentBoxes.length; index++) {
+                ShipmentBox box = shipmentBoxes[index];
+                boxWidgets.add(_buildBoxCard(box, index));
+
+                // Add product form dialog right after the selected box
+                if (isAddingNewProduct && selectedBoxIndex == index) {
+                  boxWidgets.add(const SizedBox(height: 16));
+                  boxWidgets.add(_buildProductFormDialog());
+                  boxWidgets.add(const SizedBox(height: 16));
+                }
+              }
+              return boxWidgets;
             })(),
           ] else ...[
             const SizedBox(height: 16),
@@ -1782,8 +1793,6 @@ class InvoiceFormState extends State<InvoiceForm>
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Autocomplete<String>(
-        key: ValueKey(
-            controller.text), // Force rebuild when controller text changes
         initialValue: TextEditingValue(text: controller.text),
         optionsBuilder: (TextEditingValue textEditingValue) {
           if (textEditingValue.text.isEmpty) {
@@ -1799,17 +1808,14 @@ class InvoiceFormState extends State<InvoiceForm>
             TextEditingController fieldController,
             FocusNode focusNode,
             VoidCallback onFieldSubmitted) {
-          // Sync changes from fieldController back to main controller
-          fieldController.addListener(() {
-            if (controller.text != fieldController.text) {
-              controller.text = fieldController.text;
-            }
-          });
           return TextFormField(
-            controller: fieldController,
+            controller: controller,
             focusNode: focusNode,
             validator: validator,
             textCapitalization: textCapitalization,
+            onChanged: (value) {
+              controller.text = value;
+            },
             decoration: InputDecoration(
               labelText: isRequired ? '$label *' : label,
               hintText: hint,
@@ -1941,79 +1947,6 @@ class InvoiceFormState extends State<InvoiceForm>
     }
   }
 
-  /// Clear all form data for testing
-  void _clearForm() {
-    setState(() {
-      // Reset dropdown selections
-      selectedShipperId = null;
-      selectedConsigneeId = null;
-
-      // Clear all text controllers
-      _bonus_controller.clear();
-      _typeController.clear();
-      _invoiceNumberController.clear();
-      _invoiceTitleController.clear();
-      _shipperController.clear();
-      _consigneeController.clear();
-      _awbController.clear();
-      _flightNoController.clear();
-      _dischargeAirportController.clear();
-      _etaController.clear();
-      _grossWeightController.clear();
-      _originController.clear();
-      _destinationController.clear();
-      _shipperAddressController.clear();
-      _consigneeAddressController.clear();
-      _clientRefController.clear();
-      _invoiceDateController.clear();
-      _dateOfIssueController.clear();
-      _placeOfReceiptController.clear();
-      _sgstNoController.clear();
-      _iecCodeController.clear();
-
-      // Clear box and product form controllers
-      _boxNumberController.clear();
-      _boxDescriptionController.clear();
-      _boxLengthController.clear();
-      _boxWidthController.clear();
-      _boxHeightController.clear();
-
-      // Clear boxes and products
-      shipmentBoxes.clear();
-
-      // Reset form state
-      isFormModified = false;
-      currentDraftId = null;
-      originalInvoiceNumber = null;
-
-      // Reset to first step
-      currentStep = 0;
-      _pageController.jumpToPage(0);
-
-      // Reset card expansion states
-      isBasicInfoExpanded = true;
-      isFlightDetailsExpanded = false;
-      isItemsExpanded = false;
-
-      // Reset editing states
-      selectedBoxIndex = null;
-      editingProductIndex = null;
-      isAddingNewBox = false;
-      isAddingNewProduct = false;
-
-      // Reset step validation
-      stepValidation = {0: false, 1: false, 2: false};
-
-      // Show confirmation
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Form cleared successfully!'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    });
-  }
-
   /// Confirm with user before discarding unsaved changes
   Future<bool> _confirmDiscardChanges() async {
     if (!isFormModified) return true;
@@ -2038,155 +1971,6 @@ class InvoiceFormState extends State<InvoiceForm>
     );
 
     return shouldDiscard ?? false;
-  }
-
-  /// Fill form with test data for quick testing
-  void _fillTestData() {
-    debugPrint('🔵 BUTTON_PRESSED: Fill Test Data button clicked');
-    debugPrint('🔵 FILL_TEST_DATA: Method called - starting to populate form');
-
-    setState(() {
-      // Reset dropdown selections to allow custom text input
-      selectedShipperId = null;
-      selectedConsigneeId = null;
-
-      // Basic Information
-      _invoiceNumberController.text =
-          'INV-TEST-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-      _invoiceTitleController.text = 'Test Shipment - Roses & Lilies';
-      _typeController.text = 'Flower Export';
-      _bonus_controller.text = '5%';
-
-      // Shipper & Consignee Information
-      _shipperController.text = 'ABC Flower Farms Ltd.';
-      _consigneeController.text = 'XYZ Import Company';
-      _shipperAddressController.text =
-          '123 Flower Valley, Bloom City, FL 12345';
-      _consigneeAddressController.text =
-          '456 Import Street, Trade City, NY 67890';
-
-      // Flight & Logistics Details
-      _awbController.text =
-          'AWB${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
-      _masterAwbController.text =
-          'MAWB-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-      _houseAwbController.text =
-          'HAWB-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-      _flightNoController.text =
-          'FL${(1000 + DateTime.now().second).toString()}';
-      _originController.text = 'Mumbai (BOM)';
-      _destinationController.text = 'New York (JFK)';
-      _dischargeAirportController.text = 'New York (JFK)';
-
-      // Dates
-      final now = DateTime.now();
-      final eta = now.add(const Duration(days: 3));
-      final flightDate = now.add(const Duration(days: 1));
-      _etaController.text =
-          '${eta.year}-${eta.month.toString().padLeft(2, '0')}-${eta.day.toString().padLeft(2, '0')}';
-      _flightDateController.text =
-          '${flightDate.year}-${flightDate.month.toString().padLeft(2, '0')}-${flightDate.day.toString().padLeft(2, '0')}';
-      _invoiceDateController.text =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      _dateOfIssueController.text =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
-      // Additional Details
-      _clientRefController.text =
-          'REF-TEST-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-      _placeOfReceiptController.text = 'Mumbai Warehouse';
-      _sgstNoController.text = 'GST123456789';
-      _iecCodeController.text = 'IEC987654321';
-
-      // Pricing
-      _grossWeightController.text = '1500.5'; // kg
-
-      // Clear existing boxes and add test boxes
-      shipmentBoxes.clear();
-
-      // Add sample boxes with products
-      final box1 = ShipmentBox(
-        id: 'box-test-1',
-        shipmentId: 'test-shipment-id',
-        boxNumber: '1',
-        length: 100.0,
-        width: 80.0,
-        height: 60.0,
-        products: [
-          ShipmentProduct(
-            id: 'prod-test-1-1',
-            boxId: 'box-test-1',
-            type: 'Roses',
-            description: 'Red Roses - Premium Quality',
-            flowerType: 'ROSES',
-            hasStems: true,
-            weight: 25.5,
-            rate: 15.00,
-            approxQuantity: 100,
-          ),
-          ShipmentProduct(
-            id: 'prod-test-1-2',
-            boxId: 'box-test-1',
-            type: 'Lilies',
-            description: 'White Lilies - Fresh Cut',
-            flowerType: 'LILIES',
-            hasStems: true,
-            weight: 20.0,
-            rate: 12.50,
-            approxQuantity: 80,
-          ),
-        ],
-      );
-
-      final box2 = ShipmentBox(
-        id: 'box-test-2',
-        shipmentId: 'test-shipment-id',
-        boxNumber: '2',
-        length: 90.0,
-        width: 70.0,
-        height: 50.0,
-        products: [
-          ShipmentProduct(
-            id: 'prod-test-2-1',
-            boxId: 'box-test-2',
-            type: 'Tulips',
-            description: 'Mixed Color Tulips',
-            flowerType: 'TULIPS',
-            hasStems: true,
-            weight: 18.5,
-            rate: 10.00,
-            approxQuantity: 120,
-          ),
-        ],
-      );
-
-      shipmentBoxes.addAll([box1, box2]);
-
-      // Reset form state
-      isFormModified = true;
-      currentStep = 0;
-      _pageController.jumpToPage(0);
-
-      // Expand relevant cards for visibility
-      isBasicInfoExpanded = true;
-      isFlightDetailsExpanded = true;
-      isItemsExpanded = true;
-    });
-
-    // Trigger animation to show changes
-    _animationController.forward(from: 0.0);
-
-    debugPrint('🔵 FILL_TEST_DATA: Form populated with complete test data');
-    debugPrint(
-        '🔵 FILL_TEST_DATA: Added ${shipmentBoxes.length} test boxes with products');
-
-    // Show confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Form filled with test data!'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   /// Prepares draft data from current form state
@@ -3121,10 +2905,24 @@ class InvoiceFormState extends State<InvoiceForm>
                       ),
                       // Explicit Add Product button moved out from the three-dot menu
                       IconButton(
-                        icon: Icon(Icons.add,
-                            color: Theme.of(context).primaryColor),
+                        icon: AnimatedBuilder(
+                          animation: _getRotationAnimation(index),
+                          builder: (context, child) {
+                            return Transform.rotate(
+                              angle: _getRotationAnimation(index).value *
+                                  2 *
+                                  3.14159, // Convert to radians
+                              child: Icon(Icons.add,
+                                  color: Theme.of(context).primaryColor),
+                            );
+                          },
+                        ),
                         tooltip: 'Add Product',
-                        onPressed: () => _startAddingProductToBox(index),
+                        onPressed: () {
+                          // Trigger rotation animation for this specific box
+                          _rotationControllers[index]?.forward(from: 0.0);
+                          _startAddingProductToBox(index);
+                        },
                       ),
                       PopupMenuButton<String>(
                         onSelected: (value) {
@@ -3272,20 +3070,6 @@ class InvoiceFormState extends State<InvoiceForm>
       // Reset base approx quantity when starting new product
       baseApproxQuantity = null;
       selectedProductTypeId = null;
-    });
-
-    // After the frame rebuilds with the product form at the top,
-    // scroll the Items step to the top so the dialog is visible.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        if (_itemsScrollController.hasClients) {
-          _itemsScrollController.animateTo(
-            0.0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
-        }
-      } catch (_) {}
     });
   }
 

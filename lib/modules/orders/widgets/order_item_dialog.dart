@@ -49,10 +49,13 @@ class _OrderItemDialogState extends State<OrderItemDialog> {
 
   @override
   void dispose() {
-    _feetValueController.dispose();
-    _qtyController.dispose();
-    _rateController.dispose();
-    _amountController.dispose();
+    // Dispose controllers safely after current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _feetValueController.dispose();
+      _qtyController.dispose();
+      _rateController.dispose();
+      _amountController.dispose();
+    });
     super.dispose();
   }
 

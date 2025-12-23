@@ -587,6 +587,12 @@ class FirebaseService {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
+      // Validate shipmentId to prevent double slashes in collection path
+      if (shipmentId.isEmpty) {
+        _logger.w('Empty shipmentId provided to deleteAllBoxesForShipment');
+        return;
+      }
+
       _logger.i('Deleting all boxes for shipment $shipmentId from Firebase');
       print(
           '🗑️ DEBUG: FirebaseService.deleteAllBoxesForShipment - shipmentId: $shipmentId');
@@ -688,6 +694,12 @@ class FirebaseService {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
+      // Validate shipmentId to prevent double slashes in collection path
+      if (shipmentId.isEmpty) {
+        _logger.w('Empty shipmentId provided to saveBox');
+        throw Exception('Invalid shipmentId: cannot be empty');
+      }
+
       final boxId =
           boxData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -724,6 +736,12 @@ class FirebaseService {
   Future<List<ShipmentBox>> getBoxesForShipment(String shipmentId) async {
     try {
       if (currentUserId == null) return [];
+
+      // Validate shipmentId to prevent double slashes in collection path
+      if (shipmentId.isEmpty) {
+        _logger.w('Empty shipmentId provided to getBoxesForShipment');
+        return [];
+      }
 
       final snapshot = await firestore
           .collection('${_userPath}/shipments/$shipmentId/boxes')
@@ -811,6 +829,12 @@ class FirebaseService {
       String shipmentId, String boxId) async {
     try {
       if (currentUserId == null) return [];
+
+      // Validate parameters to prevent double slashes in collection path
+      if (shipmentId.isEmpty || boxId.isEmpty) {
+        _logger.w('Empty shipmentId or boxId provided to getProductsForBox');
+        return [];
+      }
 
       final snapshot = await firestore
           .collection(

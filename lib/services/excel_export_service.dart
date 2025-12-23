@@ -182,19 +182,20 @@ class ExcelExportService {
           excel.TextCellValue(detailedInvoiceData['placeOfReceipt'] ?? '');
       sheet.cell(excel.CellIndex.indexByString('D$row')).value =
           excel.TextCellValue(detailedInvoiceData['shipperAddress'] ?? '');
-      
+
       // Add Caravel logo using Excel package's image support
       try {
         // Load the logo image from assets
-        final ByteData logoData = await rootBundle.load('asset/images/Caravel_logo.png');
+        final ByteData logoData =
+            await rootBundle.load('asset/images/Caravel_logo.png');
         final List<int> logoBytes = logoData.buffer.asUint8List();
-        
+
         // Try to insert image using the workbook's image functionality
         // Note: This may work with newer versions of the Excel package
         try {
           // Attempt to use image insertion if available
           final cellIndex = excel.CellIndex.indexByString('E$row');
-          
+
           // Create image in Excel (if supported by package version)
           // Some versions support: workbook.insertImage or sheet.insertImageByBytes
           if (logoBytes.isNotEmpty) {
@@ -217,7 +218,6 @@ class ExcelExportService {
             fontSize: 12,
           );
         }
-        
       } catch (e) {
         // If logo loading fails completely
         var logoCell = sheet.cell(excel.CellIndex.indexByString('E$row'));

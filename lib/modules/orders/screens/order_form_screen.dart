@@ -44,10 +44,13 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
 
   @override
   void dispose() {
-    _customerNameController.dispose();
-    _deliveryBatchController.dispose();
-    _locationController.dispose();
-    _notesController.dispose();
+    // Dispose controllers safely after current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _customerNameController.dispose();
+      _deliveryBatchController.dispose();
+      _locationController.dispose();
+      _notesController.dispose();
+    });
     super.dispose();
   }
 

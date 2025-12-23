@@ -26,14 +26,17 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
+    // Dispose controller safely after current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchController.dispose();
+    });
     super.dispose();
   }
 
   Future<void> _loadShippers() async {
     if (!mounted) return;
 
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
     print('🔄 MASTER_DATA_UI: Loading shippers...');
 
     try {
@@ -568,15 +571,40 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
       ),
     );
 
-    // Dispose controllers immediately after the dialog closes
-    nameController.dispose();
-    phoneController.dispose();
-    addr1Controller.dispose();
-    addr2Controller.dispose();
-    cityController.dispose();
-    stateController.dispose();
-    pincodeController.dispose();
-    landmarkController.dispose();
+    // Dispose controllers safely after the widget tree updates
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Add extra delay to ensure all widget dependencies are cleared
+      await Future.delayed(Duration(milliseconds: 100));
+
+      // Check if the widget is still mounted and context is still valid
+      if (!mounted) {
+        try {
+          // Avoid any context or ancestor lookups during disposal
+          // Clear any listeners before disposal
+          nameController.clearComposing();
+          phoneController.clearComposing();
+          addr1Controller.clearComposing();
+          addr2Controller.clearComposing();
+          cityController.clearComposing();
+          stateController.clearComposing();
+          pincodeController.clearComposing();
+          landmarkController.clearComposing();
+
+          // Dispose safely without any context access
+          nameController.dispose();
+          phoneController.dispose();
+          addr1Controller.dispose();
+          addr2Controller.dispose();
+          cityController.dispose();
+          stateController.dispose();
+          pincodeController.dispose();
+          landmarkController.dispose();
+        } catch (e) {
+          // Ignore any disposal errors completely
+          // Do not use context or any ancestor widgets here
+        }
+      }
+    });
   }
 
   Future<void> _deleteShipper(MasterShipper shipper) async {

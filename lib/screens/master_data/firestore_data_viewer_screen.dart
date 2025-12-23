@@ -69,6 +69,12 @@ class _FirestoreDataViewerScreenState extends State<FirestoreDataViewerScreen>
 
       // Load boxes and products for each shipment
       for (final shipment in _shipments) {
+        // Skip shipments with empty invoiceNumber to prevent Firebase path errors
+        if (shipment.invoiceNumber.isEmpty) {
+          print('⚠️  Skipping shipment with empty invoiceNumber');
+          continue;
+        }
+
         try {
           final boxes = await _firebaseService
               .getBoxesForShipment(shipment.invoiceNumber);

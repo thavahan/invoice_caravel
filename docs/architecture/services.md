@@ -135,8 +135,8 @@ class ExcelFileService {
 - Multi-currency support
 - Export optimization
 
-### PDFService - Multi-Page Document Generation
-**Purpose**: Generate professional PDF invoices with intelligent pagination
+### PDFService - Enhanced Multi-Page Document Generation
+**Purpose**: Generate professional PDF invoices with intelligent pagination (Updated Dec 23, 2025)
 
 ```dart
 class PdfService {
@@ -145,59 +145,54 @@ class PdfService {
   static pw.Font? _boldFont;
   static pw.MemoryImage? _logoImage;
   
+  // Enhanced layout constants (Updated Dec 23, 2025)
+  static const double _itemRowHeight = 12.0;     // Optimized row height
+  static const double _summaryHeight = 150.0;    // Fixed summary section
+  static const int MAX_ITEMS_FIRST_PAGE = 30;    // Items on page 1 with summary
+  static const int MAX_ITEMS_CONTINUATION_PAGE = 40; // Items per continuation page
+  
   /// Generate PDF with automatic pagination
   Future<Uint8List> generateInvoice(Shipment shipment) async {
     await _loadResources();
     
     final pdf = pw.Document();
-    final pages = _calculateOptimalPages(shipment);
+    final paginationPlan = _calculateOptimalPagination(items, masterProductTypes);
+    final totalPages = paginationPlan['totalPages'] as int;
     
-    for (int page = 0; page < pages; page++) {
-      pdf.addPage(_createPage(shipment, page, pages));
+    for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      final layout = pageLayouts[pageIndex];
+      pdf.addPage(_buildDynamicPage(shipment, items, masterProductTypes, 
+                                   layout, pageIndex + 1, totalPages));
     }
     
     return await pdf.save();
   }
   
-  /// Intelligent page calculation
-  int _calculateOptimalPages(Shipment shipment) {
-    final totalItems = shipment.boxes.fold<int>(
-      0, (sum, box) => sum + box.products.length
-    );
+  /// Enhanced pagination calculation (Dec 23, 2025)
+  Map<String, dynamic> _calculateOptimalPagination(List<dynamic> items) {
+    // Calculate available space per page - A4 is ~842 points tall
+    final double availablePerPage = PdfPageFormat.a4.height - 
+        (_pageMargin * 2) - _headerHeight - _footerHeight; // ~652px
     
-    // Professional layout considerations
-    const itemsPerPage = 15; // Optimized for readability
-    const headerSpace = 120.0; // Header + shipper/consignee
-    const footerSpace = 100.0; // Totals + signature
-    const availableSpace = 595.0 - headerSpace - footerSpace; // A4 height
+    // Page 1: Summary + up to 30 items
+    final double firstPageSpace = availablePerPage - _summaryHeight - 
+                                 _sectionSpacing - _tableHeaderHeight;
+    int itemsOnFirstPage = math.min(
+        (firstPageSpace / _itemRowHeight).floor(), 30);
     
-    return (totalItems / itemsPerPage).ceil();
-  }
-  
-  /// Page generation with professional layout
-  pw.Page _createPage(Shipment shipment, int pageIndex, int totalPages) {
-    return pw.Page(
-      margin: pw.EdgeInsets.all(20),
-      build: (context) => pw.Column(
-        children: [
-          _buildHeader(shipment),
-          _buildShipperConsigneeInfo(shipment),
-          _buildItemTable(shipment, pageIndex),
-          if (pageIndex == totalPages - 1) _buildTotals(shipment),
-          _buildFooter(pageIndex + 1, totalPages),
-        ],
-      ),
-    );
+    // Continuation pages: up to 40 items each
+    // Dynamic layout generation for Table 1, Table 2, Table 3
+    return _buildPageLayouts(items.length, itemsOnFirstPage);
   }
 }
 ```
 
-**Features**:
-- Automatic multi-page layout
-- Professional formatting
-- Performance optimization
-- Resource caching
-- Intelligent pagination
+**Enhanced Features (Dec 23, 2025)**:
+- **Increased capacity**: 30 items first page, 40 continuation pages
+- **Cleaner design**: Removed continuation indicators  
+- **Fixed calculations**: Corrected space constants for accuracy
+- **Better debugging**: Enhanced console output for troubleshooting
+- **Improved documentation**: Comprehensive inline comments
 
 ### FirebaseService - Cloud Integration
 **Purpose**: Manage all Firebase Firestore operations

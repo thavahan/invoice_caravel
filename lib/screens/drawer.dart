@@ -26,7 +26,7 @@ class _AppDrawerState extends State<AppDrawer> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset(
-                  'asset/images/icons.png',
+                  'asset/images/brand_logo.png',
                   height: 50,
                 ),
                 Text(

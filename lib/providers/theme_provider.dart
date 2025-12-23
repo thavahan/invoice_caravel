@@ -3,11 +3,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider extends ChangeNotifier {
   bool _isDarkMode = false;
+  bool _isDisposed = false;
   static const String _themeKey = 'theme_preference';
 
   bool get isDarkMode => _isDarkMode;
 
   ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
+  /// Override notifyListeners to prevent notifications after disposal
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  /// Dispose method to mark the provider as disposed
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   /// Initialize theme from saved preferences
   Future<void> initTheme() async {
@@ -217,7 +233,8 @@ class ThemeProvider extends ChangeNotifier {
         scrim: Colors.black.withOpacity(0.32),
         shadow: Colors.black,
         surfaceTint: Colors.transparent,
-      ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1E1E1E)),
+      ),
+      dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1E1E1E)),
     );
   }
 }

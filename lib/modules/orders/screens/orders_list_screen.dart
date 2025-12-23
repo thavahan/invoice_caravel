@@ -27,7 +27,10 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
+    // Dispose controller safely after current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchController.dispose();
+    });
     super.dispose();
   }
 

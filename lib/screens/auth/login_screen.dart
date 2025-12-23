@@ -149,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen>
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: colorScheme.surface,
+                              color: Colors.white,
                             ),
                             child: Image.asset(
                               'asset/images/Caravel_logo.png',

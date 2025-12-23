@@ -17,7 +17,7 @@ A comprehensive mobile application for generating professional invoices with adv
 - **🔄 Offline-First Architecture** - Full functionality without internet
 - **☁️ Real-time Sync** - Firebase integration with automatic synchronization
 - **📱 Modern UI/UX** - Clean, intuitive interface with immediate response
-- **🎯 Multi-page PDF Support** - Intelligent pagination for large invoices
+- **🎯 Enhanced PDF Generation** - Intelligent pagination (30 items first page, 40 continuation) - Updated Dec 2025
 - **📈 Master Data Management** - Comprehensive shipper, consignee, and product management
 - **🔍 Advanced Search & Filtering** - Quick invoice lookup and organization
 - **⚡ Performance Optimized** - Sub-100ms response times for common operations

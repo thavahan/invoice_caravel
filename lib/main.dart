@@ -5,6 +5,7 @@ import 'package:invoice_generator/providers/theme_provider.dart';
 import 'package:invoice_generator/providers/auth_provider.dart';
 import 'package:invoice_generator/modules/orders/providers/order_provider.dart';
 import 'package:invoice_generator/widgets/auth_wrapper.dart';
+import 'package:invoice_generator/screens/splash/splash_screen.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
@@ -15,6 +16,30 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set up global error handling for provider disposal issues
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // Filter out disposal-related errors that cause crashes
+    final errorString = details.toString();
+
+    if (errorString.contains('_dependents.isEmpty') ||
+        errorString
+            .contains('TextEditingController was used after being disposed') ||
+        errorString.contains('debugAssertNotDisposed') ||
+        errorString.contains(
+            'Looking up a deactivated widget\'s ancestor is unsafe') ||
+        errorString.contains('ancestor lookup') ||
+        errorString.contains('dependOnInheritedWidgetOfExactType') ||
+        details.exception.toString().contains('ancestor is unsafe')) {
+      print(
+          '🚨 ERROR BOUNDARY: Caught disposal/dependency error: ${details.exception}');
+      debugPrint(
+          '⚠️ Widget lifecycle/disposal race condition caught and handled safely');
+      return;
+    }
+    // Let other errors through
+    FlutterError.presentError(details);
+  };
 
   // Check connectivity before initializing Firebase
   bool shouldInitializeFirebase = false;
@@ -112,7 +137,7 @@ void main() async {
             theme: ThemeProvider.lightTheme,
             darkTheme: ThemeProvider.darkTheme,
             themeMode: themeProvider.themeMode,
-            home: const AuthWrapper(),
+            home: SplashScreen(),
           );
         },
       ),

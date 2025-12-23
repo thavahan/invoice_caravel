@@ -16,6 +16,7 @@ import 'package:logger/logger.dart';
 class InvoiceProvider with ChangeNotifier {
   late final DataService _dataService;
   final _logger = Logger();
+  bool _isDisposed = false;
 
   /// Creates an instance of [InvoiceProvider].
   ///
@@ -587,7 +588,10 @@ class InvoiceProvider with ChangeNotifier {
     if (invoice != null) {
       try {
         final pdfService = PdfService();
-        await pdfService.generateShipmentPDF(invoice.shipment, invoice.items);
+        // Get master product types for Table 3
+        final masterProductTypes = await _dataService.getMasterProductTypes();
+        await pdfService.generateShipmentPDF(
+            invoice.shipment, invoice.items, masterProductTypes);
         _logger.i('Invoice ${invoice.invoiceNumber} previewed successfully.');
       } catch (e, s) {
         _logger.e('Failed to preview invoice', e, s);
@@ -691,7 +695,10 @@ class InvoiceProvider with ChangeNotifier {
       );
 
       final pdfService = PdfService();
-      await pdfService.generateShipmentPDF(invoice.shipment, invoice.items);
+      // Get master product types for Table 3
+      final masterProductTypes = await _dataService.getMasterProductTypes();
+      await pdfService.generateShipmentPDF(
+          invoice.shipment, invoice.items, masterProductTypes);
       _logger.i(
           'Invoice ${invoice.invoiceNumber} previewed successfully with ${boxes.length} boxes.');
     } catch (e, s) {
@@ -707,7 +714,10 @@ class InvoiceProvider with ChangeNotifier {
     if (invoice != null) {
       try {
         final pdfService = PdfService();
-        await pdfService.generateShipmentPDF(invoice.shipment, invoice.items);
+        // Get master product types for Table 3
+        final masterProductTypes = await _dataService.getMasterProductTypes();
+        await pdfService.generateShipmentPDF(
+            invoice.shipment, invoice.items, masterProductTypes);
         _logger.i('Invoice ${invoice.invoiceNumber} shared successfully.');
       } catch (e, s) {
         _logger.e('Failed to share invoice', e, s);
@@ -1165,4 +1175,19 @@ class InvoiceProvider with ChangeNotifier {
 
   /// The total amount of the invoice (including tax).
   double get total => subtotal + tax;
+
+  /// Override notifyListeners to prevent notifications after disposal
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
+  /// Dispose method to mark the provider as disposed
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 }
