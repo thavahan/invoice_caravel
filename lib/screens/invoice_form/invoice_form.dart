@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:invoice_generator/models/shipment.dart';
 import 'package:invoice_generator/models/shipment_box.dart';
 import 'package:invoice_generator/models/shipment_product.dart';
-import 'package:invoice_generator/providers/auth_provider.dart';
 import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
@@ -2355,25 +2354,6 @@ class InvoiceFormState extends State<InvoiceForm>
       _renumberBoxes();
     });
     _showTopSuccessMessage('Box removed from invoice');
-  }
-
-  void _deleteProduct(int boxIndex, int productIndex) {
-    final product = shipmentBoxes[boxIndex].products[productIndex];
-
-    setState(() {
-      final updatedProducts =
-          List<ShipmentProduct>.from(shipmentBoxes[boxIndex].products);
-      updatedProducts.removeAt(productIndex);
-      shipmentBoxes[boxIndex] =
-          shipmentBoxes[boxIndex].copyWith(products: updatedProducts);
-    });
-
-    // Force a rebuild of the UI
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {});
-    });
-
-    _showTopSuccessMessage('Product "${product.type}" removed from box');
   }
 
   void _editProduct(int boxIndex, int productIndex) {

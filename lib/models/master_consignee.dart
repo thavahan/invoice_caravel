@@ -1,5 +1,4 @@
 /// Master Consignee model for dropdown data
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MasterConsignee {
   final String id;

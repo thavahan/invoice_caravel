@@ -163,20 +163,6 @@ class DataService {
     }
   }
 
-  /// Check if local database is empty (new device scenario)
-  Future<bool> _isLocalDatabaseEmpty() async {
-    try {
-      final shipments = await _localService.getShipments(limit: 1);
-      final masterShippers = await _localService.getMasterShippers();
-
-      // Consider database empty if no shipments and no master data
-      return shipments.isEmpty && masterShippers.isEmpty;
-    } catch (e) {
-      _logger.w('Failed to check if local database is empty: $e');
-      return true; // Assume empty if we can't check
-    }
-  }
-
   /// Force sync master data from Firebase to local (updates existing records)
   Future<void> forceSyncMasterDataFromFirebase() async {
     try {
@@ -1208,7 +1194,7 @@ class DataService {
       // Don't throw error - local save succeeded, Firebase is just backup
     }
 
-    return result ?? DateTime.now().millisecondsSinceEpoch.toString();
+    return result;
   }
 
   /// Get all drafts - Local database first, then Firebase fallback
@@ -1372,7 +1358,7 @@ class DataService {
       // Don't throw error - local save succeeded, Firebase is just backup
     }
 
-    return result ?? DateTime.now().millisecondsSinceEpoch.toString();
+    return result;
   }
 
   /// Update a master shipper - Local database first, then Firebase
@@ -1438,9 +1424,9 @@ class DataService {
         } else {
           // Handle MasterConsignee objects from Firebase
           return {
-            'id': item.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-            'name': item.name ?? '',
-            'address': item.address ?? '',
+            'id': item.id,
+            'name': item.name,
+            'address': item.address,
             'created_at': item.createdAt.millisecondsSinceEpoch,
             'updated_at': item.updatedAt?.millisecondsSinceEpoch,
           };
@@ -1513,7 +1499,7 @@ class DataService {
       // Don't throw error - local save succeeded, Firebase is just backup
     }
 
-    return result ?? DateTime.now().millisecondsSinceEpoch.toString();
+    return result;
   }
 
   /// Update a master consignee - Local database first, then Firebase
@@ -1581,16 +1567,16 @@ class DataService {
         } else {
           // Handle MasterProductType objects from Firebase
           return {
-            'id': item.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-            'name': item.name ?? '',
-            'approx_quantity': item.approxQuantity ?? 1,
+            'id': item.id,
+            'name': item.name,
+            'approx_quantity': item.approxQuantity,
             'has_stems': item.hasStems ? 1 : 0,
-            'rate': item.rate ?? 0.0,
-            'category': item.category ?? '',
-            'genus_species_name': item.genusSpeciesName ?? '',
-            'plant_family_name': item.plantFamilyName ?? '',
+            'rate': item.rate,
+            'category': item.category,
+            'genus_species_name': item.genusSpeciesName,
+            'plant_family_name': item.plantFamilyName,
             'specials': item.specials,
-            'country_of_origin': item.countryOfOrigin ?? '',
+            'country_of_origin': item.countryOfOrigin,
             'created_at': item.createdAt.millisecondsSinceEpoch,
             'updated_at': item.updatedAt?.millisecondsSinceEpoch,
           };
@@ -2338,7 +2324,6 @@ class DataService {
 
   /// Delete a box
   Future<void> deleteBox(String boxId) async {
-    final service = await _getActiveService();
     print('🗑️ DEBUG: deleteBox called for boxId: $boxId');
 
     // First, get the box details to find shipmentId before deleting
@@ -2477,7 +2462,6 @@ class DataService {
 
   /// Delete a product
   Future<void> deleteProduct(String productId) async {
-    final service = await _getActiveService();
     print('🗑️ DEBUG: deleteProduct called for productId: $productId');
 
     // First, get the product details to find shipmentId and boxId before deleting

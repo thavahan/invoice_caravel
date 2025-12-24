@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:logger/logger.dart';
 import 'package:invoice_generator/services/database_service.dart';
-import 'package:invoice_generator/services/data_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:invoice_generator/providers/invoice_provider.dart';
 
@@ -19,7 +18,6 @@ class AuthProvider with ChangeNotifier {
       true; // Start as loading until Firebase status is determined
   String? _error;
   bool _isFirebaseAvailable = false;
-  String? _previousUserId; // Track previous user ID for login/logout detection
   bool _hasLoggedOut = false; // Track if user has logged out
 
   // Sync progress tracking
@@ -392,78 +390,9 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Update sync progress and notify listeners
-  void _updateSyncProgress(double progress, String status, bool show) {
-    _syncProgress = progress;
-    _syncStatus = status;
-    _showSyncProgress = show;
-    _isSyncing = show && progress < 100.0;
-
-    // Mark sync as completed when progress reaches 100%
-    if (progress >= 100.0 && show) {
-      _syncJustCompleted = true;
-    }
-
-    notifyListeners();
-  }
-
   /// Reset sync completion flag (call this from UI after handling the completion)
   void clearSyncCompletedFlag() {
     _syncJustCompleted = false;
     notifyListeners();
-  }
-
-  /// Perform sync with detailed progress tracking
-  Future<void> _performSyncWithProgress(String userEmail) async {
-    try {
-      _updateSyncProgress(0.0, 'Initializing sync...', true);
-
-      // Initialize the DataService
-      final dataService = DataService();
-
-      _updateSyncProgress(10.0, 'Connecting to Firebase...', true);
-
-      // Initialize Firebase user collections first
-      await dataService.initializeUserCollections();
-
-      _updateSyncProgress(20.0, 'Starting data synchronization...', true);
-
-      // Perform the actual sync with progress callbacks
-      await dataService.syncFromFirebaseToLocal(
-        onProgress: (status) {
-          // Update progress based on sync status
-          if (status.contains('master data')) {
-            _updateSyncProgress(40.0, status, true);
-          } else if (status.contains('shipments')) {
-            _updateSyncProgress(70.0, status, true);
-          } else if (status.contains('drafts')) {
-            _updateSyncProgress(85.0, status, true);
-          } else if (status.contains('completed')) {
-            _updateSyncProgress(100.0, status, true);
-          } else if (status.contains('failed')) {
-            _updateSyncProgress(0.0, status, true);
-          } else {
-            _updateSyncProgress(60.0, status, true);
-          }
-        },
-      );
-
-      _updateSyncProgress(100.0, 'Sync completed successfully!', true);
-
-      // Hide progress after 2 seconds
-      Future.delayed(Duration(seconds: 2), () {
-        _updateSyncProgress(0.0, '', false);
-      });
-
-      _logger.i('✅ AUTO-SYNC: Sync completed successfully for: $userEmail');
-    } catch (e) {
-      _logger.w('❌ AUTO-SYNC: Sync failed for $userEmail: $e');
-      _updateSyncProgress(0.0, 'Sync failed: ${e.toString()}', true);
-
-      // Hide error after 3 seconds
-      Future.delayed(Duration(seconds: 3), () {
-        _updateSyncProgress(0.0, '', false);
-      });
-    }
   }
 }

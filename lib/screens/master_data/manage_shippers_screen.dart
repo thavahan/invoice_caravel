@@ -607,67 +607,6 @@ class _ManageShippersScreenState extends State<ManageShippersScreen> {
     });
   }
 
-  Future<void> _deleteShipper(MasterShipper shipper) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Shipper'),
-        content: Text('Are you sure you want to delete "${shipper.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _dataService.deleteMasterShipper(shipper.id);
-        print('🗑️ MASTER_DATA_UI: Shipper deleted: ${shipper.name}');
-
-        // Force immediate refresh
-        await _loadShippers();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('"${shipper.name}" deleted successfully'),
-              backgroundColor: Colors.green,
-              action: SnackBarAction(
-                label: 'REFRESH',
-                textColor: Colors.white,
-                onPressed: _loadShippers,
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting shipper: $e'),
-              backgroundColor: Colors.red,
-              action: SnackBarAction(
-                label: 'RETRY',
-                textColor: Colors.white,
-                onPressed: () => _deleteShipper(shipper),
-              ),
-            ),
-          );
-        }
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

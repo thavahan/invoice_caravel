@@ -332,11 +332,6 @@ class InvoiceProvider with ChangeNotifier {
       _logger.i(
           'Boxes to update: ${boxesToUpdate.length}, to add: ${boxesToAdd.length}, to delete: ${boxesToDelete.length}');
 
-      // Execute the plan
-      int totalBoxesUpdated = 0;
-      int totalBoxesAdded = 0;
-      int totalBoxesDeleted = 0;
-
       _logger.i(
           'Starting box operations - to delete: ${boxesToDelete.length}, to add: ${boxesToAdd.length}, to update: ${boxesToUpdate.length}');
 
@@ -359,7 +354,6 @@ class InvoiceProvider with ChangeNotifier {
         // Update products for this box
         await _updateProductsForBox(shipment.invoiceNumber, boxId,
             newBoxData['products'] as List? ?? [], newBoxData);
-        totalBoxesUpdated++;
       }
 
       // 2. Add new boxes
@@ -368,7 +362,6 @@ class InvoiceProvider with ChangeNotifier {
             await _dataService.saveBox(shipment.invoiceNumber, newBoxData);
         await _dataService.saveProductsForBox(boxId,
             newBoxData['products'] as List? ?? [], shipment.invoiceNumber);
-        totalBoxesAdded++;
       }
 
       // 3. Delete removed boxes
@@ -376,7 +369,6 @@ class InvoiceProvider with ChangeNotifier {
         _logger.i('🗑️ Deleting box: $boxId');
         print('🗑️ DEBUG: Deleting box $boxId from database');
         await _dataService.deleteBox(boxId);
-        totalBoxesDeleted++;
         print('🗑️ DEBUG: Box $boxId deleted successfully');
       }
 

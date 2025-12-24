@@ -1,5 +1,4 @@
 /// Master Shipper model for dropdown data
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MasterShipper {
   final String id;

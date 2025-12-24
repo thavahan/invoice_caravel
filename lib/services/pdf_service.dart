@@ -46,8 +46,6 @@ class PdfService {
       150.0; // Summary section height (corrected from 120px)
   static const double _tableHeaderHeight = 25.0;
   static const double _sectionSpacing = 8.0;
-  static const double _grossTotalHeight =
-      30.0; // Height for gross total in words section
 
   // Multi-page configuration - Updated Dec 23, 2025
   // Current item limits: First page=30, Continuation pages=40
@@ -320,9 +318,6 @@ class PdfService {
   /// Build advanced page header
   pw.Widget _buildAdvancedHeader(Shipment shipment, int pageNumber,
       int totalPages, String pageType, pw.ImageProvider logoImage) {
-    String pageTitle = _getPageTitle(pageType);
-    bool isContinuation = pageNumber > 1;
-
     // Debug: Check shipment data
     print('📄 Building header for page $pageNumber');
     print('📄 Invoice Number: "${shipment.invoiceNumber}"');
@@ -443,24 +438,6 @@ class PdfService {
         ],
       ),
     );
-  }
-
-  /// Get appropriate page title based on page type
-  String _getPageTitle(String pageType) {
-    switch (pageType) {
-      case 'summary_and_table1_start':
-        return 'Invoice Summary & Itemized Manifest';
-      case 'table1_continuation':
-        return 'Itemized Manifest (Continued)';
-      case 'table1_final_and_table2':
-        return 'Itemized Manifest (Final) & Product Summary';
-      case 'table2_only':
-        return 'Product Type Summary';
-      case 'table3_only':
-        return 'Product Summary by Product Type';
-      default:
-        return 'Invoice Document';
-    }
   }
 
   /// Build dynamic page content based on layout

@@ -608,67 +608,6 @@ class _ManageConsigneesScreenState extends State<ManageConsigneesScreen> {
     });
   }
 
-  Future<void> _deleteConsignee(MasterConsignee consignee) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Consignee'),
-        content: Text('Are you sure you want to delete "${consignee.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _dataService.deleteMasterConsignee(consignee.id);
-        print('🗑️ MASTER_DATA_UI: Consignee deleted: ${consignee.name}');
-
-        // Force immediate refresh
-        await _loadConsignees();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('"${consignee.name}" deleted successfully'),
-              backgroundColor: Colors.green,
-              action: SnackBarAction(
-                label: 'REFRESH',
-                textColor: Colors.white,
-                onPressed: _loadConsignees,
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting consignee: $e'),
-              backgroundColor: Colors.red,
-              action: SnackBarAction(
-                label: 'RETRY',
-                textColor: Colors.white,
-                onPressed: () => _deleteConsignee(consignee),
-              ),
-            ),
-          );
-        }
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

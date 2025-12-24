@@ -9,8 +9,6 @@ import 'package:invoice_generator/widgets/branded_loading_indicator.dart';
 import 'package:invoice_generator/services/excel_file_service.dart';
 import 'package:invoice_generator/models/shipment.dart';
 import 'package:provider/provider.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 class InvoiceListScreen extends StatefulWidget {
   const InvoiceListScreen({Key? key}) : super(key: key);
@@ -527,52 +525,6 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
     );
   }
 
-  void _handleBottomNavTap(int index) {
-    switch (index) {
-      case 0:
-        setState(() {
-          _showDrafts = false;
-        });
-        _loadInvoices();
-        break;
-      case 1:
-        setState(() {
-          _showDrafts = false;
-        });
-        _filterByStatus(['pending', 'in transit']);
-        break;
-      case 2:
-        setState(() {
-          _showDrafts = true;
-        });
-        _loadDrafts();
-        break;
-      case 3:
-        setState(() {
-          _showDrafts = false;
-        });
-        break;
-      case 4:
-        setState(() {
-          _showDrafts = false;
-        });
-        _searchController.clear();
-        setState(() {
-          isSearching = true;
-        });
-        break;
-    }
-  }
-
-  void _filterByStatus(List<String> statuses) {
-    setState(() {
-      filteredInvoices = invoices.where((invoice) {
-        final status = (invoice['status'] ?? '').toLowerCase();
-        return statuses.any((s) => status.contains(s.toLowerCase()));
-      }).toList();
-    });
-  }
-
   // ========== VIEW BUILDERS ==========
 
   /// Build drafts view
@@ -847,39 +799,11 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
     // Get screen size for responsive design
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
 
     // Calculate responsive scaling factors
     final isSmallScreen = screenWidth < 360;
     final isLargeScreen = screenWidth > 600;
     final scaleFactor = isSmallScreen ? 0.85 : (isLargeScreen ? 1.1 : 1.0);
-
-    // Format date
-    String dateStr = 'Unknown Date';
-    bool isCurrentWeek = false;
-    if (invoice['createdAt'] != null) {
-      final date =
-          DateTime.fromMillisecondsSinceEpoch(invoice['createdAt'] as int);
-      final now = DateTime.now();
-      final diff = now.difference(date);
-
-      // Check if date is in current week (Monday to Sunday)
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-      final endOfWeek = startOfWeek.add(const Duration(days: 6));
-      isCurrentWeek =
-          date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-              date.isBefore(endOfWeek.add(const Duration(days: 1)));
-
-      if (diff.inDays == 0) {
-        dateStr = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-      } else if (isCurrentWeek) {
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        dateStr = days[date.weekday % 7];
-      } else {
-        dateStr =
-            '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-      }
-    }
 
     return Container(
       margin: EdgeInsets.only(bottom: 8 * scaleFactor),
@@ -1909,10 +1833,6 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   Widget _buildBoxItem(Map<String, dynamic> box, int index) {
     final products = box['products'] as List<dynamic>? ?? [];
     final boxNumber = box['boxNumber'] ?? 'Box ${index + 1}';
-    final dimensions =
-        box['length'] != null && box['width'] != null && box['height'] != null
-            ? '${box['length']}×${box['width']}×${box['height']} cm'
-            : 'No dimensions';
 
     double boxTotal = 0.0;
     double boxWeight = 0.0;
@@ -3425,160 +3345,6 @@ Generated,${DateTime.now()}''';
               Expanded(child: Text('Excel export failed: ${e.toString()}')),
             ],
           ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  /// Show Excel preview dialog with export options
-  void _showExcelPreviewDialog(
-      Map<String, dynamic> invoice, String csvContent) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.table_chart, color: Colors.green),
-            SizedBox(width: 8),
-            Expanded(child: Text('Excel Export Preview')),
-          ],
-        ),
-        content: Container(
-          width: double.maxFinite,
-          height: 400,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Invoice: ${invoice['invoiceTitle'] ?? 'Untitled'}',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Export contains: Invoice details, shipment info, box/product data, and summary',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              SizedBox(height: 16),
-              Text('CSV Preview:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(4),
-                    color: Colors.grey[50],
-                  ),
-                  child: SingleChildScrollView(
-                    child: Text(
-                      csvContent.length > 1000
-                          ? csvContent.substring(0, 1000) +
-                              '\n... (content truncated for preview)'
-                          : csvContent,
-                      style: TextStyle(
-                        fontFamily: 'Courier New',
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _copyToClipboard(csvContent, 'Excel data');
-            },
-            icon: Icon(Icons.copy, size: 16),
-            label: Text('Copy'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _saveExcelFile(invoice, csvContent);
-            },
-            icon: Icon(Icons.download, size: 16),
-            label: Text('Save'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Save Excel file to device storage
-  Future<void> _saveExcelFile(
-      Map<String, dynamic> invoice, String csvContent) async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              ),
-              SizedBox(width: 16),
-              Text('Saving Excel file...'),
-            ],
-          ),
-          backgroundColor: Colors.blue,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName =
-          'invoice_${invoice['invoiceNumber'] ?? DateTime.now().millisecondsSinceEpoch}.csv';
-      final file = File('${directory.path}/$fileName');
-
-      await file.writeAsString(csvContent);
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Expanded(child: Text('Excel file saved: $fileName')),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Open',
-            textColor: Colors.white,
-            onPressed: () {
-              // Note: File opening would require platform-specific implementation
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('File location: ${file.path}'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save Excel file: ${e.toString()}'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),

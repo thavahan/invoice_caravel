@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:invoice_generator/services/data_service.dart';
 import 'package:invoice_generator/models/master_product_type.dart';
-import 'package:invoice_generator/screens/invoice_form/invoice_form.dart';
 
 /// Screen for managing master product types data
 class ManageProductTypesScreen extends StatefulWidget {
@@ -107,7 +105,7 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
     final formKey = GlobalKey<FormState>();
     bool hasStems = productType?.hasStems ?? false; // Default to No stems
 
-    final result = await showModalBottomSheet<bool>(
+    await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -205,7 +203,7 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
                           value: hasStems,
                           onChanged: (value) {
                             setState(() {
-                              hasStems = value ?? false;
+                              hasStems = value!;
                             });
                           },
                           secondary: const Icon(Icons.grass),
@@ -542,7 +540,7 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Add extra delay to ensure all widget dependencies are cleared
       await Future.delayed(Duration(milliseconds: 100));
-      
+
       // Check if the widget is still mounted and context is still valid
       if (!mounted) {
         try {
@@ -556,7 +554,7 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
           plantFamilyNameController.clearComposing();
           countryOfOriginController.clearComposing();
           specialsController.clearComposing();
-          
+
           // Dispose safely without any context access
           nameController.dispose();
           approxQuantityController.dispose();
@@ -572,66 +570,6 @@ class _ManageProductTypesScreenState extends State<ManageProductTypesScreen> {
         }
       }
     });
-  }
-
-  Future<void> _deleteProductType(MasterProductType productType) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Product Type'),
-        content: Text('Are you sure you want to delete "${productType.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _dataService.deleteMasterProductType(productType.id);
-
-        // Force immediate refresh
-        await _loadProductTypes();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('"${productType.name}" deleted successfully'),
-              backgroundColor: Colors.green,
-              action: SnackBarAction(
-                label: 'REFRESH',
-                textColor: Colors.white,
-                onPressed: _loadProductTypes,
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting product type: $e'),
-              backgroundColor: Colors.red,
-              action: SnackBarAction(
-                label: 'RETRY',
-                textColor: Colors.white,
-                onPressed: () => _deleteProductType(productType),
-              ),
-            ),
-          );
-        }
-      }
-    }
   }
 
   @override

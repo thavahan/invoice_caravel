@@ -4,7 +4,6 @@ import 'package:invoice_generator/providers/invoice_provider.dart';
 import 'package:invoice_generator/providers/theme_provider.dart';
 import 'package:invoice_generator/providers/auth_provider.dart';
 import 'package:invoice_generator/modules/orders/providers/order_provider.dart';
-import 'package:invoice_generator/widgets/auth_wrapper.dart';
 import 'package:invoice_generator/screens/splash/splash_screen.dart';
 import 'package:invoice_generator/services/local_database_service.dart';
 import 'package:provider/provider.dart';
